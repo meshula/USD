@@ -83,13 +83,19 @@ def PrintError(error):
         traceback.print_exc()
     print ("ERROR:", error)
 
+# cross platform defaults
+# macOS can target macOS and iOS platforms
+crossPlatform = None;
+
 # Helpers for determining platform
 def Windows():
     return platform.system() == "Windows"
 def Linux():
     return platform.system() == "Linux"
 def MacOS():
-    return platform.system() == "Darwin"
+    return (platform.system() == "Darwin") and crossPlatform is None
+def iOS():
+    return (platform.system() == "Darwin") and crossPlatform == "iOS"
 
 def Python3():
     return sys.version_info.major == 3
@@ -105,7 +111,27 @@ def GetCommandOutput(command):
             stderr=subprocess.STDOUT).decode(GetLocale(), 'replace').strip()
     except subprocess.CalledProcessError:
         pass
-    return None
+
+    # clean-up
+    for pipe in pipes:
+        pipe.wait()
+    
+    return result
+
+def GetMacArmArch():
+    return os.environ.get('MACOS_ARM_ARCHITECTURE') or "arm64"
+
+def GetMacArch():
+    macArch = GetCommandOutput('arch').strip()
+    if macArch == "i386" or macArch == "x86_64":
+        macArch = "x86_64"
+    else:
+        macArch = GetMacArmArch()
+    return macArch
+
+def SupportsMacOSUniversalBinaries():
+    MacOS_SDK = GetCommandOutput('/usr/bin/xcodebuild -version').split(' ')[1]
+    return MacOS() and MacOS_SDK >= "10.16"
 
 def GetXcodeDeveloperDirectory():
     """Returns the active developer directory as reported by 'xcode-select -p'.
@@ -403,6 +429,7 @@ def RunCMake(context, force, extraArgs = None):
     osx_rpath = None
     if MacOS():
         osx_rpath = "-DCMAKE_MACOSX_RPATH=ON"
+        extraArgs.append('-DCMAKE_OSX_ARCHITECTURES=arm64')
 
     # We use -DCMAKE_BUILD_TYPE for single-configuration generators 
     # (Ninja, make), and --config for multi-configuration generators 
@@ -863,15 +890,15 @@ elif MacOS():
     # On MacOS we experience various crashes in tests during teardown
     # starting with 2018 Update 2. Until we figure that out, we use
     # 2018 Update 1 on this platform.
-    TBB_URL = "https://github.com/oneapi-src/oneTBB/archive/2018_U1.tar.gz"
+    TBB_URL = "https://github.com/oneapi-src/oneTBB/archive/2019_U7.tar.gz"
 else:
     TBB_URL = "https://github.com/oneapi-src/oneTBB/archive/2018_U6.tar.gz"
 
 def InstallTBB(context, force, buildArgs):
     if Windows():
-        InstallTBB_Windows(context, force, buildArgs)
+        return InstallTBB_Windows(context, force, buildArgs)
     elif Linux() or MacOS():
-        InstallTBB_LinuxOrMacOS(context, force, buildArgs)
+        return InstallTBB_LinuxOrMacOS(context, force, buildArgs)
 
 def InstallTBB_Windows(context, force, buildArgs):
     TBB_ROOT_DIR_NAME = "tbb2018_20180822oss"
@@ -888,6 +915,7 @@ def InstallTBB_Windows(context, force, buildArgs):
         CopyFiles(context, "lib\\intel64\\vc14\\*.*", "lib")
         CopyDirectory(context, "include\\serial", "include\\serial")
         CopyDirectory(context, "include\\tbb", "include\\tbb")
+        return os.getcwd()
 
 def InstallTBB_LinuxOrMacOS(context, force, buildArgs):
     with CurrentWorkingDirectory(DownloadURL(TBB_URL, context, force)):
@@ -902,19 +930,115 @@ def InstallTBB_LinuxOrMacOS(context, force, buildArgs):
         AppendCXX11ABIArg("CXXFLAGS", context, buildArgs)
 
         # TBB does not support out-of-source builds in a custom location.
-        Run('make -j{procs} {buildArgs}'
-            .format(procs=context.numJobs, 
-                    buildArgs=" ".join(buildArgs)))
+        if iOS():
+            PatchFile("build/macos.clang.inc", 
+                [("ifeq ($(arch),$(filter $(arch),armv7 armv7s arm64))",
+                  "ifeq ($(arch),$(filter $(arch),armv7 armv7s arm64))\n"
+                  "    CPLUS_FLAGS += -mios-version-min=10.0 -fembed-bitcode\n")])
+
+            PatchFile("include/tbb/tbb_machine.h", 
+                            [("    inline void __TBB_Pause(int32_t) {",
+                              "#include <unistd.h>\n"
+                              "    inline void __TBB_Pause(int32_t) {"),
+                             ("        __TBB_Yield();",
+                              "        usleep(1);")])
+            buildArgs.append('compiler=clang target=ios arch=arm64 extra_inc=big_iron.inc ')
+
+
+        if iOS():
+            PatchFile("include/tbb/machine/macos_common.h", 
+                [("#define __TBB_Yield()  sched_yield()",
+                  "#define __TBB_Yield()  __TBB_Pause(1)")])
+        elif MacOS():
+            PatchFile("include/tbb/machine/macos_common.h", 
+                [("#define __TBB_Yield()  sched_yield()",
+                  "#if defined(__aarch64__)\n"
+                  "#define __TBB_Yield()  sched_yield()\n"
+                  "#else\n"
+                  "#define __TBB_Yield()  __TBB_Pause(1)\n"
+                  "#endif\n")])
+        if MacOS() or iOS():
+            PatchFile("src/tbb/custom_scheduler.h", 
+                [("const int yield_threshold = 100;",
+                  "const int yield_threshold = 10;")])
+            PatchFile("build/ios.macos.inc", 
+                [("export SDKROOT:=$(shell xcodebuild -sdk -version | grep -o -E '/.*SDKs/iPhoneOS.*' 2>/dev/null)",
+                  "export SDKROOT:=$(shell xcodebuild -sdk -version | grep -o -E '/.*SDKs/iPhoneOS.*' 2>/dev/null | head -1)")])
+            if MacOS():
+                PatchFile("build/macos.clang.inc", 
+                    [("LIBDL = -ldl",
+                      "LIBDL = -ldl\n"
+                      "export SDKROOT:=$(shell xcodebuild -sdk -version | grep -o -E '/.*SDKs/MacOSX.*' 2>/dev/null | head -1)"),
+                     ("-m64",
+                      "-m64 -arch x86_64"),
+                     ("ifeq ($(arch),$(filter $(arch),armv7 armv7s arm64))",
+                      "ifeq ($(arch),$(filter $(arch),armv7 armv7s arm64 arm64e))")],
+                    True)
+
+        archPrimary = GetMacArch()
+        archSecondary = ""
+        if iOS():
+             archPrimary = "arm64"
+        elif (archPrimary == "x86_64"):
+            archPrimary = "intel64"
+            archSecondary = GetMacArmArch()
+        else:
+            archPrimary = GetMacArmArch()
+            archSecondary = "intel64"
+
+        makeTBBCmdPrimary = 'make -j{procs} arch={arch} {buildArgs}'.format(
+            arch=archPrimary,
+            procs=context.numJobs, 
+            buildArgs=" ".join(buildArgs))
+        Run(makeTBBCmdPrimary)
+        
+        if context.buildUniversal and SupportsMacOSUniversalBinaries():
+            makeTBBCmdSecondary = "make -j{procs} arch={arch} {buildArgs}".format(
+                arch=archSecondary,
+                procs=context.numJobs,
+                buildArgs=" ".join(buildArgs))
+
+            Run(makeTBBCmdSecondary)
 
         # Install both release and debug builds. USD requires the debug
         # libraries when building in debug mode, and installing both
         # makes it easier for users to install dependencies in some
         # location that can be shared by both release and debug USD
         # builds. Plus, the TBB build system builds both versions anyway.
-        CopyFiles(context, "build/*_release/libtbb*.*", "lib")
-        CopyFiles(context, "build/*_debug/libtbb*.*", "lib")
+        if context.buildUniversal and SupportsMacOSUniversalBinaries():
+            x86Files = glob.glob(os.getcwd() + "/build/*intel64*_release/libtbb*.*")
+            armFiles = glob.glob(os.getcwd() + "/build/*{0}*_release/libtbb*.*".format(GetMacArmArch()))
+            libNames = [os.path.basename(x) for x in x86Files]
+            x86Dir = os.path.dirname(x86Files[0])
+            armDir = os.path.dirname(armFiles[0])
+
+            lipoCommandsRelease = CreateUniversalBinaries(context, libNames, x86Dir, armDir)
+
+            x86Files = glob.glob(os.getcwd() + "/build/*intel64*_debug/libtbb*.*")
+            armFiles = glob.glob(os.getcwd() + "/build/*{0}*_debug/libtbb*.*".format(GetMacArmArch()))
+            libNames = [os.path.basename(x) for x in x86Files]
+            x86Dir = os.path.dirname(x86Files[0])
+            armDir = os.path.dirname(armFiles[0])
+
+            lipoCommandsDebug = CreateUniversalBinaries(context, libNames, x86Dir, armDir)
+        else:
+            CopyFiles(context, "build/*_release/libtbb*.*", "lib")
+            CopyFiles(context, "build/*_debug/libtbb*.*", "lib")
+
+        # Output paths that are of interest
+        with open(os.path.join(context.usdInstDir, 'tbbBuild.txt'), 'wt') as file:
+            file.write('ARCHIVE:' + TBB_URL.split("/")[-1] + '\n')
+            file.write('BUILDFOLDER:' + os.path.split(os.getcwd())[1] + '\n')
+            file.write('MAKEPRIMARY:' + makeTBBCmdPrimary + '\n')
+
+            if context.buildUniversal and SupportsMacOSUniversalBinaries():
+                file.write('MAKESECONDARY:' + makeTBBCmdSecondary + '\n')
+                file.write('LIPO_RELEASE:' + ','.join(lipoCommandsRelease) + '\n')
+                file.write('LIPO_DEBUG:' + ','.join(lipoCommandsDebug) + '\n')
+
         CopyDirectory(context, "include/serial", "include/serial")
         CopyDirectory(context, "include/tbb", "include/tbb")
+        return os.getcwd()
 
 TBB = Dependency("TBB", InstallTBB, "include/tbb/tbb.h")
 
@@ -1934,6 +2058,7 @@ class InstallContext:
         self.buildMonolithic = (args.build_type == MONOLITHIC_LIB)
 
         # Build options
+        self.buildUniversal = False
         self.useCXX11ABI = \
             (args.use_cxx11_abi if hasattr(args, "use_cxx11_abi") else None)
         self.safetyFirst = args.safety_first
