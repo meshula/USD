@@ -131,7 +131,8 @@ public:
             const UsdStagePtr& stage,
             const UsdGeomCamera& usdCamera,
             const UsdTimeCode timeCode,
-            const std::string& outputImagePath);
+            const std::string& outputImagePath, 
+            const std::string& outputAOV);
 
 private:
     UsdImagingGLEngine _imagingEngine;
