@@ -130,8 +130,8 @@ public:
     bool Record(
             const UsdStagePtr& stage,
             const UsdGeomCamera& usdCamera,
-            const UsdTimeCode timeCode,
-            const std::string& outputImagePath, 
+            const std::vector<UsdTimeCode>& timeCode,
+            const std::vector<std::string>& outputImagePath, 
             const std::string& outputAOV);
 
 private:
