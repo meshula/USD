@@ -102,11 +102,11 @@ class TestUsdAppUtilsFrameRecorder(unittest.TestCase):
         outputAOV = 'color'
         self.assertTrue(
             self._frameRecorder.Record(self._stage, self._usdCamera,
-                Usd.TimeCode.EarliestTime(), outputImagePath, outputAOV))
+                [Usd.TimeCode.EarliestTime()], [outputImagePath], outputAOV))
 
     def testRecordMultipleFrames(self):
         """
-        Tests recording multiple frames.
+        Tests recording multiple frames, using a single thread.
         """
         outputImagePath = os.path.abspath('AnimCube.#.png')
         outputImagePath = UsdAppUtils.framesArgs.ConvertFramePlaceholderToFloatSpec(
@@ -117,7 +117,26 @@ class TestUsdAppUtilsFrameRecorder(unittest.TestCase):
         for timeCode in frameSpecIter:
             self.assertTrue(
                 self._frameRecorder.Record(self._stage, self._usdCamera,
-                    timeCode, outputImagePath.format(frame=timeCode.GetValue()), outputAOV))
+                    [timeCode], [outputImagePath.format(frame=timeCode.GetValue())], outputAOV))
+
+    def testRecordMultipleFramesMultithreaded(self):
+        """
+        Tests recording multiple frames, multi-threaded.
+        """
+        outputImagePath = os.path.abspath('AnimCube.#.png')
+        outputImagePath = UsdAppUtils.framesArgs.ConvertFramePlaceholderToFloatSpec(
+                outputImagePath)
+        outputAOV = 'color'
+
+        frameSpecIter = UsdAppUtils.framesArgs.FrameSpecIterator('1,5,10')
+        timeCodes = [x for x in frameSpecIter]
+        outputImagePaths = [
+            outputImagePath.format(frame=t.GetValue()) for t in timeCodes
+        ]
+
+        self.assertTrue(
+            self._frameRecorder.Record(self._stage, self._usdCamera, timeCodes,
+                                       outputImagePaths, outputAOV))
 
 
 if __name__ == "__main__":
