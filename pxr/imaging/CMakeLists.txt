@@ -14,6 +14,7 @@ add_subdirectory(hd)
 add_subdirectory(hdar)
 add_subdirectory(hdGp)
 add_subdirectory(hdsi)
+add_subdirectory(hioOpenEXR)
 
 if (${PXR_ENABLE_MATERIALX_SUPPORT})
     add_subdirectory(hdMtlx)
