@@ -95,7 +95,6 @@ def _SetupOpenGLContext(width=100, height=100):
         # showing the glWidget. Binding the gl context will make sure
         # framebuffer is ready for gl operations.
         glWidget.makeCurrent()
-
     return glWidget
 
 def main():
