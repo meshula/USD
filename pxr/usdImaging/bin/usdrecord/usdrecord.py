@@ -70,7 +70,7 @@ def _SetupOpenGLContext(width=100, height=100):
     glWidget.setFixedSize(width, height)
 
     # note that we need to bind the gl context here, instead of explicitly
-    # showing the glWidget. Binding the gl context will make sure framebuffer is
+    # showing the glWidget. Binding the gl context will ensure the framebuffer is
     # ready for gl operations.
     glWidget.makeCurrent()
 
