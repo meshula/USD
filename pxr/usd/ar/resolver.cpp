@@ -304,8 +304,12 @@ _GetAvailablePrimaryResolvers(
             break;
         }
     }
-    TF_VERIFY(availablePrimaryResolvers.back().type == defaultResolverType);
 
+    if (availablePrimaryResolvers.size() > 0) {
+         // only verify if any primary resolvers were found
+         TF_VERIFY(availablePrimaryResolvers.back().type == defaultResolverType);
+     }
+    
     return availablePrimaryResolvers;
 }
 
@@ -1229,6 +1233,11 @@ private:
         if (info) {
             *info = &_resolver->info;
         }
+        
+        if (!_resolver) {
+            TF_FATAL_CODING_ERROR("No resolvers were loaded");
+        }
+        
         return *(_resolver->Get());
     }
 
