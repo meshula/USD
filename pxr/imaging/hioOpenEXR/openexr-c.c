@@ -557,7 +557,8 @@ exr_result_t nanoexr_convertPixelType(exr_pixel_type_t dstType, exr_pixel_type_t
 /*
     Read an entire scanline based image
 */
-exr_result_t nanoexr_readScanlineData2(nanoexr_Reader_t* reader, nanoexr_ImageData_t* img) {
+
+exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader, nanoexr_ImageData_t* img) {
     exr_decode_pipeline_t decoder;
     memset(&decoder, 0, sizeof(decoder));
     int checkpoint = 0;
