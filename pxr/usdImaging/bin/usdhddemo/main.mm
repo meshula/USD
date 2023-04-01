@@ -9,13 +9,19 @@
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
 
+#include <pxr/base/plug/info.h>
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/xformable.h>
 
+#include <pxr/imaging/hd/driver.h>
+#include <pxr/imaging/hdSt/textureUtils.h>
+#include <pxr/imaging/hgiMetal/hgi.h>
 #include <pxr/imaging/hio/image.h>
 #include <pxr/imaging/hio/imageRegistry.h>
+#include <pxr/usdImaging/usdImagingGL/engine.h>
 
+#include <iostream>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -29,33 +35,66 @@ static void quit(GLFWwindow *window, int key, int scancode, int action, int mods
 
 static const MTLPixelFormat AAPLDefaultColorPixelFormat = MTLPixelFormatBGRA8Unorm;
 
+/// Copy a texture to the view
+void blit(MTLRenderPassDescriptor* renderPassDescriptor,
+          id<MTLRenderPipelineState> blitToViewPSO,
+          id<MTLCommandBuffer> commandBuffer,
+          id<MTLTexture> texture)
+{
+    if (!renderPassDescriptor)
+        return;
+    
+    // Create a render command encoder to encode copy command.
+    id <MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
+    if (!renderEncoder)
+        return;
+    
+    // Blit the texture to the view.
+    [renderEncoder pushDebugGroup:@"Blit"];
+    [renderEncoder setFragmentTexture:texture atIndex:0];
+    [renderEncoder setRenderPipelineState:blitToViewPSO];
+    [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
+    [renderEncoder popDebugGroup];
+}
+
 int main(int argc, char *argv[])
 {
     //-------------------------------------------------------------------------
     // USD set up
     //-------------------------------------------------------------------------
     //Plug_InitConfig();
+    std::vector<std::string> test;
+    std::vector<std::string> paths;
+    paths.emplace_back("/var/tmp/usd-230327/lib/usd");
+    paths.emplace_back("/var/tmp/usd-230327/plugin/usd");
+    std::vector<std::string> msgs;
+    msgs.emplace_back("looking for plugs here: /var/tmp/usd-230327/lib/usd");
+    Plug_SetPaths(paths, msgs, true);
 
-    UsdStageRefPtr stage;
-    stage = UsdStage::CreateNew("/var/tmp/cube.usda");
+    UsdStageRefPtr _stage;
+    _stage = UsdStage::CreateNew("/var/tmp/cube.usda");
     // create a cube on the stage
-    stage->DefinePrim(SdfPath("/Box"), TfToken("Cube"));
-    UsdPrim cube = stage->GetPrimAtPath(SdfPath("/Box"));
+    _stage->DefinePrim(SdfPath("/Box"), TfToken("Cube"));
+    UsdPrim cube = _stage->GetPrimAtPath(SdfPath("/Box"));
     GfVec3f scaleVec = { 5.f, 5.f, 5.f };
     UsdGeomXformable cubeXf(cube);
     cubeXf.AddScaleOp().Set(scaleVec);
     
     //-------------------------------------------------------------------------
-    // Read a texture
+    // Hydra set up
     //-------------------------------------------------------------------------
-    const std::string stillLife = "/Users/nporcino/dev/assets/StillLife.exr";
-    bool canReadExr = HioImage::IsSupportedImageFile(stillLife);
-    auto image = HioImage::OpenForReading(stillLife,
-                              0, // int subimage,
-                              0, // int mip,
-                              HioImage::SourceColorSpace::Auto,
-                              false); //bool suppressErrors)
+    HgiUniquePtr _hgi;
+    _hgi = Hgi::CreatePlatformDefaultHgi();
+    HdDriver driver{HgiTokens->renderDriver, VtValue(_hgi.get())};
     
+    std::shared_ptr<class UsdImagingGLEngine> _engine;
+    SdfPathVector excludedPaths;
+    _engine.reset(new UsdImagingGLEngine(_stage->GetPseudoRoot().GetPath(),
+                                         excludedPaths, SdfPathVector(),
+                                         SdfPath::AbsoluteRootPath(), driver));
+    _engine->SetEnablePresentation(false);
+    _engine->SetRendererAov(HdAovTokens->color);
+
     //-------------------------------------------------------------------------
     // Metal set up
     //-------------------------------------------------------------------------
@@ -71,6 +110,14 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    /*
+    glfwWindowHint(GLFW_FLOAT_PIXEL_TYPE, GLFW_TRUE);
+    glfwWindowHint(GLFW_RED_BITS, 16);
+    glfwWindowHint(GLFW_GREEN_BITS, 16);
+    glfwWindowHint(GLFW_BLUE_BITS, 16);
+    glfwWindowHint(GLFW_ALPHA_BITS, 16);
+    */
+    
     GLFWwindow *window = glfwCreateWindow(640, 480, "USD Hydra demo", NULL, NULL);
     NSWindow *nswindow = glfwGetCocoaWindow(window);
     nswindow.contentView.layer = swapchain;
@@ -112,13 +159,99 @@ int main(int argc, char *argv[])
     {
         NSLog(@"Failed to created pipeline state, error %@", error);
     }
+    
+    
+    
+    //-------------------------------------------------------------------------
+    // Read a texture
+    //-------------------------------------------------------------------------
+    const std::string stillLife = "/Users/nporcino/dev/assets/StillLife.exr";
+    HioImageSharedPtr _image;
+    bool canReadExr = HioImage::IsSupportedImageFile(stillLife);
+    std::unique_ptr<char[]> imageData;
+    if (canReadExr) {
+        _image = HioImage::OpenForReading(stillLife,
+                                              0, // int subimage,
+                                              0, // int mip,
+                                              HioImage::SourceColorSpace::Auto,
+                                              false); //bool suppressErrors)
+        
+        std::cout << "filename: " << _image->GetFilename() << "\n";
+        std::cout << " dimensions: " << _image->GetWidth() << ", " << _image->GetHeight() << "\n";
+        switch (_image->GetFormat()) {
+            case HioFormatFloat16:
+                std::cout << " format: HioFormatFloat16\n"; break;
+            case HioFormatFloat16Vec2:
+                std::cout << " format: HioFormatFloat16Vec2\n"; break;
+            case HioFormatFloat16Vec3:
+                std::cout << " format: HioFormatFloat16Vec3\n"; break;
+            case HioFormatFloat16Vec4:
+                std::cout << " format: HioFormatFloat16Vec4\n"; break;
+                
+            default:
+                std::cout << " format: " << _image->GetFormat() << "\n"; break;
+        }
+        std::cout << " bytes per pixel: " << _image->GetBytesPerPixel() << "\n";
+        std::cout << " mips: " << _image->GetNumMipLevels() << "\n";
+        std::cout << (_image->IsColorSpaceSRGB() ? " srgb pixels\n" : " linear pixels\n");
+
+        const size_t bufsize = _image->GetWidth() * _image->GetHeight() * _image->GetBytesPerPixel();
+
+        imageData.reset(new char[bufsize]);
+        
+        HioImage::StorageSpec spec;
+        spec.width  = _image->GetWidth();
+        spec.height = _image->GetHeight();
+        spec.format = _image->GetFormat();
+        spec.flipped = false;
+        spec.data = imageData.get();
+        if (_image->Read(spec)) {
+            // successfully read the image!
+        }
+    }
+    
+    //-------------------------------------------------------------------------
+    // Create a hydra texture from the OpenEXR image
+    //-------------------------------------------------------------------------
+    if (_image) {
+        HgiTextureDesc textureDesc;
+        textureDesc.debugName = "FieldTextureFallback";
+        textureDesc.usage = HgiTextureUsageBitsShaderRead;
+        textureDesc.format = HdStTextureUtils::GetHgiFormat(_image->GetFormat(), true);
+        textureDesc.type = HgiTextureType2D;
+        textureDesc.dimensions = GfVec3i(_image->GetWidth(), _image->GetHeight(), 1);
+        textureDesc.layerCount = 1;
+        textureDesc.mipLevels = 1;
+        textureDesc.pixelsByteSize = _image->GetBytesPerPixel();
+        
+        textureDesc.initialData = imageData.get();
+        
+        HgiTextureHandle _gpuTexture;
+        _gpuTexture = _hgi->CreateTexture(textureDesc);
+    }
+    
+    
     //-------------------------------------------------------------------------
     // Render loop
     //-------------------------------------------------------------------------
 
+    //const uint32_t AAPLMaxBuffersInFlight = 3;
+    //dispatch_semaphore_t _inFlightSemaphore;
+    //_inFlightSemaphore = dispatch_semaphore_create(AAPLMaxBuffersInFlight);
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
+        // glfw provides its own semaphore
+        //dispatch_semaphore_wait(_inFlightSemaphore, DISPATCH_TIME_FOREVER);
 
+        static bool once = true;
+        if (once) {
+            
+
+            
+            once = false;
+        }
+        
         @autoreleasepool {
             color.red = (color.red > 1.0) ? 0 : color.red + 0.01;
 

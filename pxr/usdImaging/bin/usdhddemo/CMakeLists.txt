@@ -47,11 +47,15 @@ pxr_cpp_bin(usdhddemo
         arch
         glfw
         hd
+        hdSt
+        hgi
         hio
+        hioOpenEXR
         sdf
         tf
         usd
         usdGeom
+        usdImagingGL
         ${METAL_LIBRARY}
         ${METALKIT_LIBRARY}
         ${UNIFORMTYPEIDENTIFIERS_LIBRARY}
