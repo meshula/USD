@@ -455,37 +455,33 @@ bool Hio_OpenEXRImage::ReadCropped(
 {
     if (!_exrReader)
         return false;
-#if 0
-    if (cropTop || cropBottom || cropLeft || cropRight)
-    {
-        //check if resizing is necessary after cropping
-        const bool resizeNeeded =
-            (_width - cropRight - cropLeft != storage.width ) ||
-            (_height - cropTop - cropBottom != storage.height);
-    }
-    else {
-        //check if resizing is necessary
-        const bool resizeNeeded =
-            (_width != storage.width) || (_height != storage.height);
-    }
-    if (storage.format == GetFormat() || storage.format.count == _exrReader->f->channelCount) {
-        return _CropAndResize(_exrReader->rgba, cropTop, cropBottom, cropLeft, cropRight, resizeNeeded, storage));
-    }
-    if (_exrReader->f->pixelType == EXR_PIXELTYPE_FLOAT &&
-        _exrReader->f->channelCount == storage.format.count) {
-    } else {
-        // read as float, resize, and convert to storage format
-        std::vector<float> floatData;
-        if (!nanoexr_load_image_from_file(&floatData, &_width, &_height, filename.c_str(), nullptr)) {
-            return false;
+
+    int fileWidth = _exrReader->width;
+    int fileHeight = _exrReader->height;
+    int fileChannelCount = _exrReader->channelCount;
+    exr_pixel_type_t filePixelType = _exrReader->pixelType;
+    bool cropping = cropTop || cropBottom || cropLeft || cropRight;
+    int outWidth = storage.width - cropLeft - cropRight;
+    int outHeight = storage.height - cropTop - cropBottom;
+    bool resizing = (fileWidth != outWidth) || (fileHeight != outHeight);
+    int outChannelCount = HioGetComponentCount(storage.format);
+    bool channelsMatch = outChannelCount == fileChannelCount;
+    bool bothFloat = (filePixelType == EXR_PIXEL_FLOAT) && (HioGetHioType(storage.format) == HioTypeFloat);
+    bool bothHalfFloat = (filePixelType == EXR_PIXEL_HALF) && (HioGetHioType(storage.format) == HioTypeHalfFloat);
+    
+    if (!cropping && !resizing) {
+        if (bothFloat || bothHalfFloat) {
+            nanoexr_ImageData_t img;
+            img.data = reinterpret_cast<uint8_t*>(storage.data);
+            img.channelCount = outChannelCount;
+            img.dataSize = fileWidth * fileHeight * GetBytesPerPixel();
+            img.pixelType = (filePixelType == EXR_PIXEL_FLOAT) ? EXR_PIXEL_FLOAT : EXR_PIXEL_HALF;
+            exr_result_t rv = nanoexr_readScanlineData(_exrReader, &img);
+            return rv == EXR_ERR_SUCCESS;
         }
-        if (_CropAndResize(floatData.data(), cropTop, cropBottom, cropLeft, cropRight, resizeNeeded, storage)) {
-            HioConvertFloatToFormat(storage.format, storage.data, floatData.data(), storage.width * storage.height * storage.format.count);
-            return true;
-        }
+        return false;
     }
-#endif
-    return true;
+    return false;
 }
 
 
