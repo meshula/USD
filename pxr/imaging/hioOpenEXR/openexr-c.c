@@ -39,6 +39,7 @@
 #include "OpenEXRCore/validation.c"
 #include "OpenEXRCore/write_header.c"
 
+#include <math.h>
 
 #define EXR_FILE "StillLife.exr"
 uint64_t gMaxBytesPerScanline = 8000000;
@@ -54,13 +55,16 @@ readCoreScanlinePart(
     if (rv != EXR_ERR_SUCCESS) 
         return rv;
 
-    uint64_t width =
+    uint64_t width64 =
         (uint64_t) ((int64_t) datawin.max.x - (int64_t) datawin.min.x + 1);
-    uint64_t height =
+    uint64_t height64 =
         (uint64_t) ((int64_t) datawin.max.y - (int64_t) datawin.min.y + 1);
 
-    printf("readCoreScanlinePart: Image size is %llu, %llu\n", width, height);
+    printf("readCoreScanlinePart: Image size is %llu, %llu\n", width64, height64);
 
+    int32_t width = (int32_t) width64;
+    int32_t height = (int32_t) height64;
+    
     uint8_t* imgdata = NULL;
 
     bool doread = false;
@@ -138,7 +142,7 @@ readCoreScanlinePart(
                 exr_coding_channel_info_t* outc = &decoder.channels[c];
                 outc->decode_to_ptr              = dptr;
                 outc->user_pixel_stride          = outc->user_bytes_per_element;
-                outc->user_line_stride = outc->user_pixel_stride * width;
+                outc->user_line_stride = (int32_t) outc->user_pixel_stride * width;
                 dptr += width * (uint64_t) outc->user_bytes_per_element *
                         (uint64_t) lines_per_chunk;
             }
@@ -495,6 +499,17 @@ exr_pixel_type_t nanoexr_getPixelType(nanoexr_Reader_t* reader) {
 }
 
 
+size_t nanoexr_getPixelTypeSize(exr_pixel_type_t t)
+{
+    switch (t) {
+        case EXR_PIXEL_HALF: return 2;
+        case EXR_PIXEL_UINT: return 4;
+        case EXR_PIXEL_FLOAT: return 4;
+        default: return 0;
+    }
+}
+
+
 exr_result_t nanoexr_convertPixelType(exr_pixel_type_t dstType, exr_pixel_type_t srcType,
                                       int pixelCount, int channelCount,
                                       const void* src, void* dst) {
@@ -690,16 +705,6 @@ err:
     exr_decoding_destroy(reader->f, &decoder);
     return rv;
 }
-
-size_t nanoexr_getPixelTypeSize(exr_pixel_type_t t) {
-    switch (t) {
-        case EXR_PIXEL_HALF: return 2;
-        case EXR_PIXEL_FLOAT: return 4;
-        case EXR_PIXEL_UINT: return 4;
-        default: return 0;
-    }
-}
-
 
 bool nanoexr_isTiled(nanoexr_Reader_t* reader) {
     if (!reader || !reader->f)
