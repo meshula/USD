@@ -448,6 +448,122 @@ bool Hio_OpenEXRImage::Read(StorageSpec const &storage)
     return ReadCropped(0, 0, 0, 0, storage);
 }
 
+#if 0
+should be read image (tiled or scanline)
+  read a tile, if scanline treat it as if there's just one tile
+  read an image, croppped (tiled or scanline)
+#endif
+
+/*
+float erf(float x) {
+  // save the sign of x
+  float sign = (x >= 0) ? 1 : -1;
+  x = fabs(x);
+
+  // constants
+  float a1 =  0.254829592;
+  float a2 = -0.284496736;
+  float a3 =  1.421413741;
+  float a4 = -1.453152027;
+  float a5 =  1.061405429;
+  float p  =  0.3275911;
+
+  // A&S formula 7.1.26
+  float t = 1.0 / (1.0 + p*x);
+  float y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * expf(-x * x);
+  return sign * y; // erf(-x) = -erf(x);
+}
+*/
+
+float IntegrateGaussian(float x, float sigma)
+{
+  float p1 = erf((x - 0.5f) / sigma * sqrtf(0.5f));
+  float p2 = erf((x + 0.5f) / sigma * sqrtf(0.5f));
+  return (p2-p1) * 0.5f;
+}
+
+
+// downsample
+bool downsample(nanoexr_ImageData_t* src, nanoexr_ImageData_t* dst)
+{
+    if (src->pixelType != EXR_PIXEL_FLOAT && dst->pixelType != EXR_PIXEL_FLOAT)
+        return false;
+    if (src->channelCount != dst->channelCount)
+        return false;
+    
+    const int srcWidth  = src->channelCount * src->width;
+    const int dstWidth  = dst->channelCount * dst->width;
+    const int srcHeight = src->height;
+    const int dstHeight = dst->height;
+    if (srcWidth == dstWidth && srcHeight == dstHeight) {
+        memcpy(dst->data, src->data, srcWidth * srcHeight * sizeof(float));
+        return true;
+    }
+    if (srcHeight > dstHeight || srcWidth > dstWidth)
+        return false;
+
+    // two pass image resize
+
+    // Create a Gaussian filter, per:
+    // https://bartwronski.com/2021/10/31/practical-gaussian-filter-binomial-filter-and-small-sigma-gaussians
+    // chose sigma to suppress high frequencies that can't be represented in the downsampled image
+    const float ratio = (float)dstWidth / (float)srcWidth;
+    const float sigma = 1.f / 2.f * ratio;
+    const float support = 0.995f;
+    float radius = ceilf(sqrtf(-2.0f * sigma * sigma * logf(1.0f - support)));
+    int filterSize = (int)radius;
+    float* filter = (float*) malloc((1 + filterSize * 2) * sizeof(float));
+    float sum = 0.0f;
+    for (int i = 0; i < filterSize; i++) {
+        filter[i + filterSize + 1] = IntegrateGaussian((float) i, sigma);
+        if (i > 0)
+            sum += 2 * filter[i];
+        else
+            sum = filter[i];
+    }
+    for (int i = 0; i < filterSize; ++i) {
+        filter[i + filterSize + 1] /= sum;
+    }
+    for (int i = 0; i < filterSize; ++i) {
+        filter[i] = filter[i + filterSize + 1];
+    }
+    int fullFilterSize = filterSize * 2 + 1;
+
+    // first pass: resize horizontally
+    float* firstPass = (float*)malloc(dstWidth * srcHeight * sizeof(float));
+    for (int y = 0; y < srcHeight; ++y) {
+        for (int x = 0; x < dstWidth; ++x) {
+            float sum = 0.0f;
+            for (int i = 0; i < fullFilterSize; ++i) {
+                int srcX = (int)((x + 0.5f) * ratio - 0.5f) + i - filterSize;
+                if (srcX < 0 || srcX >= srcWidth)
+                    continue;
+                sum += src->data[y * srcWidth + srcX] * filter[i];
+            }
+            firstPass[y * dstWidth + x] = sum;
+        }
+    }
+    // second pass: resize vertically
+    float* secondPass = (float*) dst->data;
+    for (int y = 0; y < dstHeight; ++y) {
+        for (int x = 0; x < dstWidth; ++x) {
+            float sum = 0.0f;
+            for (int i = 0; i < fullFilterSize; ++i) {
+                int srcY = (int)((y + 0.5f) * ratio - 0.5f) + i - filterSize;
+                if (srcY < 0 || srcY >= srcHeight)
+                    continue;
+                sum += firstPass[srcY * dstWidth + x] * filter[i];
+            }
+            secondPass[y * dstWidth + x] = sum;
+        }
+    }
+    free(firstPass);
+    free(filter);
+    return true;
+}
+
+
+
 bool Hio_OpenEXRImage::ReadCropped(
                 int const cropTop,  int const cropBottom,
                 int const cropLeft, int const cropRight, 
@@ -456,6 +572,8 @@ bool Hio_OpenEXRImage::ReadCropped(
     if (!_exrReader)
         return false;
 
+    // cache values and
+    // determine what needs to happen as a consequence of the input parameters
     int fileWidth = _exrReader->width;
     int fileHeight = _exrReader->height;
     int fileChannelCount = _exrReader->channelCount;
@@ -465,23 +583,81 @@ bool Hio_OpenEXRImage::ReadCropped(
     int outHeight = storage.height - cropTop - cropBottom;
     bool resizing = (fileWidth != outWidth) || (fileHeight != outHeight);
     int outChannelCount = HioGetComponentCount(storage.format);
-    bool channelsMatch = outChannelCount == fileChannelCount;
-    bool bothFloat = (filePixelType == EXR_PIXEL_FLOAT) && (HioGetHioType(storage.format) == HioTypeFloat);
-    bool bothHalfFloat = (filePixelType == EXR_PIXEL_HALF) && (HioGetHioType(storage.format) == HioTypeHalfFloat);
     
-    if (!cropping && !resizing) {
-        if (bothFloat || bothHalfFloat) {
+    bool inputIsHalf = filePixelType == EXR_PIXEL_HALF;
+    bool inputIsFloat = filePixelType == EXR_PIXEL_FLOAT;
+    bool outputIsFloat = HioGetHioType(storage.format) == HioTypeFloat;
+    bool outputIsHalf = HioGetHioType(storage.format) == HioTypeHalfFloat;
+    bool formatsMatch = (inputIsFloat && outputIsFloat) || (inputIsHalf && outputIsHalf);
+    
+    uint8_t* readDataHere;
+    std::vector<uint8_t> readDataTemp;
+    if (resizing) {
+        // allocate a float buffer
+        readDataTemp.resize(fileWidth * fileHeight * sizeof(float));
+        readDataHere = &readDataTemp[0];
+    }
+    else if (!formatsMatch) {
+        // allocate a right-sized buffer
+        readDataTemp.resize(fileWidth * fileHeight * GetBytesPerPixel());
+        readDataHere = &readDataTemp[0];
+    }
+    else {
+        // read in place
+        readDataHere = reinterpret_cast<uint8_t*>(storage.data);
+    }
+
+    if (cropping) {
+        if (nanoexr_isTiled(_exrReader)) {
+            // ... @TODO read tiled cropped
+        }
+        else {
+            // read only relevant scan line data
+            // ... @TODO
+        }
+    }
+    else {
+        if (nanoexr_isTiled(_exrReader)) {
+            // ... @TODO read tiled, uncropped
+        }
+        else {
             nanoexr_ImageData_t img;
-            img.data = reinterpret_cast<uint8_t*>(storage.data);
+            img.data = readDataHere;
             img.channelCount = outChannelCount;
             img.dataSize = fileWidth * fileHeight * GetBytesPerPixel();
-            img.pixelType = (filePixelType == EXR_PIXEL_FLOAT) ? EXR_PIXEL_FLOAT : EXR_PIXEL_HALF;
+            img.pixelType = filePixelType;
             exr_result_t rv = nanoexr_readScanlineData(_exrReader, &img);
-            return rv == EXR_ERR_SUCCESS;
+            if (rv != EXR_ERR_SUCCESS) {
+                return false;
+            }
         }
-        return false;
     }
-    return false;
+
+    if (inputIsHalf && (resizing || outputIsFloat)) {
+        // convert readDataHere to float, in place
+        // ... @TODO
+        filePixelType = EXR_PIXEL_FLOAT;
+        formatsMatch = outputIsFloat;
+    }
+
+    if (resizing) {
+        // ... @TODO
+    }
+    
+    if (formatsMatch) {
+        // nothing extra to be done
+        return true;
+    }
+    
+    if (inputIsFloat) {
+        // copy float to storage.data as half
+        // ... @TODO
+        return true;
+    }
+
+    // copy half as storage.data to float
+    // ... @TODO
+    return true;
 }
 
 
