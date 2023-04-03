@@ -65,8 +65,8 @@ int main(int argc, char *argv[])
     //Plug_InitConfig();
     std::vector<std::string> test;
     std::vector<std::string> paths;
-    paths.emplace_back("/var/tmp/usd-230327/lib/usd");
-    paths.emplace_back("/var/tmp/usd-230327/plugin/usd");
+    paths.emplace_back("/var/tmp/usd-230402/lib/usd");
+    paths.emplace_back("/var/tmp/usd-230402/plugin/usd");
     std::vector<std::string> msgs;
     msgs.emplace_back("looking for plugs here: /var/tmp/usd-230327/lib/usd");
     Plug_SetPaths(paths, msgs, true);
