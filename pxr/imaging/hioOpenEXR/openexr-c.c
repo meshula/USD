@@ -600,6 +600,10 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
 
     size_t offset = 0;
     size_t outputOffset = 0;
+    int bytesPerElement = 0;
+
+    int rgbaIndex[4] = {-1, -1, -1, -1};
+
     for (int chunky = datawin.min.y; chunky < datawin.max.y; chunky += scanLinesPerChunk) {
         exr_chunk_info_t chunkInfo = {0};
         
@@ -608,61 +612,80 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
         if (rv != EXR_ERR_SUCCESS)
             goto err;
 
+        if (decoder.channels == NULL) {
         checkpoint = 30;
-        rv = exr_decoding_initialize(reader->exr, reader->partIndex, &chunkInfo, &decoder);
-        if (rv != EXR_ERR_SUCCESS)
-            goto err;
         
-        int bytesPerElement = decoder.channels[0].bytes_per_element;
-        for (int c = 0; c < decoder.channel_count; ++c) {
-            int channelIndex = -1;
-            if (strcmp(decoder.channels[c].channel_name, "R") == 0)
-                channelIndex = 0;
-            else if (strcmp(decoder.channels[c].channel_name, "G") == 0)
-                channelIndex = 1;
-            else if (strcmp(decoder.channels[c].channel_name, "B") == 0)
-                channelIndex = 2;
-            else if (strcmp(decoder.channels[c].channel_name, "A") == 0)
-                channelIndex = 3;
-            else {
-                continue;   // skip this unknown channel
-            }
-            if (channelIndex >= img->channelCount) {
-                continue; // skip channels beyond what fits in the output buffer
-            }
-
-            checkpoint = 40;
-            if (decoder.channels[c].bytes_per_element != bytesPerElement) {
-                rv = EXR_ERR_INVALID_ARGUMENT;
+        rv = exr_decoding_initialize(reader->exr, reader->partIndex, &chunkInfo, &decoder);
+            if (rv != EXR_ERR_SUCCESS)
                 goto err;
-            }
+            
+            bytesPerElement = decoder.channels[0].bytes_per_element;
+            for (int c = 0; c < decoder.channel_count; ++c) {
+                int channelIndex = -1;
+                if (strcmp(decoder.channels[c].channel_name, "R") == 0) {
+                    rgbaIndex[0] = c;
+                    channelIndex = 0;
+                }
+                else if (strcmp(decoder.channels[c].channel_name, "G") == 0) {
+                    rgbaIndex[1] = c;
+                    channelIndex = 1;
+                }
+                else if (strcmp(decoder.channels[c].channel_name, "B") == 0) {
+                    rgbaIndex[2] = c;
+                    channelIndex = 2;
+                }
+                else if (strcmp(decoder.channels[c].channel_name, "A") == 0) {
+                    rgbaIndex[3] = c;
+                    channelIndex = 3;
+                }
+                else {
+                    continue;   // skip this unknown channel
+                }
+                if (channelIndex >= img->channelCount) {
+                    continue; // skip channels beyond what fits in the output buffer
+                }
 
-            checkpoint = 50;
-            if (decoder.channels[c].data_type != reader->pixelType) {
-                rv = EXR_ERR_INVALID_ARGUMENT;
+                checkpoint = 40;
+                if (decoder.channels[c].bytes_per_element != bytesPerElement) {
+                    rv = EXR_ERR_INVALID_ARGUMENT;
+                    goto err;
+                }
+
+                checkpoint = 50;
+                if (decoder.channels[c].data_type != reader->pixelType) {
+                    rv = EXR_ERR_INVALID_ARGUMENT;
+                    goto err;
+                }
+
+                decoder.channels[c].decode_to_ptr = NULL; // assume we won't decode this channel
+                decoder.channels[c].user_pixel_stride = img->channelCount * bytesPerElement;
+                decoder.channels[c].user_line_stride = decoder.channels[c].user_pixel_stride * window_width;
+                decoder.channels[c].user_bytes_per_element = bytesPerElement;
+            }
+            checkpoint = 60;
+            rv = exr_decoding_choose_default_routines(reader->exr, 0, &decoder);
+            if (rv != EXR_ERR_SUCCESS)
                 goto err;
-            }
-
-            decoder.channels[c].decode_to_ptr = offset + imageData + channelIndex * bytesPerElement;
-            decoder.channels[c].user_pixel_stride = img->channelCount * bytesPerElement;
-            decoder.channels[c].user_line_stride = decoder.channels[c].user_pixel_stride * window_width;
-            decoder.channels[c].user_bytes_per_element = bytesPerElement;
         }
-        checkpoint = 60;
-        rv = exr_decoding_choose_default_routines(reader->exr, 0, &decoder);
-        if (rv != EXR_ERR_SUCCESS)
-            goto err;
+        else {
+       	    // Reuse existing pipeline
+            checkpoint = 40;
+	        rv = exr_decoding_update(reader->exr, reader->partIndex, &chunkInfo, &decoder);
+	        if (rv != EXR_ERR_SUCCESS)
+                goto err;
+        }
+
+        // Set pixmap pointers for this chunk
+        for (int c = 0; c < decoder.channel_count; c++) {
+            if (rgbaIndex[c] >= 0)
+                decoder.channels[c].decode_to_ptr = offset + imageData + rgbaIndex[c] * bytesPerElement;
+        }
 
         checkpoint = 70;
         rv = exr_decoding_run(reader->exr, reader->partIndex, &decoder);
         if (rv != EXR_ERR_SUCCESS)
             goto err;
         
-        checkpoint = 80;
-        rv = exr_decoding_destroy(reader->exr, &decoder);
-        if (rv != EXR_ERR_SUCCESS)
-            goto err;
-
         if (tempData) {
             checkpoint = 90;
             rv = nanoexr_convertPixelType(
@@ -677,6 +700,8 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
         offset += scanLinesPerChunk * reader->width * img->channelCount * bytesPerElement;
         outputOffset += scanLinesPerChunk * reader->width * img->channelCount * bytesPerElement;
     }
+
+    rv = exr_decoding_destroy(reader->exr, &decoder);
     if (tempData)
         free(tempData);
     return rv;
