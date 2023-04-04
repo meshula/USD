@@ -573,7 +573,6 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
 
     int window_width = datawin.max.x - datawin.min.x + 1;
     int window_height = datawin.max.y - datawin.min.y + 1;
-    int yoffset = datawin.min.y;
 
     uint8_t* tempData = NULL;
     size_t output_bpp = nanoexr_getPixelTypeSize(img->pixelType);
@@ -601,12 +600,11 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
 
     size_t offset = 0;
     size_t outputOffset = 0;
-    for (int chunky = 0; chunky < window_height; chunky += scanLinesPerChunk) {
+    for (int chunky = datawin.min.y; chunky < datawin.max.y; chunky += scanLinesPerChunk) {
         exr_chunk_info_t chunkInfo = {0};
-        int y = (int) chunky + yoffset;
         
         checkpoint = 20;
-        rv = exr_read_scanline_chunk_info(reader->exr, reader->partIndex, y, &chunkInfo);
+        rv = exr_read_scanline_chunk_info(reader->exr, reader->partIndex, chunky, &chunkInfo);
         if (rv != EXR_ERR_SUCCESS)
             goto err;
 
