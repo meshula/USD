@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 typedef struct {
-    int tileWidth, tileHeight;
+    int tileWidth,  tileHeight;
     int levelWidth, levelHeight;
 } nanoexr_TileMipInfo_t;
 
@@ -30,20 +30,18 @@ typedef struct {
     int level;
 } nanoexr_MipLevel_t;
 
-
 typedef struct {
-    exr_context_t f;
+    exr_context_t exr;
     exr_context_initializer_t init;
     char* filename;
-    int width, height;
-    int channelCount;
-    exr_pixel_type_t pixelType;
-    int partIndex;
-    nanoexr_MipLevel_t mipLevels;
     bool isScanline;
+    int partIndex;
+    exr_pixel_type_t pixelType;
+    int channelCount;
+    int width, height;
     int tileLevelCount;
+    nanoexr_MipLevel_t mipLevels;
     nanoexr_TileMipInfo_t* tileLevelInfo;
-
     int exrSDKVersionMajor;
     int exrSDKVersionMinor;
     int exrSDKVersionPatch;
@@ -64,8 +62,17 @@ int          nanoexr_getChannelCount(nanoexr_Reader_t* reader);
 nanoexr_MipLevel_t nanoexr_getMipLevels(nanoexr_Reader_t* reader);
 exr_pixel_type_t   nanoexr_getPixelType(nanoexr_Reader_t* reader);
 size_t             nanoexr_getPixelTypeSize(exr_pixel_type_t t);
+
+// image will be read into the allocation pointed to by img.
+// no more than img->height lines will be read. If initialLinesToSkip
+// is greater than zero, those lines will not be read into img->data,
+// the data in img->data will start at that offset. If sufficient
+// lines cannot be read to fill img->data per img->height, the
+// remainder of the buffer will be filled with zeroes.
 exr_result_t       nanoexr_readScanlineData(nanoexr_Reader_t* reader,
-                                            nanoexr_ImageData_t* img);
+                                            nanoexr_ImageData_t* img,
+                                            int initialLinesToSkip);
+
 exr_result_t       nanoexr_readTileData(nanoexr_Reader_t* reader,
                                         nanoexr_ImageData_t* img,
                                         nanoexr_MipLevel_t mipLevel,
@@ -73,6 +80,8 @@ exr_result_t       nanoexr_readTileData(nanoexr_Reader_t* reader,
 exr_result_t       nanoexr_readAllTileData(nanoexr_Reader_t* reader,
                                            nanoexr_ImageData_t* img,
                                            nanoexr_MipLevel_t mip);
+bool nanoexr_Gaussian_resample(const nanoexr_ImageData_t* src,
+                               nanoexr_ImageData_t* dst);
 
 #ifdef __cplusplus
 }
