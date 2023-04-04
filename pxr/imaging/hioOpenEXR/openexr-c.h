@@ -53,20 +53,26 @@ typedef struct {
 nanoexr_Reader_t* nanoexr_new(const char* filename, 
                               exr_context_initializer_t*);
 
-void nanoexr_close(nanoexr_Reader_t* reader);
-void nanoexr_delete(nanoexr_Reader_t* reader);
-exr_result_t  nanoexr_open(nanoexr_Reader_t* reader, int partIndex);
-bool nanoexr_isOpen(nanoexr_Reader_t* reader);
-int  nanoexr_getWidth(nanoexr_Reader_t* reader);
-int  nanoexr_getHeight(nanoexr_Reader_t* reader);
+exr_result_t nanoexr_open(nanoexr_Reader_t* reader, int partIndex);
+bool         nanoexr_isOpen(nanoexr_Reader_t* reader);
+bool         nanoexr_isTiled(nanoexr_Reader_t* reader);
+void         nanoexr_close(nanoexr_Reader_t* reader);
+void         nanoexr_delete(nanoexr_Reader_t* reader);
+int          nanoexr_getWidth(nanoexr_Reader_t* reader);
+int          nanoexr_getHeight(nanoexr_Reader_t* reader);
+int          nanoexr_getChannelCount(nanoexr_Reader_t* reader);
 nanoexr_MipLevel_t nanoexr_getMipLevels(nanoexr_Reader_t* reader);
-int  nanoexr_getChannelCount(nanoexr_Reader_t* reader);
-exr_pixel_type_t  nanoexr_getPixelType(nanoexr_Reader_t* reader);
-exr_result_t  nanoexr_readScanlineData(nanoexr_Reader_t* reader, nanoexr_ImageData_t* img);
-bool nanoexr_isTiled(nanoexr_Reader_t* reader);
-exr_result_t  nanoexr_readTileData(nanoexr_Reader_t* reader, nanoexr_ImageData_t* img, nanoexr_MipLevel_t mipLevel, int col, int row);
-exr_result_t  nanoexr_readAllTileData(nanoexr_Reader_t* reader, nanoexr_ImageData_t* img, nanoexr_MipLevel_t mip);
-size_t nanoexr_getPixelTypeSize(exr_pixel_type_t t);
+exr_pixel_type_t   nanoexr_getPixelType(nanoexr_Reader_t* reader);
+size_t             nanoexr_getPixelTypeSize(exr_pixel_type_t t);
+exr_result_t       nanoexr_readScanlineData(nanoexr_Reader_t* reader,
+                                            nanoexr_ImageData_t* img);
+exr_result_t       nanoexr_readTileData(nanoexr_Reader_t* reader,
+                                        nanoexr_ImageData_t* img,
+                                        nanoexr_MipLevel_t mipLevel,
+                                        int col, int row);
+exr_result_t       nanoexr_readAllTileData(nanoexr_Reader_t* reader,
+                                           nanoexr_ImageData_t* img,
+                                           nanoexr_MipLevel_t mip);
 
 #ifdef __cplusplus
 }
