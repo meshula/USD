@@ -17,6 +17,7 @@
 #include <pxr/imaging/hd/driver.h>
 #include <pxr/imaging/hdSt/textureUtils.h>
 #include <pxr/imaging/hgiMetal/hgi.h>
+#include <pxr/imaging/hgiMetal/texture.h>
 #include <pxr/imaging/hio/image.h>
 #include <pxr/imaging/hio/imageRegistry.h>
 #include <pxr/usdImaging/usdImagingGL/engine.h>
@@ -169,6 +170,7 @@ int main(int argc, char *argv[])
     HioImageSharedPtr _image;
     bool canReadExr = HioImage::IsSupportedImageFile(stillLife);
     std::unique_ptr<char[]> imageData;
+    HioImage::StorageSpec _spec;
     if (canReadExr) {
         _image = HioImage::OpenForReading(stillLife,
                                               0, // int subimage,
@@ -187,7 +189,6 @@ int main(int argc, char *argv[])
                 std::cout << " format: HioFormatFloat16Vec3\n"; break;
             case HioFormatFloat16Vec4:
                 std::cout << " format: HioFormatFloat16Vec4\n"; break;
-                
             default:
                 std::cout << " format: " << _image->GetFormat() << "\n"; break;
         }
@@ -195,17 +196,16 @@ int main(int argc, char *argv[])
         std::cout << " mips: " << _image->GetNumMipLevels() << "\n";
         std::cout << (_image->IsColorSpaceSRGB() ? " srgb pixels\n" : " linear pixels\n");
 
-        const size_t bufsize = _image->GetWidth() * _image->GetHeight() * _image->GetBytesPerPixel();
+        _spec.width  = (int)(_image->GetWidth() * 0.85f);
+        _spec.height = (int)(_image->GetHeight() * 0.85f);
+        _spec.format = _image->GetFormat();
+        _spec.flipped = false;
 
+        const size_t bufsize = _spec.width * _spec.height * _image->GetBytesPerPixel();
         imageData.reset(new char[bufsize]);
-        
-        HioImage::StorageSpec spec;
-        spec.width  = _image->GetWidth();
-        spec.height = _image->GetHeight();
-        spec.format = _image->GetFormat();
-        spec.flipped = false;
-        spec.data = imageData.get();
-        if (_image->Read(spec)) {
+
+        _spec.data = imageData.get();
+        if (_image->Read(_spec)) {
             // successfully read the image!
         }
     }
@@ -213,21 +213,24 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // Create a hydra texture from the OpenEXR image
     //-------------------------------------------------------------------------
+    id<MTLTexture> _metalTexture = nil;
     if (_image) {
         HgiTextureDesc textureDesc;
-        textureDesc.debugName = "FieldTextureFallback";
+        textureDesc.debugName = "OpenEXRTexture";
         textureDesc.usage = HgiTextureUsageBitsShaderRead;
-        textureDesc.format = HdStTextureUtils::GetHgiFormat(_image->GetFormat(), true);
+        textureDesc.format = HdStTextureUtils::GetHgiFormat(_spec.format, true);
         textureDesc.type = HgiTextureType2D;
-        textureDesc.dimensions = GfVec3i(_image->GetWidth(), _image->GetHeight(), 1);
+        textureDesc.dimensions = GfVec3i(_spec.width, _spec.height, 1);
         textureDesc.layerCount = 1;
         textureDesc.mipLevels = 1;
         textureDesc.pixelsByteSize = _image->GetBytesPerPixel();
+        textureDesc.initialData = _spec.data;
         
-        textureDesc.initialData = imageData.get();
-        
-        HgiTextureHandle _gpuTexture;
-        _gpuTexture = _hgi->CreateTexture(textureDesc);
+        HgiTextureHandle _gpuTexture = _hgi->CreateTexture(textureDesc);
+        HgiMetalTexture* hgiMetalTexture = static_cast<HgiMetalTexture*>(_gpuTexture.Get());
+        if (hgiMetalTexture) {
+            _metalTexture = hgiMetalTexture->GetTextureId();
+        }
     }
     
     
