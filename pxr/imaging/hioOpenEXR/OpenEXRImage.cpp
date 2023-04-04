@@ -25,7 +25,8 @@
 
 #include "pxr/imaging/hio/image.h"
 #include "pxr/imaging/hio/types.h"
-#include "pxr/imaging/hioOpenEXR/openexr-c.h"
+#include "openexr-c.h"
+#include "OpenEXRCore/internal_coding.h"
 
 #include "pxr/usd/ar/asset.h"
 #include "pxr/usd/ar/resolvedPath.h"
@@ -214,32 +215,32 @@ private:
 class Hio_OpenEXRImage final : public HioImage
 {
     std::shared_ptr<ArAsset> _asset;
-    nanoexr_Reader_t *_exrReader = nullptr;
-    int _subimage = 0;
-    int _mip = 0;
-    SourceColorSpace _sourceColorSpace;
-    bool _suppressErrors = false;
-    std::string _filename;
+    std::string              _filename;
+    nanoexr_Reader_t*        _exrReader = nullptr;
+    SourceColorSpace         _sourceColorSpace;
+    int                      _subimage = 0;
+    int                      _mip = 0;
+    bool                     _suppressErrors = false;
 
 public:
     Hio_OpenEXRImage() = default;
     ~Hio_OpenEXRImage() override;
 
     using Base = HioImage;
-    bool Read(StorageSpec const &storage) override;
-    bool ReadCropped(int const cropTop, int const cropBottom, int const cropLeft,
-                     int const cropRight, StorageSpec const &storage) override;
-    bool Write(StorageSpec const &storage, VtDictionary const &metadata) override;
     std::string const &GetFilename() const override;
-    int GetWidth() const override;
-    int GetHeight() const override;
+    bool      Read(StorageSpec const &storage) override;
+    bool      ReadCropped(int const cropTop, int const cropBottom, int const cropLeft,
+                          int const cropRight, StorageSpec const &storage) override;
+    bool      Write(StorageSpec const &storage, VtDictionary const &metadata) override;
+    int       GetWidth() const override;
+    int       GetHeight() const override;
     HioFormat GetFormat() const override;
-    int GetBytesPerPixel() const override;
-    int GetNumMipLevels() const override;
-    bool IsColorSpaceSRGB() const override;
-    bool GetMetadata(TfToken const &key, VtValue *value) const override;
-    bool GetSamplerMetadata(HioAddressDimension dim,
-                            HioAddressMode *param) const override;
+    int       GetBytesPerPixel() const override;
+    int       GetNumMipLevels() const override;
+    bool      IsColorSpaceSRGB() const override;
+    bool      GetMetadata(TfToken const &key, VtValue *value) const override;
+    bool      GetSamplerMetadata(HioAddressDimension dim,
+                                 HioAddressMode *param) const override;
 
 protected:
     bool _OpenForReading(std::string const &filename, int subimage, int mip,
@@ -248,11 +249,11 @@ protected:
     bool _OpenForWriting(std::string const &filename) override;
     
     bool _CropAndResize(void const *sourceData, int const cropTop,
-            int const cropBottom,
-            int const cropLeft,
-            int const cropRight,
-            bool const resizeNeeded,
-            StorageSpec const & storage);
+                        int const cropBottom,
+                        int const cropLeft,
+                        int const cropRight,
+                        bool const resizeNeeded,
+                        StorageSpec const & storage);
 };
 
 TF_REGISTRY_FUNCTION(TfType)
@@ -269,40 +270,28 @@ HioFormat HioFormatFromExrPixelType(exr_pixel_type_t pixelType, int numChannels)
     case EXR_PIXEL_UINT:
         switch (numChannels)
         {
-        case 1:
-            return HioFormatInt32;
-        case 2:
-            return HioFormatInt32Vec2;
-        case 3:
-            return HioFormatInt32Vec3;
-        default:
-            return HioFormatInt32Vec4;
+        case 1: return HioFormatInt32;
+        case 2: return HioFormatInt32Vec2;
+        case 3: return HioFormatInt32Vec3;
+        default: return HioFormatInt32Vec4;
         }
 
     case EXR_PIXEL_HALF:
         switch (numChannels)
         {
-        case 1:
-            return HioFormatFloat16;
-        case 2:
-            return HioFormatFloat16Vec2;
-        case 3:
-            return HioFormatFloat16Vec3;
-        default:
-            return HioFormatFloat16Vec4;
+        case 1: return HioFormatFloat16;
+        case 2: return HioFormatFloat16Vec2;
+        case 3: return HioFormatFloat16Vec3;
+        default: return HioFormatFloat16Vec4;
         }
 
     case EXR_PIXEL_FLOAT:
         switch (numChannels)
         {
-        case 1:
-            return HioFormatFloat32;
-        case 2:
-            return HioFormatFloat32Vec2;
-        case 3:
-            return HioFormatFloat32Vec3;
-        default:
-            return HioFormatFloat32Vec4;
+        case 1: return HioFormatFloat32;
+        case 2: return HioFormatFloat32Vec2;
+        case 3: return HioFormatFloat32Vec3;
+        default: return HioFormatFloat32Vec4;
         }
 
     default:
@@ -321,10 +310,11 @@ Hio_OpenEXRImage::~Hio_OpenEXRImage()
 /// and _height are updated to match those in storage
 /// Bottom is at zero, top is some positive vlaue.
 bool 
-Hio_OpenEXRImage::_CropAndResize(void const *sourceData, int const cropTop,
-        int const cropBottom,
-        int const cropLeft,
-        int const cropRight,
+Hio_OpenEXRImage::_CropAndResize(
+        void const *sourceData, int const cropTop,
+        int  const cropBottom,
+        int  const cropLeft,
+        int  const cropRight,
         bool const resizeNeeded,
         StorageSpec const & storage)
 {
@@ -491,16 +481,17 @@ bool downsample(nanoexr_ImageData_t* src, nanoexr_ImageData_t* dst)
     if (src->channelCount != dst->channelCount)
         return false;
     
-    const int srcWidth  = src->channelCount * src->width;
-    const int dstWidth  = dst->channelCount * dst->width;
+    const int srcWidth  = src->width;
+    const int dstWidth  = dst->width;
     const int srcHeight = src->height;
     const int dstHeight = dst->height;
     if (srcWidth == dstWidth && srcHeight == dstHeight) {
-        memcpy(dst->data, src->data, srcWidth * srcHeight * sizeof(float));
+        memcpy(dst->data, src->data, src->channelCount * srcWidth * srcHeight * sizeof(float));
         return true;
     }
-    if (srcHeight > dstHeight || srcWidth > dstWidth)
-        return false;
+    
+    float* srcData = reinterpret_cast<float*>(src->data);
+    float* dstData = reinterpret_cast<float*>(dst->data);
 
     // two pass image resize
 
@@ -512,53 +503,63 @@ bool downsample(nanoexr_ImageData_t* src, nanoexr_ImageData_t* dst)
     const float support = 0.995f;
     float radius = ceilf(sqrtf(-2.0f * sigma * sigma * logf(1.0f - support)));
     int filterSize = (int)radius;
-    float* filter = (float*) malloc((1 + filterSize * 2) * sizeof(float));
+    std::vector<float> filter;
+    filter.resize(1 + filterSize * 2);
     float sum = 0.0f;
-    for (int i = 0; i < filterSize; i++) {
-        filter[i + filterSize + 1] = IntegrateGaussian((float) i, sigma);
+    for (int i = 0; i <= filterSize; i++) {
+        int idx = i + filterSize;
+        filter[idx] = IntegrateGaussian((float) i, sigma);
         if (i > 0)
-            sum += 2 * filter[i];
+            sum += 2 * filter[idx];
         else
-            sum = filter[i];
+            sum = filter[idx];
+    }
+    for (int i = 0; i <= filterSize; ++i) {
+        filter[i + filterSize] /= sum;
     }
     for (int i = 0; i < filterSize; ++i) {
-        filter[i + filterSize + 1] /= sum;
-    }
-    for (int i = 0; i < filterSize; ++i) {
-        filter[i] = filter[i + filterSize + 1];
+        filter[filterSize - i - 1] = filter[i + filterSize + 1];
     }
     int fullFilterSize = filterSize * 2 + 1;
 
     // first pass: resize horizontally
-    float* firstPass = (float*)malloc(dstWidth * srcHeight * sizeof(float));
+    int srcFloatsPerLine = src->channelCount * srcWidth;
+    int dstFloatsPerLine = src->channelCount * dstWidth;
+    float* firstPass = (float*)malloc(dstWidth * src->channelCount * srcHeight * sizeof(float));
     for (int y = 0; y < srcHeight; ++y) {
         for (int x = 0; x < dstWidth; ++x) {
-            float sum = 0.0f;
-            for (int i = 0; i < fullFilterSize; ++i) {
-                int srcX = (int)((x + 0.5f) * ratio - 0.5f) + i - filterSize;
-                if (srcX < 0 || srcX >= srcWidth)
-                    continue;
-                sum += src->data[y * srcWidth + srcX] * filter[i];
+            for (int c = 0; c < src->channelCount; ++c) {
+                float sum = 0.0f;
+                for (int i = 0; i < fullFilterSize; ++i) {
+                    int srcX = (int)((x + 0.5f) / ratio - 0.5f) + i - filterSize;
+                    if (srcX < 0 || srcX >= srcWidth)
+                        continue;
+                    int idx = y * srcFloatsPerLine + (srcX * src->channelCount) + c;
+                    sum += srcData[idx] * filter[i];
+                }
+                firstPass[y * dstFloatsPerLine + (x * src->channelCount) + c] = sum;
             }
-            firstPass[y * dstWidth + x] = sum;
         }
     }
+
     // second pass: resize vertically
-    float* secondPass = (float*) dst->data;
+    float* secondPass = dstData;
     for (int y = 0; y < dstHeight; ++y) {
         for (int x = 0; x < dstWidth; ++x) {
-            float sum = 0.0f;
-            for (int i = 0; i < fullFilterSize; ++i) {
-                int srcY = (int)((y + 0.5f) * ratio - 0.5f) + i - filterSize;
-                if (srcY < 0 || srcY >= srcHeight)
-                    continue;
-                sum += firstPass[srcY * dstWidth + x] * filter[i];
+            for (int c = 0; c < src->channelCount; ++c) {
+                float sum = 0.0f;
+                for (int i = 0; i < fullFilterSize; ++i) {
+                    int srcY = (int)((y + 0.5f) / ratio - 0.5f) + i - filterSize;
+                    if (srcY < 0 || srcY >= srcHeight)
+                        continue;
+                    int idx = src->channelCount * srcY * dstWidth + (x * src->channelCount) + c;
+                    sum += firstPass[idx] * filter[i];
+                }
+                secondPass[src->channelCount * y * dstWidth + (x * src->channelCount) + c] = sum;
             }
-            secondPass[y * dstWidth + x] = sum;
         }
     }
     free(firstPass);
-    free(filter);
     return true;
 }
 
@@ -588,25 +589,16 @@ bool Hio_OpenEXRImage::ReadCropped(
     bool inputIsFloat = filePixelType == EXR_PIXEL_FLOAT;
     bool outputIsFloat = HioGetHioType(storage.format) == HioTypeFloat;
     bool outputIsHalf = HioGetHioType(storage.format) == HioTypeHalfFloat;
-    bool formatsMatch = (inputIsFloat && outputIsFloat) || (inputIsHalf && outputIsHalf);
-    
-    uint8_t* readDataHere;
-    std::vector<uint8_t> readDataTemp;
-    if (resizing) {
-        // allocate a float buffer
-        readDataTemp.resize(fileWidth * fileHeight * sizeof(float));
-        readDataHere = &readDataTemp[0];
-    }
-    else if (!formatsMatch) {
-        // allocate a right-sized buffer
-        readDataTemp.resize(fileWidth * fileHeight * GetBytesPerPixel());
-        readDataHere = &readDataTemp[0];
-    }
-    else {
-        // read in place
-        readDataHere = reinterpret_cast<uint8_t*>(storage.data);
-    }
 
+    std::vector<uint16_t> halfInputBuffer;
+    if (inputIsHalf) {
+        halfInputBuffer.resize(fileWidth * fileHeight * fileChannelCount);
+    }
+    std::vector<float> floatInputBuffer;
+    if (inputIsHalf && (resizing || outputIsFloat)) {
+        floatInputBuffer.resize(fileWidth * fileHeight * fileChannelCount);
+    }
+    
     if (cropping) {
         if (nanoexr_isTiled(_exrReader)) {
             // ... @TODO read tiled cropped
@@ -622,7 +614,12 @@ bool Hio_OpenEXRImage::ReadCropped(
         }
         else {
             nanoexr_ImageData_t img;
-            img.data = readDataHere;
+            
+            if (inputIsHalf)
+                img.data = reinterpret_cast<uint8_t*>(&halfInputBuffer[0]);
+            else
+                img.data = reinterpret_cast<uint8_t*>(&floatInputBuffer[0]);
+            
             img.channelCount = outChannelCount;
             img.dataSize = fileWidth * fileHeight * GetBytesPerPixel();
             img.pixelType = filePixelType;
@@ -633,30 +630,64 @@ bool Hio_OpenEXRImage::ReadCropped(
         }
     }
 
-    if (inputIsHalf && (resizing || outputIsFloat)) {
-        // convert readDataHere to float, in place
-        // ... @TODO
-        filePixelType = EXR_PIXEL_FLOAT;
-        formatsMatch = outputIsFloat;
-    }
-
-    if (resizing) {
-        // ... @TODO
-    }
-    
-    if (formatsMatch) {
-        // nothing extra to be done
+    if (!resizing) {
+        if (inputIsHalf && outputIsHalf) {
+            memcpy(reinterpret_cast<void*>(storage.data),
+                   &halfInputBuffer[0], sizeof(uint16_t) * halfInputBuffer.size());
+        }
+        else if (inputIsFloat && outputIsFloat) {
+            memcpy(reinterpret_cast<void*>(storage.data),
+                   &floatInputBuffer[0], sizeof(float) * floatInputBuffer.size());
+        }
+        else if (outputIsFloat) {
+            for (int i = 0; i < halfInputBuffer.size(); ++i)
+                reinterpret_cast<float*>(storage.data)[i] = half_to_float(halfInputBuffer[i]);
+        }
+        else {
+            for (int i = 0; i < floatInputBuffer.size(); ++i)
+                reinterpret_cast<uint16_t*>(storage.data)[i] = float_to_half(floatInputBuffer[i]);
+        }
         return true;
     }
     
-    if (inputIsFloat) {
-        // copy float to storage.data as half
-        // ... @TODO
-        return true;
+    // resizing
+    if (inputIsHalf) {
+        floatInputBuffer.resize(fileWidth * fileHeight * fileChannelCount);
+        for (int i = 0; i < floatInputBuffer.size(); ++i)
+            floatInputBuffer[i] = half_to_float(halfInputBuffer[i]);
     }
 
-    // copy half as storage.data to float
-    // ... @TODO
+    std::vector<float> resizeOutputBuffer;
+
+    nanoexr_ImageData_t src;
+    src.data = reinterpret_cast<uint8_t*>(&floatInputBuffer[0]);
+    src.channelCount = fileChannelCount;
+    src.dataSize = fileWidth * fileHeight * GetBytesPerPixel();
+    src.pixelType = EXR_PIXEL_FLOAT;
+    src.width = fileWidth;
+    src.height = fileHeight;
+
+    nanoexr_ImageData_t dst;
+    dst.channelCount = outChannelCount;
+    dst.dataSize = outWidth * outHeight * outChannelCount * sizeof(float);
+    dst.pixelType = EXR_PIXEL_FLOAT;
+    dst.width = outWidth;
+    dst.height = outHeight;
+
+    if (outputIsFloat) {
+        dst.data = reinterpret_cast<uint8_t*>(storage.data);
+    }
+    else {
+        resizeOutputBuffer.resize(outWidth * outHeight * outChannelCount);
+        dst.data = reinterpret_cast<uint8_t*>(&resizeOutputBuffer[0]);
+    }
+    downsample(&src, &dst);
+    
+    if (outputIsHalf) {
+        for (int i = 0; i < resizeOutputBuffer.size(); ++i)
+            reinterpret_cast<uint16_t*>(storage.data)[i] =
+            float_to_half(resizeOutputBuffer[i]);
+    }
     return true;
 }
 
