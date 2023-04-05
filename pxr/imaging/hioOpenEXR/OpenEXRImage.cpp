@@ -50,14 +50,16 @@
 /*
 
 Open Questions:
- - @dyu - how are int32 textures used?
- - @dyu - Hydra will never ask Hio for float to int8 tonemapping, right?
- - @dyu - Hydra will never ask Hio for exr files with gamma correction? (because exr are linear only)
- - @dyu/karen - how are layers piped from MaterialX to Hio? Seems to be nonexistant?
- - @dyu - where are the tests for Hio?
- - @dyu - how do we test the HioOpenEXR plugin?
- - @dyu - how do we test the HioOpenEXR plugin with MaterialX, UDIMs, and MatX with UDIMs?
- - @dyu 4:2:0 chroma subsampling support needed? cf https://github.com/AcademySoftwareFoundation/openexr/issues/1137
+- Hydra may ask for downsampled images (constructing mips)
+- Hydra won't ask for upsampled images (I supplied a simple Gaussian upsample anyway)
+- What role does cropping play? (maybe there's a crop node in shadegraphs?)
+- how are int32 textures used? Are they in named layers? (id pixels, single layer exr files only)
+- Hydra will never ask Hio for float to int8 tonemapping, right? (never)
+- Hydra will never ask Hio for exr files expecting gamma pixels back? (because exr are linear only) (never)
+- how are layers piped from MaterialX to Hio? (Seems to throw away layer info?)
+- where are the extended tests for Hio? (I think there are some tests I can explicitly run)
+- is there test data to check the permutations of Hydra with MaterialX, UDIMs, and MatX with UDIMs? (I think there are sample files somewhere)
+- 4:2:0 chroma support needed? How about YUV? (No to both)
     
  Remaining:
 

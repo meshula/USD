@@ -636,6 +636,7 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
                                       const char* layerName,
                                       int linesToSkip)
 {
+    uint8_t* chunk_buffer = NULL;
     exr_decode_pipeline_t decoder;
     memset(&decoder, 0, sizeof(decoder));
     int checkpoint = 0;
@@ -644,6 +645,7 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
     if (rv != EXR_ERR_SUCCESS)
         goto err;
 
+    checkpoint = 1;
     exr_attr_box2i_t datawin;
     rv = exr_get_data_window(reader->exr, reader->partIndex, &datawin);
     if (rv != EXR_ERR_SUCCESS) 
@@ -652,37 +654,30 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
     int window_width = datawin.max.x - datawin.min.x + 1;
     int window_height = datawin.max.y - datawin.min.y + 1;
 
-    uint8_t* tempData = NULL;
+    // allocate a space large enough for a chunk of scanlines of type float
+    chunk_buffer = (uint8_t*) malloc(scanLinesPerChunk * window_width * reader->channelCount * sizeof(float));
+    if (!chunk_buffer) {
+        checkpoint = 2;
+        rv = EXR_ERR_OUT_OF_MEMORY;
+        goto err;
+    }
+    
     size_t output_bpp = nanoexr_getPixelTypeSize(img->pixelType);
     size_t bpp = nanoexr_getPixelTypeSize(reader->pixelType);
     int output_width = window_width;
-    if (nanoexr_getPixelType(reader) != img->pixelType) {
-        if (!bpp) {
-            rv = EXR_ERR_INVALID_ARGUMENT;
-            goto err;            
-        }
-        tempData = (uint8_t*) malloc(window_width * window_height * img->channelCount * output_bpp);
-        if (!tempData) {
-            rv = EXR_ERR_OUT_OF_MEMORY;
-            goto err;
-        }
-    }
-    uint8_t* imageData;
-    if (tempData) {
-        imageData = tempData;
-        bpp = output_bpp;
-    }
-    else {
-        imageData = (uint8_t*) img->data;
-    }
-
     size_t offset = 0;
     size_t outputOffset = 0;
     int bytesPerElement = 0;
-
     int rgbaIndex[4] = {-1, -1, -1, -1};
-
+    int linesWritten = 0;
+    
     for (int chunky = datawin.min.y; chunky < datawin.max.y; chunky += scanLinesPerChunk) {
+
+        if (linesToSkip > scanLinesPerChunk) {
+            linesToSkip -= scanLinesPerChunk;
+            continue;
+        }
+
         exr_chunk_info_t chunkInfo = {0};
         
         checkpoint = 20;
@@ -756,37 +751,38 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
         // Set pixmap pointers for this chunk
         for (int c = 0; c < decoder.channel_count; c++) {
             if (rgbaIndex[c] >= 0)
-                decoder.channels[c].decode_to_ptr = offset + imageData + rgbaIndex[c] * bytesPerElement;
+                decoder.channels[c].decode_to_ptr = chunk_buffer + rgbaIndex[c] * bytesPerElement;
         }
 
         checkpoint = 70;
         rv = exr_decoding_run(reader->exr, reader->partIndex, &decoder);
         if (rv != EXR_ERR_SUCCESS)
             goto err;
-        
-        if (tempData) {
-            checkpoint = 90;
-            rv = nanoexr_convertPixelType(
-                    img->pixelType, reader->pixelType, 
-                    window_width * scanLinesPerChunk, 
-                    img->channelCount, 
-                    offset + imageData, outputOffset + (uint8_t*) img->data);
-            if (rv != EXR_ERR_SUCCESS)
-                goto err;
-        }
+
+        checkpoint = 90;
+        // this will just be a memcpy if in & out match
+        rv = nanoexr_convertPixelType(
+                img->pixelType, reader->pixelType,
+                window_width * scanLinesPerChunk,
+                img->channelCount,
+                chunk_buffer, outputOffset + (uint8_t*) img->data);
+
+        if (rv != EXR_ERR_SUCCESS)
+            goto err;
 
         offset += scanLinesPerChunk * reader->width * img->channelCount * bytesPerElement;
         outputOffset += scanLinesPerChunk * reader->width * img->channelCount * bytesPerElement;
+        linesWritten += scanLinesPerChunk;
+        
+        if (linesWritten > img->height) {
+            break;
+        }
     }
-
-    rv = exr_decoding_destroy(reader->exr, &decoder);
-    if (tempData)
-        free(tempData);
-    return rv;
-    
+        
+    // fall through and return rv
 err:
-    if (tempData)
-        free(tempData);
+    if (chunk_buffer)
+        free(chunk_buffer);
     exr_decoding_destroy(reader->exr, &decoder);
     return rv;
 }
