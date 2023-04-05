@@ -48,23 +48,28 @@
 #include "pxr/imaging/hio/stb/stb_image_resize.h"
 
 /*
+
+Open Questions:
+ - @dyu - how are int32 textures used?
+ - @dyu - Hydra will never ask Hio for float to int8 tonemapping, right?
+ - @dyu - Hydra will never ask Hio for exr files with gamma correction? (because exr are linear only)
+ - @dyu/karen - how are layers piped from MaterialX to Hio? Seems to be nonexistant?
+ - @dyu - where are the tests for Hio?
+ - @dyu - how do we test the HioOpenEXR plugin?
+ - @dyu - how do we test the HioOpenEXR plugin with MaterialX, UDIMs, and MatX with UDIMs?
+ - @dyu 4:2:0 chroma subsampling support needed? cf https://github.com/AcademySoftwareFoundation/openexr/issues/1137
+    
  Remaining:
 
  - inter miniz
  - hook it to stb_image/png  https://github.com/nothings/stb/issues/113
  - switch OpenEXR to using miniz
  - cropped reading
+ - populate attributes dictionary
  - test writing via UsdRecord
- - dyu - how are int32 textures used?
- - dyu - Hydra will never ask Hio for float to int8 tonemapping, right?
- - dyu - Hydra will never ask Hio for exr files with gamma correction, right?
- - dyu/karen - how are layers piped from MaterialX to Hio? Seems to be nonexistant?
- - UDIM + MaterialX is supposed to work, where's some test data?
- - dyu - where is the test data/routines for Hio?
  - move HioOpenEXR directly into Hio
  - final code clean up and checkin
  - start submitting patches to OpenEXR project (doesn't gate the task)
- - populate attributes dictionary
 
  Maybe:
  - should be able to do "stapled AOVs" from usd record unless usd record is too inflexible (USD-7846)

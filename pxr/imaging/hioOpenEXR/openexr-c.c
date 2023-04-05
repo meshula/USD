@@ -39,6 +39,7 @@
 #include "OpenEXRCore/validation.c"
 #include "OpenEXRCore/write_header.c"
 
+#include <ctype.h>
 #include <math.h>
 
 #define EXR_FILE "StillLife.exr"
@@ -550,12 +551,76 @@ exr_result_t nanoexr_convertPixelType(exr_pixel_type_t dstType, exr_pixel_type_t
     return EXR_ERR_INVALID_ARGUMENT;
 }
 
+bool strIsRed(const char* str) {
+    // check if the case folded string is R or RED, or if it ends in .R or .RED
+    char* folded = strdup(str);
+    for (int i = 0; folded[i]; ++i) {
+        folded[i] = tolower(folded[i]);
+    }
+    if (strcmp(folded, "r") == 0 || strcmp(folded, "red") == 0)
+        return true;
+    int l = strlen(folded);
+    if ((l > 2) && (folded[l - 2] == '.') && (folded[l - 1] == 'r'))
+        return true;
+    if (l < 4)
+        return false;
+    return strcmp(folded + l - 4, ".red");
+}
+
+bool strIsGreen(const char* str) {
+    // check if the case folded string is G or GREEN, or if it ends in .G or .GREEN
+    char* folded = strdup(str);
+    for (int i = 0; folded[i]; ++i) {
+        folded[i] = tolower(folded[i]);
+    }
+    if (strcmp(folded, "g") == 0 || strcmp(folded, "green") == 0)
+        return true;
+    int l = strlen(folded);
+    if ((l > 2) && (folded[l - 2] == '.') && (folded[l - 1] == 'g'))
+        return true;
+    if (l < 6)
+        return false;
+    return strcmp(folded + l - 6, ".green");
+}
+
+bool strIsBlue(const char* str) {
+    // check if the case folded string is B or BLUE, or if it ends in .B or .BLUE
+    char* folded = strdup(str);
+    for (int i = 0; folded[i]; ++i) {
+        folded[i] = tolower(folded[i]);
+    }
+    if (strcmp(folded, "b") == 0 || strcmp(folded, "blue") == 0)
+        return true;
+    int l = strlen(folded);
+    if ((l > 2) && (folded[l - 2] == '.') && (folded[l - 1] == 'b'))
+        return true;
+    if (l < 5)
+        return false;
+    return strcmp(folded + l - 5, ".blue");
+}
+
+bool strIsAlpha(const char* str) {
+    // check if the case folded string is A or ALPHA, or if it ends in .A or .ALPHA
+    char* folded = strdup(str);
+    for (int i = 0; folded[i]; ++i) {
+        folded[i] = tolower(folded[i]);
+    }
+    if (strcmp(folded, "a") == 0 || strcmp(folded, "alpha") == 0)
+        return true;
+    int l = strlen(folded);
+    if ((l > 2) && (folded[l - 2] == '.') && (folded[l - 1] == 'a'))
+        return true;
+    if (l < 6)
+        return false;
+    return strcmp(folded + l - 6, ".alpha");
+}
+
 /*
     Read an entire scanline based image
 */
 
 exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader, 
-                                    nanoexr_ImageData_t* img,
+                                      nanoexr_ImageData_t* img,
                                       int linesToSkip)
 {
     exr_decode_pipeline_t decoder;
@@ -613,28 +678,28 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
             goto err;
 
         if (decoder.channels == NULL) {
-        checkpoint = 30;
+            checkpoint = 30;
         
-        rv = exr_decoding_initialize(reader->exr, reader->partIndex, &chunkInfo, &decoder);
+            rv = exr_decoding_initialize(reader->exr, reader->partIndex, &chunkInfo, &decoder);
             if (rv != EXR_ERR_SUCCESS)
                 goto err;
             
             bytesPerElement = decoder.channels[0].bytes_per_element;
             for (int c = 0; c < decoder.channel_count; ++c) {
                 int channelIndex = -1;
-                if (strcmp(decoder.channels[c].channel_name, "R") == 0) {
+                if (strIsRed(decoder.channels[c].channel_name)) {
                     rgbaIndex[0] = c;
                     channelIndex = 0;
                 }
-                else if (strcmp(decoder.channels[c].channel_name, "G") == 0) {
+                else if (strIsGreen(decoder.channels[c].channel_name)) {
                     rgbaIndex[1] = c;
                     channelIndex = 1;
                 }
-                else if (strcmp(decoder.channels[c].channel_name, "B") == 0) {
+                else if (strIsBlue(decoder.channels[c].channel_name)) {
                     rgbaIndex[2] = c;
                     channelIndex = 2;
                 }
-                else if (strcmp(decoder.channels[c].channel_name, "A") == 0) {
+                else if (strIsAlpha(decoder.channels[c].channel_name)) {
                     rgbaIndex[3] = c;
                     channelIndex = 3;
                 }
