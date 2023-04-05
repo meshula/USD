@@ -551,7 +551,10 @@ exr_result_t nanoexr_convertPixelType(exr_pixel_type_t dstType, exr_pixel_type_t
     return EXR_ERR_INVALID_ARGUMENT;
 }
 
-bool strIsRed(const char* str) {
+bool strIsRed(const char* layerName, const char* str) {
+    if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
+        return false;
+
     // check if the case folded string is R or RED, or if it ends in .R or .RED
     char* folded = strdup(str);
     for (int i = 0; folded[i]; ++i) {
@@ -559,7 +562,7 @@ bool strIsRed(const char* str) {
     }
     if (strcmp(folded, "r") == 0 || strcmp(folded, "red") == 0)
         return true;
-    int l = strlen(folded);
+    size_t l = strlen(folded);
     if ((l > 2) && (folded[l - 2] == '.') && (folded[l - 1] == 'r'))
         return true;
     if (l < 4)
@@ -567,7 +570,10 @@ bool strIsRed(const char* str) {
     return strcmp(folded + l - 4, ".red");
 }
 
-bool strIsGreen(const char* str) {
+bool strIsGreen(const char* layerName, const char* str) {
+    if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
+        return false;
+
     // check if the case folded string is G or GREEN, or if it ends in .G or .GREEN
     char* folded = strdup(str);
     for (int i = 0; folded[i]; ++i) {
@@ -575,7 +581,7 @@ bool strIsGreen(const char* str) {
     }
     if (strcmp(folded, "g") == 0 || strcmp(folded, "green") == 0)
         return true;
-    int l = strlen(folded);
+    size_t l = strlen(folded);
     if ((l > 2) && (folded[l - 2] == '.') && (folded[l - 1] == 'g'))
         return true;
     if (l < 6)
@@ -583,7 +589,10 @@ bool strIsGreen(const char* str) {
     return strcmp(folded + l - 6, ".green");
 }
 
-bool strIsBlue(const char* str) {
+bool strIsBlue(const char* layerName, const char* str) {
+    if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
+        return false;
+
     // check if the case folded string is B or BLUE, or if it ends in .B or .BLUE
     char* folded = strdup(str);
     for (int i = 0; folded[i]; ++i) {
@@ -591,7 +600,7 @@ bool strIsBlue(const char* str) {
     }
     if (strcmp(folded, "b") == 0 || strcmp(folded, "blue") == 0)
         return true;
-    int l = strlen(folded);
+    size_t l = strlen(folded);
     if ((l > 2) && (folded[l - 2] == '.') && (folded[l - 1] == 'b'))
         return true;
     if (l < 5)
@@ -599,7 +608,10 @@ bool strIsBlue(const char* str) {
     return strcmp(folded + l - 5, ".blue");
 }
 
-bool strIsAlpha(const char* str) {
+bool strIsAlpha(const char* layerName, const char* str) {
+    if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
+        return false;
+
     // check if the case folded string is A or ALPHA, or if it ends in .A or .ALPHA
     char* folded = strdup(str);
     for (int i = 0; folded[i]; ++i) {
@@ -607,7 +619,7 @@ bool strIsAlpha(const char* str) {
     }
     if (strcmp(folded, "a") == 0 || strcmp(folded, "alpha") == 0)
         return true;
-    int l = strlen(folded);
+    size_t l = strlen(folded);
     if ((l > 2) && (folded[l - 2] == '.') && (folded[l - 1] == 'a'))
         return true;
     if (l < 6)
@@ -621,6 +633,7 @@ bool strIsAlpha(const char* str) {
 
 exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader, 
                                       nanoexr_ImageData_t* img,
+                                      const char* layerName,
                                       int linesToSkip)
 {
     exr_decode_pipeline_t decoder;
@@ -687,19 +700,19 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
             bytesPerElement = decoder.channels[0].bytes_per_element;
             for (int c = 0; c < decoder.channel_count; ++c) {
                 int channelIndex = -1;
-                if (strIsRed(decoder.channels[c].channel_name)) {
+                if (strIsRed(layerName, decoder.channels[c].channel_name)) {
                     rgbaIndex[0] = c;
                     channelIndex = 0;
                 }
-                else if (strIsGreen(decoder.channels[c].channel_name)) {
+                else if (strIsGreen(layerName, decoder.channels[c].channel_name)) {
                     rgbaIndex[1] = c;
                     channelIndex = 1;
                 }
-                else if (strIsBlue(decoder.channels[c].channel_name)) {
+                else if (strIsBlue(layerName, decoder.channels[c].channel_name)) {
                     rgbaIndex[2] = c;
                     channelIndex = 2;
                 }
-                else if (strIsAlpha(decoder.channels[c].channel_name)) {
+                else if (strIsAlpha(layerName, decoder.channels[c].channel_name)) {
                     rgbaIndex[3] = c;
                     channelIndex = 3;
                 }
