@@ -245,7 +245,7 @@ bool Hio_OpenEXRImage::ReadCropped(
             img.width = fileWidth;
             img.height = readHeight;
             img.pixelType = filePixelType;
-            exr_result_t rv = nanoexr_readScanlineData(_exrReader, &img, cropTop);
+            exr_result_t rv = nanoexr_readScanlineData(_exrReader, &img, nullptr, cropTop);
             if (rv != EXR_ERR_SUCCESS) {
                 return false;
             }
@@ -269,7 +269,7 @@ bool Hio_OpenEXRImage::ReadCropped(
             img.width = fileWidth;
             img.height = fileHeight;
             img.pixelType = filePixelType;
-            exr_result_t rv = nanoexr_readScanlineData(_exrReader, &img, 0);
+            exr_result_t rv = nanoexr_readScanlineData(_exrReader, &img, nullptr, 0);
             if (rv != EXR_ERR_SUCCESS) {
                 return false;
             }

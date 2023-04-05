@@ -71,6 +71,7 @@ size_t             nanoexr_getPixelTypeSize(exr_pixel_type_t t);
 // remainder of the buffer will be filled with zeroes.
 exr_result_t       nanoexr_readScanlineData(nanoexr_Reader_t* reader,
                                             nanoexr_ImageData_t* img,
+                                            const char* layerName,
                                             int initialLinesToSkip);
 
 exr_result_t       nanoexr_readTileData(nanoexr_Reader_t* reader,
