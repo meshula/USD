@@ -551,7 +551,7 @@ exr_result_t nanoexr_convertPixelType(exr_pixel_type_t dstType, exr_pixel_type_t
     return EXR_ERR_INVALID_ARGUMENT;
 }
 
-bool strIsRed(const char* layerName, const char* str) {
+static bool strIsRed(const char* layerName, const char* str) {
     if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
         return false;
 
@@ -570,7 +570,7 @@ bool strIsRed(const char* layerName, const char* str) {
     return strcmp(folded + l - 4, ".red");
 }
 
-bool strIsGreen(const char* layerName, const char* str) {
+static bool strIsGreen(const char* layerName, const char* str) {
     if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
         return false;
 
@@ -589,7 +589,7 @@ bool strIsGreen(const char* layerName, const char* str) {
     return strcmp(folded + l - 6, ".green");
 }
 
-bool strIsBlue(const char* layerName, const char* str) {
+static bool strIsBlue(const char* layerName, const char* str) {
     if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
         return false;
 
@@ -608,7 +608,7 @@ bool strIsBlue(const char* layerName, const char* str) {
     return strcmp(folded + l - 5, ".blue");
 }
 
-bool strIsAlpha(const char* layerName, const char* str) {
+static bool strIsAlpha(const char* layerName, const char* str) {
     if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
         return false;
 
@@ -760,12 +760,21 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
             goto err;
 
         checkpoint = 90;
+
+        uint8_t* copy_from_here;
+        if (!linesToSkip)
+            copy_from_here = chunk_buffer;
+        else
+            copy_from_here = chunk_buffer + linesToSkip * window_width * img->channelCount * bytesPerElement;
+
         // this will just be a memcpy if in & out match
         rv = nanoexr_convertPixelType(
                 img->pixelType, reader->pixelType,
-                window_width * scanLinesPerChunk,
+                window_width * (scanLinesPerChunk - linesToSkip),
                 img->channelCount,
-                chunk_buffer, outputOffset + (uint8_t*) img->data);
+                copy_from_here, outputOffset + (uint8_t*) img->data);
+
+        linesToSkip = 0;
 
         if (rv != EXR_ERR_SUCCESS)
             goto err;
@@ -777,6 +786,11 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
         if (linesWritten > img->height) {
             break;
         }
+    }
+
+    // zero out any remaining lines
+    if (linesWritten < img->height) {
+        memset(outputOffset + (uint8_t*) img->data, 0, (img->height - linesWritten) * img->width * img->channelCount * bytesPerElement);
     }
         
     // fall through and return rv
