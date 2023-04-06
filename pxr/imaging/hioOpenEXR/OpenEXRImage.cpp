@@ -176,7 +176,7 @@ Hio_OpenEXRImage::~Hio_OpenEXRImage()
 
 bool Hio_OpenEXRImage::Read(StorageSpec const &storage)
 {
-    return ReadCropped(0, 0, 0, 0, storage);
+    return ReadCropped(19, 0, 0, 0, storage);
 }
 
 #if 0
