@@ -665,7 +665,6 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
     size_t output_bpp = nanoexr_getPixelTypeSize(img->pixelType);
     size_t bpp = nanoexr_getPixelTypeSize(reader->pixelType);
     int output_width = window_width;
-    size_t offset = 0;
     size_t outputOffset = 0;
     int bytesPerElement = 0;
     int rgbaIndex[4] = {-1, -1, -1, -1};
@@ -767,23 +766,27 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
         else
             copy_from_here = chunk_buffer + linesToSkip * window_width * img->channelCount * bytesPerElement;
 
+        int linesWrittenThisChunk = scanLinesPerChunk - linesToSkip;
+        linesToSkip = 0;
+
+        if (linesWritten + linesWrittenThisChunk > img->height)
+            linesWrittenThisChunk = img->height - linesWritten;
+        
         // this will just be a memcpy if in & out match
         rv = nanoexr_convertPixelType(
                 img->pixelType, reader->pixelType,
-                window_width * (scanLinesPerChunk - linesToSkip),
+                window_width * linesWrittenThisChunk,
                 img->channelCount,
                 copy_from_here, outputOffset + (uint8_t*) img->data);
 
-        linesToSkip = 0;
 
         if (rv != EXR_ERR_SUCCESS)
             goto err;
 
-        offset += scanLinesPerChunk * reader->width * img->channelCount * bytesPerElement;
-        outputOffset += scanLinesPerChunk * reader->width * img->channelCount * bytesPerElement;
-        linesWritten += scanLinesPerChunk;
+        outputOffset += linesWrittenThisChunk * reader->width * img->channelCount * bytesPerElement;
+        linesWritten += linesWrittenThisChunk;
         
-        if (linesWritten > img->height) {
+        if (linesWritten >= img->height) {
             break;
         }
     }

@@ -176,7 +176,7 @@ Hio_OpenEXRImage::~Hio_OpenEXRImage()
 
 bool Hio_OpenEXRImage::Read(StorageSpec const &storage)
 {
-    return ReadCropped(19, 0, 0, 0, storage);
+    return ReadCropped(27777, 0, 0, 0, storage);
 }
 
 #if 0
@@ -218,6 +218,10 @@ bool Hio_OpenEXRImage::ReadCropped(
     bool resizing = (fileWidth != outWidth) || (fileHeight != outHeight);
 
     int readHeight = fileHeight - cropTop - cropBottom;
+    if (readHeight < 0) {
+        memset(storage.data, 0, GetWidth() * GetHeight() * GetBytesPerPixel());
+        return true;
+    }
 
     std::vector<uint16_t> halfInputBuffer;
     if (inputIsHalf) {
