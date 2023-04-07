@@ -222,6 +222,11 @@ bool Hio_OpenEXRImage::ReadCropped(
         memset(storage.data, 0, GetWidth() * GetHeight() * GetBytesPerPixel());
         return true;
     }
+    int readWidth = fileWidth - cropLeft - cropRight;
+    if (readWidth < 0) {
+        memset(storage.data, 0, GetWidth() * GetHeight() * GetBytesPerPixel());
+        return true;
+    }
 
     std::vector<uint16_t> halfInputBuffer;
     if (inputIsHalf) {
@@ -304,9 +309,13 @@ bool Hio_OpenEXRImage::ReadCropped(
     
     // resizing
     if (inputIsHalf) {
-        floatInputBuffer.resize(fileWidth * fileHeight * fileChannelCount);
-        for (int i = 0; i < floatInputBuffer.size(); ++i)
-            floatInputBuffer[i] = half_to_float(halfInputBuffer[i]);
+        floatInputBuffer.resize(readWidth * readHeight * fileChannelCount);
+        for (int y = 0; y < readHeight; ++y) {
+            int srcAddr = fileWidth * fileChannelCount * y;
+            for (int i = 0; i < readWidth * fileChannelCount; ++i) {
+                floatInputBuffer[i] = half_to_float(halfInputBuffer[srcAddr + i + (cropLeft * fileChannelCount)]);
+            }
+        }
     }
 
     std::vector<float> resizeOutputBuffer;
