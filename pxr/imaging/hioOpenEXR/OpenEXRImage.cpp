@@ -176,7 +176,7 @@ Hio_OpenEXRImage::~Hio_OpenEXRImage()
 
 bool Hio_OpenEXRImage::Read(StorageSpec const &storage)
 {
-    return ReadCropped(27777, 0, 0, 0, storage);
+    return ReadCropped(0, 0, 0, 0, storage);
 }
 
 #if 0
@@ -314,10 +314,10 @@ bool Hio_OpenEXRImage::ReadCropped(
     nanoexr_ImageData_t src;
     src.data = reinterpret_cast<uint8_t*>(&floatInputBuffer[0]);
     src.channelCount = fileChannelCount;
-    src.dataSize = fileWidth * fileHeight * GetBytesPerPixel();
+    src.dataSize = fileWidth * readHeight * GetBytesPerPixel();
     src.pixelType = EXR_PIXEL_FLOAT;
     src.width = fileWidth;
-    src.height = fileHeight;
+    src.height = readHeight;
 
     nanoexr_ImageData_t dst;
     dst.channelCount = outChannelCount;

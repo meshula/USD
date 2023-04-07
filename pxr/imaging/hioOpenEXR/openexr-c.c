@@ -634,7 +634,7 @@ static bool strIsAlpha(const char* layerName, const char* str) {
 exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader, 
                                       nanoexr_ImageData_t* img,
                                       const char* layerName,
-                                      int linesToSkip)
+                                      int cropTop)
 {
     uint8_t* chunk_buffer = NULL;
     exr_decode_pipeline_t decoder;
@@ -672,8 +672,8 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
     
     for (int chunky = datawin.min.y; chunky < datawin.max.y; chunky += scanLinesPerChunk) {
 
-        if (linesToSkip > scanLinesPerChunk) {
-            linesToSkip -= scanLinesPerChunk;
+        if (cropTop > scanLinesPerChunk) {
+            cropTop -= scanLinesPerChunk;
             continue;
         }
 
@@ -761,13 +761,13 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
         checkpoint = 90;
 
         uint8_t* copy_from_here;
-        if (!linesToSkip)
+        if (!cropTop)
             copy_from_here = chunk_buffer;
         else
-            copy_from_here = chunk_buffer + linesToSkip * window_width * img->channelCount * bytesPerElement;
+            copy_from_here = chunk_buffer + cropTop * window_width * img->channelCount * bytesPerElement;
 
-        int linesWrittenThisChunk = scanLinesPerChunk - linesToSkip;
-        linesToSkip = 0;
+        int linesWrittenThisChunk = scanLinesPerChunk - cropTop;
+        cropTop = 0;
 
         if (linesWritten + linesWrittenThisChunk > img->height)
             linesWrittenThisChunk = img->height - linesWritten;

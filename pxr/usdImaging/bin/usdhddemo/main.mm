@@ -196,8 +196,11 @@ int main(int argc, char *argv[])
         std::cout << " mips: " << _image->GetNumMipLevels() << "\n";
         std::cout << (_image->IsColorSpaceSRGB() ? " srgb pixels\n" : " linear pixels\n");
 
+        int cropTop = 123;
+        int cropBottom = 102;
+        
         _spec.width  = (int)(_image->GetWidth() * 0.85f);
-        _spec.height = (int)(_image->GetHeight() * 0.85f);
+        _spec.height = (int)((_image->GetHeight() - cropTop - cropBottom) * 0.85f);
         _spec.format = _image->GetFormat();
         _spec.flipped = false;
 
@@ -205,7 +208,7 @@ int main(int argc, char *argv[])
         imageData.reset(new char[bufsize]);
 
         _spec.data = imageData.get();
-        if (_image->Read(_spec)) {
+        if (_image->ReadCropped(cropTop, cropBottom, 0, 0, _spec)) {
             // successfully read the image!
         }
     }
