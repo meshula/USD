@@ -9,6 +9,8 @@ pxr_cpp_bin(usdtree
         tf
         usd
         usdUtils
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
         )
 
 pxr_install_test_dir(

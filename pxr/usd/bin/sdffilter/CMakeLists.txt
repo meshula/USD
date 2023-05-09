@@ -8,4 +8,6 @@ pxr_cpp_bin(sdffilter
         arch
         tf
         sdf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
 )

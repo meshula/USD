@@ -7,4 +7,8 @@ pxr_cpp_bin(sdfdump
         plug
         tf
         sdf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
 )
+
+
