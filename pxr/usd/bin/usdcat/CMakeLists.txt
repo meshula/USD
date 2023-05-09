@@ -7,6 +7,8 @@ pxr_cpp_bin(usdcat
         sdf
         usd
         usdUtils
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
         )
 
 pxr_install_test_dir(
