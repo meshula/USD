@@ -58,6 +58,8 @@ void blit(MTLRenderPassDescriptor* renderPassDescriptor,
     [renderEncoder popDebugGroup];
 }
 
+#define INSTALL_LOCN "usd0508"
+
 int main(int argc, char *argv[])
 {
     //-------------------------------------------------------------------------
@@ -66,10 +68,10 @@ int main(int argc, char *argv[])
     //Plug_InitConfig();
     std::vector<std::string> test;
     std::vector<std::string> paths;
-    paths.emplace_back("/var/tmp/usd-230402/lib/usd");
-    paths.emplace_back("/var/tmp/usd-230402/plugin/usd");
+    paths.emplace_back("/var/tmp/" INSTALL_LOCN "/lib/usd");
+    paths.emplace_back("/var/tmp/" INSTALL_LOCN "/plugin/usd");
     std::vector<std::string> msgs;
-    msgs.emplace_back("looking for plugs here: /var/tmp/usd-230327/lib/usd");
+    msgs.emplace_back("looking for plugs here: /var/tmp/" INSTALL_LOCN "/lib/usd");
     Plug_SetPaths(paths, msgs, true);
 
     UsdStageRefPtr _stage;
@@ -161,8 +163,6 @@ int main(int argc, char *argv[])
         NSLog(@"Failed to created pipeline state, error %@", error);
     }
     
-    
-    
     //-------------------------------------------------------------------------
     // Read a texture
     //-------------------------------------------------------------------------
@@ -196,11 +196,11 @@ int main(int argc, char *argv[])
         std::cout << " mips: " << _image->GetNumMipLevels() << "\n";
         std::cout << (_image->IsColorSpaceSRGB() ? " srgb pixels\n" : " linear pixels\n");
 
-        int cropTop = 123;
-        int cropBottom = 102;
-        
-        _spec.width  = (int)(_image->GetWidth() * 0.85f);
-        _spec.height = (int)((_image->GetHeight() - cropTop - cropBottom) * 0.85f);
+        int cropTop = 0;
+        int cropBottom = 0;
+        float scale = 1.f;//0.85f;
+        _spec.width  = (int)(_image->GetWidth() * scale);
+        _spec.height = (int)((_image->GetHeight() - cropTop - cropBottom) * scale);
         _spec.format = _image->GetFormat();
         _spec.flipped = false;
 
@@ -252,9 +252,6 @@ int main(int argc, char *argv[])
 
         static bool once = true;
         if (once) {
-            
-
-            
             once = false;
         }
         
