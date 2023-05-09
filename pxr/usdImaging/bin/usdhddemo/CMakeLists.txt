@@ -50,12 +50,13 @@ pxr_cpp_bin(usdhddemo
         hdSt
         hgi
         hio
-        hioOpenEXR
         sdf
         tf
         usd
         usdGeom
         usdImagingGL
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
         ${METAL_LIBRARY}
         ${METALKIT_LIBRARY}
         ${UNIFORMTYPEIDENTIFIERS_LIBRARY}
