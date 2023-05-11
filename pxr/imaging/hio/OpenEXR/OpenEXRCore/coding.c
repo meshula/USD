@@ -252,13 +252,13 @@ internal_decode_alloc_buffer (
         internal_decode_free_buffer (decode, bufid, buf, cursz);
 
         if (decode->alloc_fn)
-            curbuf = decode->alloc_fn (bufid, newsz);
+            curbuf = (uint8_t*) decode->alloc_fn (bufid, newsz);
         else
         {
             EXR_PROMOTE_CONST_CONTEXT_OR_ERROR_NO_LOCK (
                 decode->context, decode->part_index);
 
-            curbuf = pctxt->alloc_fn (newsz);
+            curbuf = (uint8_t*) pctxt->alloc_fn (newsz);
         }
 
         if (curbuf == NULL)

@@ -1105,12 +1105,12 @@ exr_set_chunk_count (exr_context_t ctxt, int part_index, int32_t val)
         name,                                                                  \
         attr->type_name))
 
-#define ATTR_GET_IMPL(t, typ, entry)                                           \
+#define ATTR_GET_IMPL(t, entry)                                                \
     ATTR_FIND_ATTR (t, entry);                                                 \
     if (!out)                                                                  \
         return EXR_UNLOCK_WRITE_AND_RETURN_PCTXT (pctxt->print_error (         \
             pctxt, EXR_ERR_INVALID_ARGUMENT, "NULL output for '%s'", name));   \
-    *out = (typ) attr->entry;                                                  \
+    *out = EXR_DECLTYPE(*out) attr->entry;                                     \
     return EXR_UNLOCK_WRITE_AND_RETURN_PCTXT (rv)
 
 #define ATTR_GET_IMPL_DEREF(t, entry)                                          \
@@ -1229,7 +1229,7 @@ exr_attr_get_channels (
     const char*               name,
     const exr_attr_chlist_t** out)
 {
-    ATTR_GET_IMPL (EXR_ATTR_CHLIST, exr_attr_chlist_t*, chlist);
+    ATTR_GET_IMPL (EXR_ATTR_CHLIST, chlist);
 }
 
 exr_result_t
@@ -1340,7 +1340,7 @@ exr_attr_get_compression (
     const char*         name,
     exr_compression_t*  out)
 {
-    ATTR_GET_IMPL (EXR_ATTR_COMPRESSION, exr_compression_t, uc);
+    ATTR_GET_IMPL (EXR_ATTR_COMPRESSION, uc);
 }
 
 exr_result_t
@@ -1373,7 +1373,7 @@ exr_result_t
 exr_attr_get_double (
     exr_const_context_t ctxt, int part_index, const char* name, double* out)
 {
-    ATTR_GET_IMPL (EXR_ATTR_DOUBLE, double, d);
+    ATTR_GET_IMPL (EXR_ATTR_DOUBLE, d);
 }
 
 exr_result_t
@@ -1392,7 +1392,7 @@ exr_attr_get_envmap (
     const char*         name,
     exr_envmap_t*       out)
 {
-    ATTR_GET_IMPL (EXR_ATTR_ENVMAP, exr_envmap_t, uc);
+    ATTR_GET_IMPL (EXR_ATTR_ENVMAP, uc);
 }
 
 exr_result_t
@@ -1419,7 +1419,7 @@ exr_result_t
 exr_attr_get_float (
     exr_const_context_t ctxt, int part_index, const char* name, float* out)
 {
-    ATTR_GET_IMPL (EXR_ATTR_FLOAT, float, f);
+    ATTR_GET_IMPL (EXR_ATTR_FLOAT, f);
 }
 
 exr_result_t
@@ -1544,7 +1544,7 @@ exr_result_t
 exr_attr_get_int (
     exr_const_context_t ctxt, int part_index, const char* name, int32_t* out)
 {
-    ATTR_GET_IMPL (EXR_ATTR_INT, int, i);
+    ATTR_GET_IMPL (EXR_ATTR_INT, i);
 }
 
 exr_result_t
@@ -1590,7 +1590,7 @@ exr_attr_get_lineorder (
     const char*         name,
     exr_lineorder_t*    out)
 {
-    ATTR_GET_IMPL (EXR_ATTR_LINEORDER, exr_lineorder_t, uc);
+    ATTR_GET_IMPL (EXR_ATTR_LINEORDER, uc);
 }
 
 exr_result_t
