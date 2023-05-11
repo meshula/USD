@@ -37,19 +37,19 @@
 static void *(*libdeflate_malloc_func)(size_t) = malloc;
 static void (*libdeflate_free_func)(void *) = free;
 
-void *
+static void *
 libdeflate_malloc(size_t size)
 {
 	return (*libdeflate_malloc_func)(size);
 }
 
-void
+static void
 libdeflate_free(void *ptr)
 {
 	(*libdeflate_free_func)(ptr);
 }
 
-void *
+static void *
 libdeflate_aligned_malloc(size_t alignment, size_t size)
 {
 	void *ptr = libdeflate_malloc(sizeof(void *) + alignment - 1 + size);
@@ -61,7 +61,7 @@ libdeflate_aligned_malloc(size_t alignment, size_t size)
 	return ptr;
 }
 
-void
+static void
 libdeflate_aligned_free(void *ptr)
 {
 	if (ptr)
