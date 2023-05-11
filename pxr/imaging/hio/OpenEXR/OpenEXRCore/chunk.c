@@ -13,19 +13,10 @@
 #include <limits.h>
 #include <string.h>
 
-/**************************************/
 
-/* for testing, we include a bunch of internal stuff into the unit tests which are in c++ */
-/* see internal_structs.h for details on the msvc guard. */
-#ifdef __cplusplus
-#    include <atomic>
-using atomic_uintptr_t = std::atomic_uintptr_t;
-#elif defined(_MSC_VER)
+#if defined(_MSC_VER) && not defined(__cplusplus)
 /* msvc w/ c11 support is only very new, until we know what the preprocessor checks are, provide defaults */
 #    include <windows.h>
-
-#    define atomic_load(object) InterlockedOr64 ((int64_t volatile*) object, 0)
-
 static inline int
 atomic_compare_exchange_strong (
     uint64_t volatile* object, uint64_t* expected, uint64_t desired)
@@ -36,16 +27,9 @@ atomic_compare_exchange_strong (
     *expected = prev;
     return 0;
 }
-#elif defined __has_include
-#    if __has_include(<stdatomic.h>)
-#        define EXR_HAS_STD_ATOMICS 1
-#        include <stdatomic.h>
-#    else
-#        error OS unimplemented support for atomics
-#    endif
-#else
-#    error OS unimplemented support for atomics
 #endif
+
+OPENEXR_NAMESPACE_OPEN_SCOPE
 
 /**************************************/
 
@@ -2199,3 +2183,5 @@ internal_validate_next_chunk (
     }
     return rv;
 }
+
+OPENEXR_NAMESPACE_CLOSE_SCOPE
