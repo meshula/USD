@@ -59,7 +59,7 @@
 #define ARM_CPU_FEATURES_KNOWN		0x80000000
 extern volatile u32 libdeflate_arm_cpu_features;
 
-void libdeflate_init_arm_cpu_features(void);
+static void libdeflate_init_arm_cpu_features(void);
 
 static inline u32 get_arm_cpu_features(void)
 {
