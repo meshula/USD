@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 
+// suppress missing braces warning when compiling under C++
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-braces"
 
@@ -622,7 +623,7 @@ extract_attr_string_vector (
 
         if (nalloced == 0)
         {
-            clist = (exr_attr_string_t*)ctxt->alloc_fn (4 * sizeof (exr_attr_string_t));
+            clist = (exr_attr_string_t*) ctxt->alloc_fn (4 * sizeof (exr_attr_string_t));
             if (clist == NULL)
             {
                 rv = ctxt->standard_error (ctxt, EXR_ERR_OUT_OF_MEMORY);

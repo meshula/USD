@@ -3,6 +3,7 @@
 ** Copyright Contributors to the OpenEXR Project.
 */
 
+// this may be defined by std
 #ifndef _LARGEFILE64_SOURCE
 #    define _LARGEFILE64_SOURCE
 #endif

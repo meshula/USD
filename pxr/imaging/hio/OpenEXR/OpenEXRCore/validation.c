@@ -11,6 +11,7 @@
 
 /**************************************/
 
+// suppress missing braces warning when compiling under C++
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-braces"
 
