@@ -39,11 +39,11 @@
 
 #include "../common_defs.h"
 
-void *libdeflate_malloc(size_t size);
-void libdeflate_free(void *ptr);
+static void *libdeflate_malloc(size_t size);
+static void libdeflate_free(void *ptr);
 
-void *libdeflate_aligned_malloc(size_t alignment, size_t size);
-void libdeflate_aligned_free(void *ptr);
+static void *libdeflate_aligned_malloc(size_t alignment, size_t size);
+static void libdeflate_aligned_free(void *ptr);
 
 #ifdef FREESTANDING
 /*

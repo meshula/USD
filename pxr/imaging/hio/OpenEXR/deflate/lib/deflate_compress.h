@@ -10,6 +10,6 @@
 
 struct libdeflate_compressor;
 
-unsigned int libdeflate_get_compression_level(struct libdeflate_compressor *c);
+static unsigned int libdeflate_get_compression_level(struct libdeflate_compressor *c);
 
 #endif /* LIB_DEFLATE_COMPRESS_H */
