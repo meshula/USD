@@ -14,11 +14,11 @@
 #endif
 
 #if defined(LIBDEFLATE_DLL) && (defined(_WIN32) || defined(__CYGWIN__))
-#  define LIBDEFLATE_EXPORT_SYM  /**/
+#  define LIBDEFLATE_EXPORT_SYM static
 #elif defined(__GNUC__)
-#  define LIBDEFLATE_EXPORT_SYM  __attribute__((visibility("hidden")))
+#  define LIBDEFLATE_EXPORT_SYM  __attribute__((visibility("hidden"))) static
 #else
-#  define LIBDEFLATE_EXPORT_SYM
+#  define LIBDEFLATE_EXPORT_SYM static
 #endif
 
 /*
