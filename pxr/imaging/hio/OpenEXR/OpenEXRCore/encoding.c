@@ -12,15 +12,16 @@
 
 #include "openexr_compression.h"
 
+OPENEXR_NAMESPACE_OPEN_SCOPE
+
 /**************************************/
 
 static exr_result_t
 default_compress_chunk (exr_encode_pipeline_t* encode)
 {
     exr_result_t rv;
-    EXR_PROMOTE_CONST_CONTEXT_OR_ERROR_NO_LOCK (
+    EXR_PROMOTE_CONST_CONTEXT_AND_PART_OR_ERROR_NO_LOCK (
         encode->context, encode->part_index);
-    struct _internal_exr_part* part = pctxt->parts[encode->part_index];
 
     rv = internal_encode_alloc_buffer (
         encode,
@@ -468,3 +469,5 @@ exr_encoding_destroy (exr_const_context_t ctxt, exr_encode_pipeline_t* encode)
     }
     return EXR_UNLOCK_WRITE_AND_RETURN_PCTXT (EXR_ERR_SUCCESS);
 }
+
+OPENEXR_NAMESPACE_CLOSE_SCOPE

@@ -32,25 +32,32 @@
 #ifdef __cplusplus
 #    include <atomic>
 using atomic_uintptr_t = std::atomic_uintptr_t;
-#elif defined(_MSC_VER)
-/* msvc w/ c11 support is only very new, until we know what the preprocessor checks are, provide defaults */
-#    include <windows.h>
-/* yeah, yeah, might be a 32-bit pointer, but if we make it the same, we
- * can write less since we know support is coming (eventually) */
-typedef uint64_t atomic_uintptr_t;
-#elif defined __has_include
+#else
 /* msvc, from version 19.31, evaluate __has_include(<stdatomic.h>) to true but
  * doesn't actually support it yet. Ignoring msvc for now, once we know minimal
  * version supporting it, we can compare against _MSC_VER. */
-#    if __has_include(<stdatomic.h>)
-#        define EXR_HAS_STD_ATOMICS 1
+#    if !defined(_MSC_VER)
+#        if defined __has_include
+#            if __has_include(<stdatomic.h>)
+#                define EXR_HAS_STD_ATOMICS 1
+#            endif
+#        endif
+#    endif
+
+#    ifdef EXR_HAS_STD_ATOMICS
 #        include <stdatomic.h>
+#    elif defined(_MSC_VER)
+/* msvc w/ c11 support is only very new, until we know what the preprocessor checks are, provide defaults */
+#        include <windows.h>
+/* yeah, yeah, might be a 32-bit pointer, but if we make it the same, we
+ * can write less since we know support is coming (eventually) */
+typedef uint64_t atomic_uintptr_t;
 #    else
 #        error OS unimplemented support for atomics
 #    endif
-#else
-#    error OS unimplemented support for atomics
 #endif
+
+OPENEXR_NAMESPACE_OPEN_SCOPE
 
 struct _internal_exr_part
 {
@@ -305,8 +312,10 @@ internal_exr_unlock (const struct _internal_exr_context* c)
                 pi));                                                          \
     part = pctxt->parts[pi]
 
-#define EXR_PROMOTE_CONST_CONTEXT_OR_ERROR_NO_LOCK(c, pi)                      \
+// the extra assignment suppresses an unused variable warning
+#define EXR_PROMOTE_CONST_CONTEXT_AND_PART_OR_ERROR_NO_LOCK(c, pi)             \
     const struct _internal_exr_context* pctxt = EXR_CCTXT (c);                 \
+    const struct _internal_exr_part*    part;                                  \
     if (!pctxt) return EXR_ERR_MISSING_CONTEXT_ARG;                            \
     if (pi < 0 || pi >= pctxt->num_parts)                                      \
         return (                                                               \
@@ -316,19 +325,10 @@ internal_exr_unlock (const struct _internal_exr_context* c)
                 EXR_ERR_ARGUMENT_OUT_OF_RANGE,                                 \
                 "Part index (%d) out of range",                                \
                 pi));                                                          \
+    part = pctxt->parts[pi];                                                   \
+    part = part
 
-#define EXR_PROMOTE_READ_CONST_CONTEXT_OR_ERROR(c, pi)                         \
-    const struct _internal_exr_context* pctxt = EXR_CCTXT (c);                 \
-    if (!pctxt) return EXR_ERR_MISSING_CONTEXT_ARG;                            \
-    if (pctxt->mode != EXR_CONTEXT_READ)                                       \
-        return pctxt->standard_error (pctxt, EXR_ERR_NOT_OPEN_READ);           \
-    if (pi < 0 || pi >= pctxt->num_parts)                                      \
-        return pctxt->print_error (                                            \
-            pctxt,                                                             \
-            EXR_ERR_ARGUMENT_OUT_OF_RANGE,                                     \
-            "Part index (%d) out of range",                                    \
-            pi);                                                               \
-
+// the extra assignment suppresses an unused variable warning
 #define EXR_PROMOTE_READ_CONST_CONTEXT_AND_PART_OR_ERROR(c, pi)                \
     const struct _internal_exr_context* pctxt = EXR_CCTXT (c);                 \
     const struct _internal_exr_part*    part;                                  \
@@ -341,7 +341,8 @@ internal_exr_unlock (const struct _internal_exr_context* c)
             EXR_ERR_ARGUMENT_OUT_OF_RANGE,                                     \
             "Part index (%d) out of range",                                    \
             pi);                                                               \
-    part = pctxt->parts[pi]
+    part = pctxt->parts[pi];                                                   \
+    part = part
 
 void internal_exr_update_default_handlers (exr_context_initializer_t* inits);
 
@@ -358,5 +359,7 @@ exr_result_t internal_exr_alloc_context (
     enum _INTERNAL_EXR_CONTEXT_MODE  mode,
     size_t                           extra_data);
 void internal_exr_destroy_context (struct _internal_exr_context* ctxt);
+
+OPENEXR_NAMESPACE_CLOSE_SCOPE
 
 #endif /* OPENEXR_PRIVATE_STRUCTS_H */

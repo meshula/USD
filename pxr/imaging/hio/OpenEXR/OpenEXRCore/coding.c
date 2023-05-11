@@ -8,6 +8,8 @@
 
 #include <string.h>
 
+OPENEXR_NAMESPACE_OPEN_SCOPE
+
 exr_result_t
 internal_coding_fill_channel_info (
     exr_coding_channel_info_t**         channels,
@@ -136,7 +138,7 @@ internal_encode_free_buffer (
                 encode->free_fn (bufid, curbuf);
             else
             {
-                EXR_PROMOTE_CONST_CONTEXT_OR_ERROR_NO_LOCK (
+                EXR_PROMOTE_CONST_CONTEXT_AND_PART_OR_ERROR_NO_LOCK (
                     encode->context, encode->part_index);
 
                 pctxt->free_fn (curbuf);
@@ -159,7 +161,7 @@ internal_encode_alloc_buffer (
     void* curbuf = *buf;
     if (newsz == 0)
     {
-        EXR_PROMOTE_CONST_CONTEXT_OR_ERROR_NO_LOCK (
+        EXR_PROMOTE_CONST_CONTEXT_AND_PART_OR_ERROR_NO_LOCK (
             encode->context, encode->part_index);
 
         return pctxt->print_error (
@@ -177,7 +179,7 @@ internal_encode_alloc_buffer (
             curbuf = encode->alloc_fn (bufid, newsz);
         else
         {
-            EXR_PROMOTE_CONST_CONTEXT_OR_ERROR_NO_LOCK (
+            EXR_PROMOTE_CONST_CONTEXT_AND_PART_OR_ERROR_NO_LOCK (
                 encode->context, encode->part_index);
 
             curbuf = pctxt->alloc_fn (newsz);
@@ -185,7 +187,7 @@ internal_encode_alloc_buffer (
 
         if (curbuf == NULL)
         {
-            EXR_PROMOTE_CONST_CONTEXT_OR_ERROR_NO_LOCK (
+            EXR_PROMOTE_CONST_CONTEXT_AND_PART_OR_ERROR_NO_LOCK (
                 encode->context, encode->part_index);
 
             return pctxt->print_error (
@@ -218,7 +220,7 @@ internal_decode_free_buffer (
                 decode->free_fn (bufid, curbuf);
             else
             {
-                EXR_PROMOTE_CONST_CONTEXT_OR_ERROR_NO_LOCK (
+                EXR_PROMOTE_CONST_CONTEXT_AND_PART_OR_ERROR_NO_LOCK (
                     decode->context, decode->part_index);
 
                 pctxt->free_fn (curbuf);
@@ -255,7 +257,7 @@ internal_decode_alloc_buffer (
             curbuf = (uint8_t*) decode->alloc_fn (bufid, newsz);
         else
         {
-            EXR_PROMOTE_CONST_CONTEXT_OR_ERROR_NO_LOCK (
+            EXR_PROMOTE_CONST_CONTEXT_AND_PART_OR_ERROR_NO_LOCK (
                 decode->context, decode->part_index);
 
             curbuf = (uint8_t*) pctxt->alloc_fn (newsz);
@@ -263,7 +265,7 @@ internal_decode_alloc_buffer (
 
         if (curbuf == NULL)
         {
-            EXR_PROMOTE_CONST_CONTEXT_OR_ERROR_NO_LOCK (
+            EXR_PROMOTE_CONST_CONTEXT_AND_PART_OR_ERROR_NO_LOCK (
                 decode->context, decode->part_index);
 
             return pctxt->print_error (
@@ -278,3 +280,5 @@ internal_decode_alloc_buffer (
     }
     return EXR_ERR_SUCCESS;
 }
+
+OPENEXR_NAMESPACE_CLOSE_SCOPE
