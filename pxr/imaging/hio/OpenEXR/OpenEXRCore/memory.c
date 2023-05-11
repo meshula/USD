@@ -12,6 +12,8 @@
 #endif
 #include "../deflate/libdeflate.h"
 
+OPENEXR_NAMESPACE_OPEN_SCOPE
+
 /**************************************/
 
 static exr_memory_allocation_func_t _glob_alloc_func = NULL;
@@ -58,3 +60,5 @@ internal_exr_free (void* ptr)
 #endif
     }
 }
+
+OPENEXR_NAMESPACE_CLOSE_SCOPE

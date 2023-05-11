@@ -1,4 +1,12 @@
 
+#define ILMTHREAD_THREADING_ENABLED
+#define OPENEXR_C_STANDALONE
+#define OPENEXR_VERSION_MAJOR 3 //@OpenEXR_VERSION_MAJOR@
+#define OPENEXR_VERSION_MINOR 2 //@OpenEXR_VERSION_MINOR@
+#define OPENEXR_VERSION_PATCH 0 //@OpenEXR_VERSION_PATCH@
+
+#include "OpenEXRCore/openexr_conf.h"
+
 #include "deflate/lib/lib_common.h"
 #include "deflate/common_defs.h"
 #include "deflate/lib/utils.c"
@@ -10,12 +18,6 @@
 #include "deflate/lib/adler32.c"
 #include "deflate/lib/zlib_compress.c"
 #include "deflate/lib/zlib_decompress.c"
-
-#define ILMTHREAD_THREADING_ENABLED
-#define OPENEXR_C_STANDALONE
-#define OPENEXR_VERSION_MAJOR 3 //@OpenEXR_VERSION_MAJOR@
-#define OPENEXR_VERSION_MINOR 2 //@OpenEXR_VERSION_MINOR@
-#define OPENEXR_VERSION_PATCH 0 //@OpenEXR_VERSION_PATCH@
 
 #include "openexr-c.h"
 
@@ -55,6 +57,8 @@
 
 #include <ctype.h>
 #include <math.h>
+
+OPENEXR_NAMESPACE_OPEN_SCOPE
 
 #define EXR_FILE "StillLife.exr"
 uint64_t gMaxBytesPerScanline = 8000000;
@@ -963,4 +967,4 @@ int nanoexr_readAllTileData(nanoexr_Reader_t* reader, nanoexr_ImageData_t* img, 
     }
     return rv;
 }
-
+OPENEXR_NAMESPACE_CLOSE_SCOPE

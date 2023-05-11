@@ -55,6 +55,8 @@
 #include <ctype.h>
 #include <math.h>
 
+OPENEXR_NAMESPACE_OPEN_SCOPE
+
 #define EXR_FILE "StillLife.exr"
 uint64_t gMaxBytesPerScanline = 8000000;
 uint64_t gMaxTileBytes        = 8192 * 8192;
@@ -961,3 +963,4 @@ int nanoexr_readAllTileData(nanoexr_Reader_t* reader, nanoexr_ImageData_t* img, 
     return rv;
 }
 
+OPENEXR_NAMESPACE_CLOSE_SCOPE
