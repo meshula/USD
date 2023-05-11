@@ -10,6 +10,7 @@
 
 #include <string.h>
 
+// suppress missing braces warning when compiling as c++
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-braces"
 
