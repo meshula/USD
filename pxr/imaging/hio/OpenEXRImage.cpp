@@ -87,6 +87,7 @@ Open Questions:
 
 
 PXR_NAMESPACE_OPEN_SCOPE
+OPENEXR_NAMESPACE_USING_DIRECTIVE
 
 class Hio_OpenEXRImage final : public HioImage
 {
