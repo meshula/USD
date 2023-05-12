@@ -13,13 +13,7 @@
 #  error "lib_common.h must always be included before libdeflate.h"
 #endif
 
-#if defined(LIBDEFLATE_DLL) && (defined(_WIN32) || defined(__CYGWIN__))
-#  define LIBDEFLATE_EXPORT_SYM static
-#elif defined(__GNUC__)
-#  define LIBDEFLATE_EXPORT_SYM  __attribute__((visibility("hidden"))) static
-#else
-#  define LIBDEFLATE_EXPORT_SYM static
-#endif
+#define LIBDEFLATE_EXPORT_SYM static
 
 /*
  * On i386, gcc assumes that the stack is 16-byte aligned at function entry.
