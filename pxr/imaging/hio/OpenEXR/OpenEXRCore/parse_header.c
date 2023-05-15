@@ -17,11 +17,17 @@
 
 #include <stdio.h>
 
-// suppress missing braces warning when compiling under C++
+#ifdef __clang__
+// suppress missing braces when compiling as C++
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-braces"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-braces"
+#endif
 
-OPENEXR_NAMESPACE_OPEN_SCOPE
+
+OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
 
 /**************************************/
 
@@ -2686,6 +2692,10 @@ internal_exr_parse_header (struct _internal_exr_context* ctxt)
     return internal_exr_context_restore_handlers (ctxt, rv);
 }
 
-OPENEXR_NAMESPACE_CLOSE_SCOPE
+OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
 
+#ifdef __clang__
 #pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif

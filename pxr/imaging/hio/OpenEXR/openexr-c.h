@@ -18,7 +18,7 @@
 extern "C" {
 #endif
 
-OPENEXR_NAMESPACE_OPEN_SCOPE
+OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
 
 typedef struct {
     int tileWidth,  tileHeight;
@@ -92,7 +92,7 @@ exr_result_t       nanoexr_readAllTileData(nanoexr_Reader_t* reader,
 bool nanoexr_Gaussian_resample(const nanoexr_ImageData_t* src,
                                nanoexr_ImageData_t* dst);
 
-OPENEXR_NAMESPACE_CLOSE_SCOPE
+OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
 
 #ifdef __cplusplus
 }
