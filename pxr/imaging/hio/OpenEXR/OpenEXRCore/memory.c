@@ -12,7 +12,7 @@
 #endif
 #include "../deflate/libdeflate.h"
 
-OPENEXR_NAMESPACE_OPEN_SCOPE
+OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
 
 /**************************************/
 
@@ -61,4 +61,4 @@ internal_exr_free (void* ptr)
     }
 }
 
-OPENEXR_NAMESPACE_CLOSE_SCOPE
+OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
