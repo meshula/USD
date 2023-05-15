@@ -14,7 +14,7 @@
 #include <string.h>
 
 
-#if defined(_MSC_VER) && not defined(__cplusplus)
+#if defined(_MSC_VER) && !defined(__cplusplus)
 /* msvc w/ c11 support is only very new, until we know what the preprocessor checks are, provide defaults */
 #    include <windows.h>
 static inline int
@@ -29,7 +29,7 @@ atomic_compare_exchange_strong (
 }
 #endif
 
-OPENEXR_NAMESPACE_OPEN_SCOPE
+OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
 
 /**************************************/
 
@@ -2184,4 +2184,4 @@ internal_validate_next_chunk (
     return rv;
 }
 
-OPENEXR_NAMESPACE_CLOSE_SCOPE
+OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

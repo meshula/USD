@@ -27,6 +27,7 @@
 #include "pxr/imaging/hio/types.h"
 
 #define OPENEXR_C_STANDALONE
+#include "OpenEXR/OpenEXRCoreNamespaces.h"
 #include "OpenEXR/openexr-c.h"
 #include "OpenEXR/OpenEXRCore/internal_coding.h"
 
@@ -87,7 +88,7 @@ Open Questions:
 
 
 PXR_NAMESPACE_OPEN_SCOPE
-OPENEXR_NAMESPACE_USING_DIRECTIVE
+using namespace OPENEXR_INTERNAL_NS;
 
 class Hio_OpenEXRImage final : public HioImage
 {
