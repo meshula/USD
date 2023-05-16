@@ -286,6 +286,28 @@ bool Hio_OpenEXRImage::ReadCropped(
         }
     }
 
+    // flip the image
+    if (inputIsHalf) {
+        for (int y = 0; y < readHeight / 2; ++y) {
+            for (int x = 0; x < fileWidth; ++x) {
+                for (int c = 0; c < fileChannelCount; ++c) {
+                    std::swap(halfInputBuffer[(y * fileWidth + x) * fileChannelCount + c],
+                              halfInputBuffer[((readHeight - y - 1) * fileWidth + x) * fileChannelCount + c]);
+                }
+            }
+        }
+    }
+    else {
+        for (int y = 0; y < readHeight / 2; ++y) {
+            for (int x = 0; x < fileWidth; ++x) {
+                for (int c = 0; c < fileChannelCount; ++c) {
+                    std::swap(floatInputBuffer[(y * fileWidth + x) * fileChannelCount + c],
+                              floatInputBuffer[((readHeight - y - 1) * fileWidth + x) * fileChannelCount + c]);
+                }
+            }
+        }
+    }
+
     if (!resizing) {
         if (inputIsHalf && outputIsHalf) {
             memcpy(reinterpret_cast<void*>(storage.data),

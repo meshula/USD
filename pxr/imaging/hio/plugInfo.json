@@ -9,7 +9,7 @@
                         "precedence": 30
                     },
                     "Hio_OpenEXRImage" : {
-                        "bases": ["Hio_OpenEXRImage"],
+                        "bases": ["HioImage"],
                         "imageTypes": ["exr"],
                         "precedence": 30
                     }
