@@ -20,6 +20,15 @@ extern "C" {
 
 OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
 
+exr_result_t nanoexr_get_attribute_by_name (
+    exr_const_context_t     ctxt,
+    int                     part_index,
+    const char*             name,
+    const exr_attribute_t** outattr);
+
+const char* nanoexr_get_error_code_as_string (exr_result_t code);
+
+
 typedef struct {
     int tileWidth,  tileHeight;
     int levelWidth, levelHeight;

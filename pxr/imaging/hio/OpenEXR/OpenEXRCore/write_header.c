@@ -16,7 +16,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
 /**************************************/
 
 static exr_result_t
@@ -241,7 +240,7 @@ save_float_vector (struct _internal_exr_context* ctxt, const exr_attribute_t* a)
         else
         {
             /* might be static data, take a copy first */
-            float* tmp = (float*) ctxt->alloc_fn (
+            float* tmp = ctxt->alloc_fn (
                 (size_t) (a->floatvector->length) * sizeof (float));
             if (tmp == NULL)
                 return ctxt->standard_error (ctxt, EXR_ERR_OUT_OF_MEMORY);
@@ -681,5 +680,3 @@ internal_exr_write_header (struct _internal_exr_context* ctxt)
 
     return rv;
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

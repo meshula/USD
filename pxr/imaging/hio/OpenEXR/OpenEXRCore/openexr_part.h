@@ -14,8 +14,6 @@
 extern "C" {
 #endif
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 /** @file */
 
 /** 
@@ -808,8 +806,6 @@ EXR_EXPORT exr_result_t exr_attr_set_user (
 /** @} */ /* metadata group */
 
 /** @} */ /* part group */
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
 
 #ifdef __cplusplus
 } /* extern "C" */

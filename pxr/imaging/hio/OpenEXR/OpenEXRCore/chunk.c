@@ -13,10 +13,27 @@
 #include <limits.h>
 #include <string.h>
 
+/**************************************/
 
-#if defined(_MSC_VER) && !defined(__cplusplus)
+/* for testing, we include a bunch of internal stuff into the unit tests which are in c++ */
+/* see internal_structs.h for details on the msvc guard. */
+#if !defined(_MSC_VER)
+#    if defined __has_include
+#        if __has_include(<stdatomic.h>)
+#            define EXR_HAS_STD_ATOMICS 1
+#        endif
+#    endif
+#endif
+
+#ifdef EXR_HAS_STD_ATOMICS
+#    include <stdatomic.h>
+#elif defined(_MSC_VER)
+
 /* msvc w/ c11 support is only very new, until we know what the preprocessor checks are, provide defaults */
 #    include <windows.h>
+
+#    define atomic_load(object) InterlockedOr64 ((int64_t volatile*) object, 0)
+
 static inline int
 atomic_compare_exchange_strong (
     uint64_t volatile* object, uint64_t* expected, uint64_t desired)
@@ -27,9 +44,10 @@ atomic_compare_exchange_strong (
     *expected = prev;
     return 0;
 }
-#endif
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
+#else
+#    error OS unimplemented support for atomics
+#endif
 
 /**************************************/
 
@@ -222,6 +240,7 @@ struct priv_chunk_leader
             int32_t level_y;
         };
     };
+    uint8_t _pad[4];
     union
     {
         int64_t deep_data[3];
@@ -273,7 +292,7 @@ extract_chunk_leader (
     rv = ctxt->do_read (
         ctxt,
         data,
-        ntoread * sizeof (int32_t),
+        (size_t)ntoread * sizeof (int32_t),
         &nextoffset,
         NULL,
         EXR_MUST_READ_ALL);
@@ -330,7 +349,7 @@ extract_chunk_leader (
             return ctxt->print_error (
                 ctxt,
                 EXR_ERR_BAD_CHUNK_LEADER,
-                "Invalid chunk size reconstructing chunk table: found out of range %" PRId64,
+                "Invalid chunk size reconstructing chunk table: found out of range %"PRId64,
                 leaderdata->deep_data[1]);
         }
         leaderdata->packed_size = leaderdata->deep_packed_size;
@@ -1247,7 +1266,7 @@ exr_read_tile_chunk_info (
         else if (fsize > 0)
         {
             uint64_t finpos = dataoff + (uint64_t) tdata[4];
-            if (finpos > (uint64_t) fsize)
+            if (finpos > (uint64_t)fsize)
             {
                 return pctxt->print_error (
                     pctxt,
@@ -2183,5 +2202,3 @@ internal_validate_next_chunk (
     }
     return rv;
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

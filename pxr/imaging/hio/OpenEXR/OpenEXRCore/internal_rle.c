@@ -14,14 +14,12 @@
 #define MIN_RUN_LENGTH 3
 #define MAX_RUN_LENGTH 127
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 uint64_t
 internal_rle_compress (
     void* out, uint64_t outbytes, const void* src, uint64_t srcbytes)
 {
-    int8_t*       cbuf = (int8_t*) out;
-    const int8_t* runs = (const int8_t*) src;
+    int8_t*       cbuf = out;
+    const int8_t* runs = src;
     const int8_t* end  = runs + srcbytes;
     const int8_t* rune = runs + 1;
     uint64_t      outb = 0;
@@ -69,22 +67,24 @@ internal_rle_compress (
 static void
 reorder_and_predict (void* scratch, const void* packed, uint64_t packedbytes)
 {
-    int8_t*       t1   = (int8_t*) scratch;
+    int8_t*       t1   = scratch;
     int8_t*       t2   = t1 + (packedbytes + 1) / 2;
-    const int8_t* in   = (const int8_t*) packed;
+    const int8_t* in   = packed;
     const int8_t* stop = in + packedbytes;
+    int d, p;
+
     while (in < stop)
     {
         *(t1++) = *(in++);
         if (in < stop) *(t2++) = *(in++);
     }
 
-    t1    = (int8_t*) scratch;
+    t1    = scratch;
     stop  = t1 + packedbytes;
-    int p = *(t1++);
+    p = *(t1++);
     while (t1 < stop)
     {
-        int d = (int) (*t1) - p + (128 + 256);
+        d     = (int) (*t1) - p + (128 + 256);
         p     = *t1;
         *t1++ = (int8_t) (d);
     }
@@ -170,9 +170,9 @@ internal_rle_decompress (
 static void
 unpredict_and_reorder (void* out, void* scratch, uint64_t packedbytes)
 {
-    int8_t*       t1   = (int8_t*) scratch;
+    int8_t*       t1   = scratch;
     int8_t*       t2   = t1 + (packedbytes + 1) / 2;
-    int8_t*       s    = (int8_t*) out;
+    int8_t*       s    = out;
     const int8_t* stop = t1 + packedbytes;
 
     ++t1;
@@ -183,7 +183,7 @@ unpredict_and_reorder (void* out, void* scratch, uint64_t packedbytes)
         ++t1;
     }
 
-    t1   = (int8_t*) scratch;
+    t1   = scratch;
     stop = s + packedbytes;
     while (s < stop)
     {
@@ -211,11 +211,9 @@ internal_exr_undo_rle (
     if (rv != EXR_ERR_SUCCESS) return rv;
 
     unpackb =
-        internal_rle_decompress ((uint8_t*) decode->scratch_buffer_1, outsz, (const uint8_t*) src, packsz);
+        internal_rle_decompress (decode->scratch_buffer_1, outsz, src, packsz);
     if (unpackb != outsz) return EXR_ERR_CORRUPT_CHUNK;
 
     unpredict_and_reorder (out, decode->scratch_buffer_1, outsz);
     return EXR_ERR_SUCCESS;
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

@@ -3,12 +3,10 @@
 ** Copyright Contributors to the OpenEXR Project.
 */
 
-#ifndef INTERNAL_UTIL_H
-#define INTERNAL_UTIL_H
+#ifndef OPENEXR_PRIVATE_UTIL_H
+#define OPENEXR_PRIVATE_UTIL_H
 
 #include <stdint.h>
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
 
 static inline int
 compute_sampled_lines (int height, int y_sampling, int start_y)
@@ -44,5 +42,4 @@ compute_sampled_lines (int height, int y_sampling, int start_y)
     return nlines;
 }
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
-#endif
+#endif /* OPENEXR_PRIVATE_UTIL_H */

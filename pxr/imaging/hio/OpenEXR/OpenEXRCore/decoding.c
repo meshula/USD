@@ -13,8 +13,6 @@
 #include <stdio.h>
 #include <string.h>
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 /**************************************/
 
 static exr_result_t
@@ -41,7 +39,7 @@ update_pack_unpack_ptrs (exr_decode_pipeline_t* decode)
                 (void**) &(decode->sample_count_table),
                 &(decode->sample_count_alloc_size));
 
-            decode->sample_count_table = (int32_t*) decode->packed_sample_count_table;
+            decode->sample_count_table = decode->packed_sample_count_table;
             rv                         = EXR_ERR_SUCCESS;
         }
         else
@@ -64,7 +62,7 @@ update_pack_unpack_ptrs (exr_decode_pipeline_t* decode)
         internal_decode_free_buffer (
             decode,
             EXR_TRANSCODE_BUFFER_UNPACKED,
-            (void**) &(decode->unpacked_buffer),
+            &(decode->unpacked_buffer),
             &(decode->unpacked_alloc_size));
 
         decode->unpacked_buffer = decode->packed_buffer;
@@ -75,7 +73,7 @@ update_pack_unpack_ptrs (exr_decode_pipeline_t* decode)
         rv = internal_decode_alloc_buffer (
             decode,
             EXR_TRANSCODE_BUFFER_UNPACKED,
-            (void**) &(decode->unpacked_buffer),
+            &(decode->unpacked_buffer),
             &(decode->unpacked_alloc_size),
             decode->chunk.unpacked_size);
     }
@@ -90,7 +88,7 @@ read_uncompressed_direct (exr_decode_pipeline_t* decode)
     int          height, start_y;
     uint64_t     dataoffset, toread;
     uint8_t*     cdata;
-    EXR_PROMOTE_READ_CONST_CONTEXT_AND_PART_OR_ERROR (
+    EXR_PROMOTE_READ_CONST_CONTEXT_OR_ERROR_NO_PART (
         decode->context, decode->part_index);
 
     dataoffset = decode->chunk.data_offset;
@@ -173,7 +171,7 @@ default_read_chunk (exr_decode_pipeline_t* decode)
             rv = internal_decode_alloc_buffer (
                 decode,
                 EXR_TRANSCODE_BUFFER_PACKED,
-                (void**) &(decode->packed_buffer),
+                &(decode->packed_buffer),
                 &(decode->packed_alloc_size),
                 decode->chunk.packed_size);
             if (rv != EXR_ERR_SUCCESS) return rv;
@@ -191,7 +189,7 @@ default_read_chunk (exr_decode_pipeline_t* decode)
         rv = internal_decode_alloc_buffer (
             decode,
             EXR_TRANSCODE_BUFFER_PACKED,
-            (void**) &(decode->packed_buffer),
+            &(decode->packed_buffer),
             &(decode->packed_alloc_size),
             decode->chunk.packed_size);
         if (rv != EXR_ERR_SUCCESS) return rv;
@@ -707,12 +705,12 @@ exr_decoding_destroy (exr_const_context_t ctxt, exr_decode_pipeline_t* decode)
         internal_decode_free_buffer (
             decode,
             EXR_TRANSCODE_BUFFER_PACKED,
-            (void**) &(decode->packed_buffer),
+            &(decode->packed_buffer),
             &(decode->packed_alloc_size));
         internal_decode_free_buffer (
             decode,
             EXR_TRANSCODE_BUFFER_UNPACKED,
-            (void**) &(decode->unpacked_buffer),
+            &(decode->unpacked_buffer),
             &(decode->unpacked_alloc_size));
         internal_decode_free_buffer (
             decode,
@@ -738,5 +736,3 @@ exr_decoding_destroy (exr_const_context_t ctxt, exr_decode_pipeline_t* decode)
     }
     return EXR_ERR_SUCCESS;
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

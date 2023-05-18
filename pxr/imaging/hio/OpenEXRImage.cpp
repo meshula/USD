@@ -26,6 +26,7 @@
 #include "pxr/imaging/hio/image.h"
 #include "pxr/imaging/hio/types.h"
 
+#define OPENEXR_EXPORT static
 #define OPENEXR_C_STANDALONE
 #include "OpenEXR/OpenEXRCoreNamespaces.h"
 #include "OpenEXR/openexr-c.h"
@@ -88,7 +89,10 @@ Open Questions:
 
 
 PXR_NAMESPACE_OPEN_SCOPE
+
+#ifdef OPENEXR_USE_NAMESPACES
 using namespace OPENEXR_INTERNAL_NS;
+#endif
 
 class Hio_OpenEXRImage final : public HioImage
 {
@@ -486,7 +490,7 @@ bool Hio_OpenEXRImage::GetSamplerMetadata(HioAddressDimension dim,
                         HioAddressMode *param) const
 {
     const exr_attribute_t* attr;
-    if (EXR_ERR_SUCCESS != exr_get_attribute_by_name(
+    if (EXR_ERR_SUCCESS != nanoexr_get_attribute_by_name(
                                 _exrReader->exr,
                                 _exrReader->partIndex,
                                 "wrapmodes", &attr)) {
@@ -510,7 +514,7 @@ bool Hio_OpenEXRImage::GetSamplerMetadata(HioAddressDimension dim,
     return HioAddressModeClampToEdge;
 }
 
-uint64_t exr_AssetRead_Func(
+int64_t exr_AssetRead_Func(
     exr_const_context_t         ctxt,
     void*                       userdata,
     void*                       buffer,
@@ -550,7 +554,7 @@ bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
     int rv = nanoexr_open(_exrReader, 0);
     if (rv != 0) {
         TF_CODING_ERROR("Cannot open image \"%s\" for reading, %s",
-                        filename.c_str(), exr_get_error_code_as_string(rv));
+                        filename.c_str(), nanoexr_get_error_code_as_string(rv));
         return false;
     }
     
@@ -566,6 +570,5 @@ bool Hio_OpenEXRImage::_OpenForWriting(std::string const &filename)
 {
     return false;
 }
-
 
 PXR_NAMESPACE_CLOSE_SCOPE

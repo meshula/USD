@@ -11,8 +11,6 @@
 
 #include <string.h>
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 /**************************************/
 
 extern const uint16_t* exrcore_expTable;
@@ -37,6 +35,7 @@ convertToLinear (uint16_t s[16])
 static inline int
 shiftAndRound (int x, int shift)
 {
+    int a, b;
     //
     // Compute
     //
@@ -49,9 +48,9 @@ shiftAndRound (int x, int shift)
     //
 
     x <<= 1;
-    int a = (1 << shift) - 1;
+    a = (1 << shift) - 1;
     shift += 1;
-    int b = (x >> shift) & 1;
+    b = (x >> shift) & 1;
     return (x + a + b) >> shift;
 }
 
@@ -110,6 +109,8 @@ pack (const uint16_t s[16], uint8_t b[14], int flatfields, int exactmax)
     uint16_t tMax;
     int      shift = -1;
 
+    const int bias = 0x20;
+
     for (int i = 0; i < 16; ++i)
     {
         if ((s[i] & 0x7c00) == 0x7c00)
@@ -132,8 +133,6 @@ pack (const uint16_t s[16], uint8_t b[14], int flatfields, int exactmax)
     // -32 and +31.  Then bias the differences so that they
     // end up between 0 and 63.
     //
-
-    const int bias = 0x20;
 
     do
     {
@@ -236,10 +235,11 @@ pack (const uint16_t s[16], uint8_t b[14], int flatfields, int exactmax)
 static inline void
 unpack14 (const uint8_t b[14], uint16_t s[16])
 {
+    uint16_t shift, bias;
     s[0] = ((uint16_t) (b[0] << 8)) | ((uint16_t) b[1]);
 
-    uint16_t shift = (b[2] >> 2);
-    uint16_t bias  = (uint16_t) (0x20u << shift);
+    shift = (b[2] >> 2);
+    bias  = (uint16_t) (0x20u << shift);
 
     s[4] =
         (uint16_t) ((uint32_t) s[0] + (uint32_t) ((((uint32_t) (b[2] << 4) | (uint32_t) (b[3] >> 4)) & 0x3fu) << shift) - bias);
@@ -303,7 +303,7 @@ unpack3 (const uint8_t b[3], uint16_t s[16])
 static exr_result_t
 compress_b44_impl (exr_encode_pipeline_t* encode, int flat_field)
 {
-    uint8_t*       out  = (uint8_t*) encode->compressed_buffer;
+    uint8_t*       out  = encode->compressed_buffer;
     uint64_t       nOut = 0;
     uint8_t *      scratch, *tmp;
     const uint8_t* packed;
@@ -320,12 +320,12 @@ compress_b44_impl (exr_encode_pipeline_t* encode, int flat_field)
     if (rv != EXR_ERR_SUCCESS) return rv;
 
     nOut   = 0;
-    packed = (const uint8_t*) encode->packed_buffer;
+    packed = encode->packed_buffer;
     for (int y = 0; y < encode->chunk.height; ++y)
     {
         int cury = y + encode->chunk.start_y;
 
-        scratch = (uint8_t*) encode->scratch_buffer_1;
+        scratch = encode->scratch_buffer_1;
         for (int c = 0; c < encode->channel_count; ++c)
         {
             const exr_coding_channel_info_t* curc = encode->channels + c;
@@ -357,7 +357,7 @@ compress_b44_impl (exr_encode_pipeline_t* encode, int flat_field)
     }
 
     nOut    = 0;
-    scratch = (uint8_t*) encode->scratch_buffer_1;
+    scratch = encode->scratch_buffer_1;
     for (int c = 0; c < encode->channel_count; ++c)
     {
         const exr_coding_channel_info_t* curc = encode->channels + c;
@@ -389,12 +389,14 @@ compress_b44_impl (exr_encode_pipeline_t* encode, int flat_field)
             // by 4, then pad the data by repeating the
             // rightmost column and the bottom row.
             //
+            uint16_t* row0, * row1, * row2, * row3;
 
-            uint16_t* row0 = (uint16_t*) scratch;
+            row0 = (uint16_t*) scratch;
             row0 += y * nx;
-            uint16_t* row1 = row0 + nx;
-            uint16_t* row2 = row1 + nx;
-            uint16_t* row3 = row2 + nx;
+
+            row1 = row0 + nx;
+            row2 = row1 + nx;
+            row3 = row2 + nx;
 
             if (y + 3 >= ny)
             {
@@ -479,9 +481,9 @@ uncompress_b44_impl (
     void*                  uncompressed_data,
     uint64_t               uncomp_buf_size)
 {
-    const uint8_t* in      = (const uint8_t*) compressed_data;
-    uint8_t*       out     = (uint8_t*) uncompressed_data;
-    uint8_t*       scratch = (uint8_t*) decode->scratch_buffer_1;
+    const uint8_t* in      = compressed_data;
+    uint8_t*       out     = uncompressed_data;
+    uint8_t*       scratch = decode->scratch_buffer_1;
     uint8_t*       tmp;
     uint16_t *     row0, *row1, *row2, *row3;
     uint64_t       n, nBytes, bpl = 0, bIn = 0;
@@ -568,7 +570,7 @@ uncompress_b44_impl (
     {
         int cury = y + decode->chunk.start_y;
 
-        scratch = (uint8_t*) decode->scratch_buffer_1;
+        scratch = decode->scratch_buffer_1;
         for (int c = 0; c < decode->channel_count; ++c)
         {
             const exr_coding_channel_info_t* curc = decode->channels + c;
@@ -685,5 +687,3 @@ internal_exr_undo_b44a (
         uncompressed_data,
         uncompressed_size);
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

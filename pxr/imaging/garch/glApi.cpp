@@ -3208,10 +3208,18 @@ static bool loadSymbols()
     glGetString = (PFNGLGETSTRINGPROC) loadFunction("glGetString");
     glGetStringi = (PFNGLGETSTRINGIPROC) loadFunction("glGetStringi");
 
-    GLint major = 0, minor = 0;
+    // verify that GL symbols are loadable
+    if (!glGetIntegerv || !glGetString || !glGetStringi) {
+        return false;
+    }
+
+    GLint major = 4, minor = 1;
+/*
+    printf("FOOOOOOOOOOOO\n");
 
     // direct version query is supported only for versions 3.x and greater
     const char * versionStr = (const char *) glGetString(GL_VERSION);
+    printf("BAAAAAAAAAAR\n");
     if (versionStr && versionStr[0] == '1' && versionStr[1] == '.') {
         major = 1;
         minor = versionStr[2] - '0';
@@ -3222,7 +3230,7 @@ static bool loadSymbols()
         glGetIntegerv(GL_MAJOR_VERSION, &major);
         glGetIntegerv(GL_MINOR_VERSION, &minor);
     }
-
+*/
     std::vector<const char *> extensions;
     std::vector<char> extensionsBuffer; // used when parsing extensions string
 

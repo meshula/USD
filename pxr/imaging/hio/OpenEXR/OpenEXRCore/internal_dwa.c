@@ -116,9 +116,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "internal_dwa_helpers.h"
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
+#include "internal_dwa_helpers.h"
 
 /**************************************/
 
@@ -135,7 +134,7 @@ internal_exr_apply_dwaa (exr_encode_pipeline_t* encode)
         internal_exr_huf_compress_spare_bytes ());
     if (rv == EXR_ERR_SUCCESS)
     {
-        rv = DwaCompressor_construct (&dwaa, STATIC_HUFFMAN, encode, NULL);
+        rv = DwaCompressor_construct (&dwaa, DEFLATE, encode, NULL);
         if (rv == EXR_ERR_SUCCESS) rv = DwaCompressor_compress (&dwaa);
 
         DwaCompressor_destroy (&dwaa);
@@ -192,7 +191,7 @@ internal_exr_undo_dwaa (
         if (rv == EXR_ERR_SUCCESS)
             rv = DwaCompressor_uncompress (
                 &dwaa,
-                (uint8_t*) compressed_data,
+                compressed_data,
                 comp_buf_size,
                 uncompressed_data,
                 uncompressed_size);
@@ -226,7 +225,7 @@ internal_exr_undo_dwab (
         if (rv == EXR_ERR_SUCCESS)
             rv = DwaCompressor_uncompress (
                 &dwaa,
-                (const uint8_t*) compressed_data,
+                compressed_data,
                 comp_buf_size,
                 uncompressed_data,
                 uncompressed_size);
@@ -236,5 +235,3 @@ internal_exr_undo_dwab (
 
     return rv;
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

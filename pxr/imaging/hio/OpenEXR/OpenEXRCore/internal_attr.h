@@ -32,7 +32,6 @@
 #include "internal_string.h"
 #include "internal_string_vector.h"
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -131,8 +130,6 @@ exr_result_t exr_attr_list_add_static_name (
 /** Removes an attribute from the list and frees any associated memory */
 exr_result_t exr_attr_list_remove (
     exr_context_t ctxt, exr_attribute_list_t* l, exr_attribute_t* attr);
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
 
 /**
  * @}

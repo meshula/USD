@@ -7,8 +7,6 @@
 #    error "only include internal_dwa_helpers.h"
 #endif
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 /**************************************/
 
 typedef struct _Classifier
@@ -17,8 +15,8 @@ typedef struct _Classifier
     CompressorScheme _scheme;
     exr_pixel_type_t _type;
     int              _cscIdx;
-    uint8_t          _caseInsensitive;
-    uint8_t          _stringStatic;
+    uint16_t         _caseInsensitive;
+    uint16_t         _stringStatic;
 } Classifier;
 
 #define DWA_CLASSIFIER_FALSE 0
@@ -71,11 +69,11 @@ static Classifier sLegacyChannelRules[] = {
 static inline void
 Classifier_destroy (Classifier* p)
 {
-    if (p->_suffix && !p->_stringStatic) internal_exr_free ((char*) p->_suffix);
+    if (p->_suffix && !p->_stringStatic) internal_exr_free (EXR_CONST_CAST (void *,p->_suffix));
 }
 
 static exr_result_t
-Classifier_read (Classifier* out, const uint8_t** ptr, uint64_t* size)
+Classifier_read (Classifier* out, const uint8_t** ptr, size_t* size)
 {
     const uint8_t* curin = *ptr;
     size_t         len   = 0;
@@ -83,9 +81,6 @@ Classifier_read (Classifier* out, const uint8_t** ptr, uint64_t* size)
     uint8_t        type;
 
     if (*size <= 3) return EXR_ERR_CORRUPT_CHUNK;
-
-    //throw IEX_NAMESPACE::InputExc ("Error uncompressing DWA data"
-    //" (truncated rule).");
 
     {
         // maximum length of string plus one byte for terminating NULL
@@ -96,12 +91,12 @@ Classifier_read (Classifier* out, const uint8_t** ptr, uint64_t* size)
         {
             if (len > (*size - 3)) return EXR_ERR_CORRUPT_CHUNK;
             if (curin[len] == '\0') break;
-            suffix[len] = curin[len];
+            suffix[len] = (char)curin[len];
         }
         len += 1;
         if (len == 128 + 1) return EXR_ERR_CORRUPT_CHUNK;
 
-        mem = (char*) internal_exr_alloc (len);
+        mem = internal_exr_alloc (len);
         if (!mem) return EXR_ERR_OUT_OF_MEMORY;
 
         memcpy (mem, suffix, len);
@@ -110,11 +105,7 @@ Classifier_read (Classifier* out, const uint8_t** ptr, uint64_t* size)
     }
 
     if (*size < len + 2 * sizeof (uint8_t))
-    {
         return EXR_ERR_CORRUPT_CHUNK;
-        //throw IEX_NAMESPACE::InputExc ("Error uncompressing DWA data"
-        //" (truncated rule).");
-    }
 
     curin += len;
 
@@ -128,28 +119,16 @@ Classifier_read (Classifier* out, const uint8_t** ptr, uint64_t* size)
 
     out->_cscIdx = (int) (value >> 4) - 1;
     if (out->_cscIdx < -1 || out->_cscIdx >= 3)
-    {
         return EXR_ERR_CORRUPT_CHUNK;
-        //throw IEX_NAMESPACE::InputExc ("Error uncompressing DWA data"
-        //" (corrupt cscIdx rule).");
-    }
 
     out->_scheme = (CompressorScheme) ((value >> 2) & 3);
-    if (out->_scheme < 0 || out->_scheme >= NUM_COMPRESSOR_SCHEMES)
-    {
+    if (out->_scheme >= NUM_COMPRESSOR_SCHEMES)
         return EXR_ERR_CORRUPT_CHUNK;
-        //throw IEX_NAMESPACE::InputExc ("Error uncompressing DWA data"
-        //" (corrupt scheme rule).");
-    }
 
     out->_caseInsensitive = (value & 1 ? DWA_CLASSIFIER_TRUE : DWA_CLASSIFIER_FALSE);
 
     if (type >= EXR_PIXEL_LAST_TYPE)
-    {
         return EXR_ERR_CORRUPT_CHUNK;
-        //throw IEX_NAMESPACE::InputExc ("Error uncompressing DWA data"
-        //" (corrupt rule).");
-    }
 
     out->_type = (exr_pixel_type_t) type;
     return EXR_ERR_SUCCESS;
@@ -204,5 +183,3 @@ Classifier_find_suffix (const char* channel_name)
     else { suffix = channel_name; }
     return suffix;
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

@@ -11,18 +11,6 @@
 
 /**************************************/
 
-#ifdef __clang__
-// suppress missing braces when compiling as C++
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-braces"
-#elif defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-braces"
-#endif
-
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 static exr_result_t
 validate_req_attr (
     struct _internal_exr_context* f,
@@ -62,7 +50,7 @@ validate_req_attr (
     {
         if (adddefault)
         {
-            exr_attr_box2i_t defdw = {0, 0, 63, 63};
+            exr_attr_box2i_t defdw = {{.x = 0, .y = 0}, {.x = 63, .y = 63}};
             rv                     = exr_attr_list_add_static_name (
                 (exr_context_t) f,
                 &(curpart->attributes),
@@ -90,7 +78,7 @@ validate_req_attr (
     {
         if (adddefault)
         {
-            exr_attr_box2i_t defdw = {0, 0, 63, 63};
+            exr_attr_box2i_t defdw = {{.x = 0, .y = 0}, {.x = 63, .y = 63}};
             rv                     = exr_attr_list_add_static_name (
                 (exr_context_t) f,
                 &(curpart->attributes),
@@ -163,7 +151,7 @@ validate_req_attr (
     {
         if (adddefault)
         {
-            exr_attr_v2f_t defswc = {0.f, 0.f};
+            exr_attr_v2f_t defswc = {.x = 0.f, .y = 0.f};
             rv                    = exr_attr_list_add_static_name (
                 (exr_context_t) f,
                 &(curpart->attributes),
@@ -645,11 +633,3 @@ internal_exr_validate_write_part (
 
     return EXR_ERR_SUCCESS;
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#elif defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif

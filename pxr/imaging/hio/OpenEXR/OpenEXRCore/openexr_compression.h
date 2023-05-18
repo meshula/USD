@@ -13,7 +13,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
 
 /** @file */
 
@@ -44,7 +43,6 @@ exr_result_t exr_uncompress_buffer (
     size_t out_bytes_avail,
     size_t *actual_out);
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

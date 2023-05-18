@@ -17,8 +17,6 @@
 extern "C" {
 #endif
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 /** @file */
 
 /** 
@@ -127,10 +125,8 @@ typedef int64_t (*exr_query_size_func_ptr_t) (
  * truly a stream, it is up to the provider to implement appropriate
  * caching of data to give the appearance of being able to seek/read
  * atomically.
- *
- * The return is the number of bytes read.
  */
-typedef uint64_t (*exr_read_func_ptr_t) (
+typedef int64_t (*exr_read_func_ptr_t) (
     exr_const_context_t         ctxt,
     void*                       userdata,
     void*                       buffer,
@@ -323,6 +319,8 @@ typedef struct _exr_context_initializer_v3
     /** Initialize with a bitwise or of the various context flags
      */
     int flags;
+
+    uint8_t pad[4];
 } exr_context_initializer_t;
 
 /** @brief context flag which will enforce strict header validation
@@ -353,7 +351,7 @@ typedef struct _exr_context_initializer_v3
 #define EXR_DEFAULT_CONTEXT_INITIALIZER                                        \
     {                                                                          \
         sizeof (exr_context_initializer_t), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   \
-            0, -2, -1.f, 0                                                \
+            0, -2, -1.f, 0, {0, 0, 0, 0}                                       \
     }
 
 /** @} */ /* context function pointer declarations */
@@ -536,7 +534,6 @@ EXR_EXPORT exr_result_t exr_write_header (exr_context_t ctxt);
 
 /** @} */
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

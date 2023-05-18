@@ -23,15 +23,13 @@
 
 /**************************************/
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 static void
 default_error_handler (
     exr_const_context_t ctxt, exr_result_t code, const char* msg)
 {
     const struct _internal_exr_context* pctxt = EXR_CCTXT (ctxt);
 
-#ifdef ILMTHREAD_THREADING_ENABLED
+#ifdef ILMBASE_THREADING_ENABLED
 #    ifdef _WIN32
     static CRITICAL_SECTION sMutex;
     volatile static long    initialized = 0;
@@ -43,7 +41,7 @@ default_error_handler (
 #    endif
 #endif
 
-#ifdef ILMTHREAD_THREADING_ENABLED
+#ifdef ILMBASE_THREADING_ENABLED
 #    ifdef _WIN32
     EnterCriticalSection (&sMutex);
 #    else
@@ -71,7 +69,7 @@ default_error_handler (
         fprintf (stderr, "<ERROR>: %s\n", msg);
     fflush (stderr);
 
-#ifdef ILMTHREAD_THREADING_ENABLED
+#ifdef ILMBASE_THREADING_ENABLED
 #    ifdef _WIN32
     LeaveCriticalSection (&sMutex);
 #    else
@@ -135,7 +133,7 @@ dispatch_print_error (
         va_end (stkargs);
         if (nwrit >= 256)
         {
-            heapbuf = (char*) pctxt->alloc_fn ((size_t) (nwrit + 1));
+            heapbuf = pctxt->alloc_fn ((size_t) (nwrit + 1));
             if (heapbuf)
             {
                 (void) vsnprintf (heapbuf, (size_t) (nwrit + 1), msg, fmtargs);
@@ -226,17 +224,19 @@ internal_exr_add_part (
     }
     else
     {
-        part = (struct _internal_exr_part*) f->alloc_fn (sizeof (struct _internal_exr_part));
+        struct _internal_exr_part nil = {0};
+
+        part = f->alloc_fn (sizeof (struct _internal_exr_part));
         if (!part) return f->standard_error (f, EXR_ERR_OUT_OF_MEMORY);
 
-        nptrs = (struct _internal_exr_part**)
+        nptrs =
             f->alloc_fn (sizeof (struct _internal_exr_part*) * (size_t) ncount);
         if (!nptrs)
         {
             f->free_fn (part);
             return f->standard_error (f, EXR_ERR_OUT_OF_MEMORY);
         }
-        memset(part, 0, sizeof(struct _internal_exr_part));
+        *part = nil;
     }
 
     /* assign appropriately invalid values */
@@ -291,9 +291,7 @@ internal_exr_revert_add_part (
     }
     else if (ncount == 1)
     {
-        if (part == &(ctxt->first_part)) {
-            memcpy(&ctxt->first_part, ctxt->parts[1], sizeof(struct _internal_exr_part));
-        }
+        if (part == &(ctxt->first_part)) ctxt->first_part = *(ctxt->parts[1]);
         ctxt->init_part = &(ctxt->first_part);
         ctxt->free_fn (ctxt->parts);
         ctxt->parts = &(ctxt->init_part);
@@ -335,10 +333,10 @@ internal_exr_alloc_context (
     void*                         memptr;
     exr_result_t                  rv;
     struct _internal_exr_context* ret;
-    *out = NULL;
     int    gmaxw, gmaxh;
     size_t extra_data;
 
+    *out = NULL;
     if (initializers->read_fn || initializers->write_fn)
         extra_data = 0;
     else
@@ -350,7 +348,7 @@ internal_exr_alloc_context (
     {
         memset (memptr, 0, sizeof (struct _internal_exr_context));
 
-        ret       = (struct _internal_exr_context*) memptr;
+        ret       = memptr;
         ret->mode = (uint8_t) mode;
         /* stash this separately so when a user queries they don't see
          * any of our internal hijinx */
@@ -504,5 +502,3 @@ internal_exr_update_default_handlers (exr_context_initializer_t* inits)
     if (!inits->alloc_fn) inits->alloc_fn = &internal_exr_alloc;
     if (!inits->free_fn) inits->free_fn = &internal_exr_free;
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

@@ -16,13 +16,12 @@
 #include "internal_file.h"
 #include "backward_compatibility.h"
 
+
 #if defined(_WIN32) || defined(_WIN64)
 #    include "internal_win32_file_impl.h"
 #else
 #    include "internal_posix_file_impl.h"
 #endif
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
 
 /**************************************/
 
@@ -390,49 +389,6 @@ exr_start_inplace_header_update (
 /**************************************/
 
 exr_result_t
-exr_start_memory_write (
-    exr_context_t* ctxt, const exr_context_initializer_t* ctxtdata)
-{
-    int                           rv    = EXR_ERR_UNKNOWN;
-    struct _internal_exr_context* ret   = NULL;
-    exr_context_initializer_t     inits = fill_context_data (ctxtdata);
-
-    if (!ctxt)
-    {
-        inits.error_handler_fn (
-            NULL,
-            EXR_ERR_INVALID_ARGUMENT,
-            "Invalid context handle passed to start_read function");
-        return EXR_ERR_INVALID_ARGUMENT;
-    }
-
-    rv = internal_exr_alloc_context (
-        &ret,
-        &inits,
-        EXR_CONTEXT_WRITE,
-        sizeof (struct _internal_exr_filehandle));
-    if (rv == EXR_ERR_SUCCESS)
-    {
-        ret->do_write = &dispatch_write;
-
-        rv = exr_attr_string_create (
-            (exr_context_t) ret, &(ret->filename), "<memory>");
-
-        if (rv == EXR_ERR_SUCCESS)
-        {
-            if (!inits.write_fn) rv = default_init_write_file (ret);
-
-            if (rv != EXR_ERR_SUCCESS) exr_finish ((exr_context_t*) &ret);
-        }
-    }
-
-    *ctxt = (exr_context_t) ret;
-    return rv;
-}
-
-/**************************************/
-
-exr_result_t
 exr_get_file_name (exr_const_context_t ctxt, const char** name)
 {
     EXR_PROMOTE_CONST_CONTEXT_OR_ERROR (ctxt);
@@ -699,5 +655,3 @@ exr_write_header (exr_context_t ctxt)
 
     return EXR_UNLOCK_AND_RETURN_PCTXT (rv);
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

@@ -9,8 +9,6 @@
 /* TODO: move to here when ready */
 #include "dwaLookups.h"
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 /**************************************/
 
 typedef enum _AcCompression
@@ -59,8 +57,6 @@ std_max (size_t a, size_t b)
 {
     return a < b ? b : a;
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
 
 #include "internal_dwa_simd.h"
 #include "internal_dwa_channeldata.h"

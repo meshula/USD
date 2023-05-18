@@ -10,18 +10,6 @@
 
 #include <string.h>
 
-#ifdef __clang__
-// suppress missing braces when compiling as C++
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-braces"
-#elif defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-braces"
-#endif
-
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 struct _internal_exr_attr_map
 {
     const char*          name;
@@ -1143,11 +1131,3 @@ exr_attr_list_remove (
 
     return attr_destroy (pctxt, attr);
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#elif defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif

@@ -14,8 +14,6 @@
 extern "C" {
 #endif
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 /** @file */
 
 /** @brief Retrieve the current library version. The @p extra string is for
@@ -195,8 +193,6 @@ EXR_EXPORT void exr_set_default_memory_routines (
     exr_memory_allocation_func_t alloc_func, exr_memory_free_func_t free_func);
 
 /** @} */
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
 
 #ifdef __cplusplus
 } /* extern "C" */

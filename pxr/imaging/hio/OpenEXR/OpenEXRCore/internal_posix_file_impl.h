@@ -20,8 +20,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 #if defined __USE_UNIX98 || defined __USE_XOPEN2K8 ||                          \
     (defined(_XOPEN_VERSION) && _XOPEN_VERSION >= 400)
 #    define CAN_USE_PREAD 1
@@ -50,7 +48,7 @@ static void
 default_shutdown (exr_const_context_t c, void* userdata, int failed)
 {
     /* we will handle failure before here */
-    struct _internal_exr_filehandle* fh = (struct _internal_exr_filehandle*) userdata;
+    struct _internal_exr_filehandle* fh = userdata;
     if (fh)
     {
         if (fh->fd >= 0) close (fh->fd);
@@ -96,7 +94,7 @@ finalize_write (struct _internal_exr_context* pf, int failed)
 
 /**************************************/
 
-static uint64_t
+static int64_t
 default_read_func (
     exr_const_context_t         ctxt,
     void*                       userdata,
@@ -106,7 +104,7 @@ default_read_func (
     exr_stream_error_func_ptr_t error_cb)
 {
     int64_t                          rv, retsz = -1;
-    struct _internal_exr_filehandle* fh     = (struct _internal_exr_filehandle*) userdata;
+    struct _internal_exr_filehandle* fh     = userdata;
     int                              fd     = -1;
     char*                            curbuf = (char*) buffer;
     uint64_t                         readsz = sz;
@@ -220,7 +218,7 @@ default_write_func (
     exr_stream_error_func_ptr_t error_cb)
 {
     int64_t                          rv, retsz = -1;
-    struct _internal_exr_filehandle* fh      = (struct _internal_exr_filehandle*) userdata;
+    struct _internal_exr_filehandle* fh      = userdata;
     int                              fd      = -1;
     const uint8_t*                   curbuf  = (const uint8_t*) buffer;
     uint64_t                         writesz = sz;
@@ -329,7 +327,7 @@ static exr_result_t
 default_init_read_file (struct _internal_exr_context* file)
 {
     int                              fd;
-    struct _internal_exr_filehandle* fh = (struct _internal_exr_filehandle*) file->user_data;
+    struct _internal_exr_filehandle* fh = file->user_data;
 
     fh->fd = -1;
 #if !CAN_USE_PREAD
@@ -365,7 +363,7 @@ static exr_result_t
 default_init_write_file (struct _internal_exr_context* file)
 {
     int                              fd;
-    struct _internal_exr_filehandle* fh    = (struct _internal_exr_filehandle*) file->user_data;
+    struct _internal_exr_filehandle* fh    = file->user_data;
     const char*                      outfn = file->tmp_filename.str;
     if (outfn == NULL) outfn = file->filename.str;
 
@@ -406,7 +404,7 @@ static int64_t
 default_query_size_func (exr_const_context_t ctxt, void* userdata)
 {
     struct stat                      sbuf;
-    struct _internal_exr_filehandle* fh = (struct _internal_exr_filehandle*) userdata;
+    struct _internal_exr_filehandle* fh = userdata;
     int64_t                          sz = -1;
 
     if (fh->fd >= 0)
@@ -442,7 +440,7 @@ make_temp_filename (struct _internal_exr_context* ret)
     if (newlen >= INT32_MAX)
         return ret->standard_error (ret, EXR_ERR_OUT_OF_MEMORY);
 
-    tmpname = (char*) ret->alloc_fn (newlen + 1);
+    tmpname = ret->alloc_fn (newlen + 1);
     if (tmpname)
     {
         const char* lastslash = strrchr (srcfile, '/');
@@ -477,5 +475,3 @@ make_temp_filename (struct _internal_exr_context* ret)
             newlen + 1);
     return EXR_ERR_SUCCESS;
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

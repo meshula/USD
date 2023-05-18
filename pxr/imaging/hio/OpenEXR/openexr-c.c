@@ -1,4 +1,15 @@
 
+#define ILMTHREAD_THREADING_ENABLED
+#define OPENEXR_C_STANDALONE
+#define OPENEXR_EXPORT static
+
+#ifdef IMATH_HALF_SAFE_FOR_C
+#undef IMATH_HALF_SAFE_FOR_C
+#endif
+
+#include "OpenEXRCoreNamespaces.h"
+#include "OpenEXRCore/openexr_conf.h"
+
 #include "deflate/lib/lib_common.h"
 #include "deflate/common_defs.h"
 #include "deflate/lib/utils.c"
@@ -11,12 +22,6 @@
 #include "deflate/lib/zlib_compress.c"
 #include "deflate/lib/zlib_decompress.c"
 
-#define ILMTHREAD_THREADING_ENABLED
-#define OPENEXR_C_STANDALONE
-#define OPENEXR_VERSION_MAJOR 3 //@OpenEXR_VERSION_MAJOR@
-#define OPENEXR_VERSION_MINOR 2 //@OpenEXR_VERSION_MINOR@
-#define OPENEXR_VERSION_PATCH 0 //@OpenEXR_VERSION_PATCH@
-
 #include "openexr-c.h"
 
 #include "OpenEXRCore/attributes.c"
@@ -24,6 +29,7 @@
 #include "OpenEXRCore/channel_list.c"
 #include "OpenEXRCore/chunk.c"
 #include "OpenEXRCore/coding.c"
+#include "OpenEXRCore/compression.c"
 #include "OpenEXRCore/context.c"
 #include "OpenEXRCore/debug.c"
 #include "OpenEXRCore/decoding.c"
@@ -56,6 +62,24 @@
 #include <math.h>
 
 OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
+
+// re-export the statically hidden exr_ functions as required
+// for visibility from C++
+
+exr_result_t nanoexr_get_attribute_by_name (
+    exr_const_context_t     ctxt,
+    int                     part_index,
+    const char*             name,
+    const exr_attribute_t** outattr)
+{
+    return exr_get_attribute_by_name(ctxt, part_index, name, outattr);
+}
+
+const char* nanoexr_get_error_code_as_string (exr_result_t code)
+{
+    return exr_get_error_code_as_string(code);
+}
+
 
 #define EXR_FILE "StillLife.exr"
 uint64_t gMaxBytesPerScanline = 8000000;
@@ -653,6 +677,16 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
     memset(&decoder, 0, sizeof(decoder));
     int checkpoint = 0;
     int scanLinesPerChunk;
+    //size_t output_bpp = nanoexr_getPixelTypeSize(img->pixelType);
+    //size_t bpp = nanoexr_getPixelTypeSize(reader->pixelType);
+    //int output_width = window_width;
+    size_t outputOffset = 0;
+    int bytesPerElement = 0;
+    int rgbaIndex[4] = {-1, -1, -1, -1};
+    int linesWritten = 0;
+    int window_width = 0;
+    //int window_height = 0;
+
     int rv = exr_get_scanlines_per_chunk(reader->exr, reader->partIndex, &scanLinesPerChunk);
     if (rv != EXR_ERR_SUCCESS)
         goto err;
@@ -662,9 +696,9 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
     rv = exr_get_data_window(reader->exr, reader->partIndex, &datawin);
     if (rv != EXR_ERR_SUCCESS) 
         goto err;
-
-    int window_width = datawin.max.x - datawin.min.x + 1;
-    //int window_height = datawin.max.y - datawin.min.y + 1;
+    
+    window_width = datawin.max.x - datawin.min.x + 1;
+    //window_height = datawin.max.y - datawin.min.y + 1;
 
     // allocate a space large enough for a chunk of scanlines of type float
     chunk_buffer = (uint8_t*) malloc(scanLinesPerChunk * window_width * reader->channelCount * sizeof(float));
@@ -673,15 +707,7 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
         rv = EXR_ERR_OUT_OF_MEMORY;
         goto err;
     }
-    
-    //size_t output_bpp = nanoexr_getPixelTypeSize(img->pixelType);
-    //size_t bpp = nanoexr_getPixelTypeSize(reader->pixelType);
-    //int output_width = window_width;
-    size_t outputOffset = 0;
-    int bytesPerElement = 0;
-    int rgbaIndex[4] = {-1, -1, -1, -1};
-    int linesWritten = 0;
-    
+        
     for (int chunky = datawin.min.y; chunky < datawin.max.y; chunky += scanLinesPerChunk) {
 
         if (cropTop > scanLinesPerChunk) {
