@@ -7,11 +7,7 @@
 #define OPENEXR_CONF_H
 #pragma once
 
-#ifdef OPENEXR_C_STANDALONE
-#define OPENEXR_EXPORT
-#else
 #include "OpenEXRConfig.h"
-#endif
 
 /// \addtogroup ExportMacros
 /// @{
@@ -29,10 +25,10 @@
 #    endif
 
 #else
-#    define EXR_EXPORT OPENEXR_EXPORT
-#endif
 
-/// @}
+#    define EXR_EXPORT static
+
+#endif
 
 /*
  * MSVC does have printf format checks, but it is not in the form of a
@@ -44,17 +40,6 @@
 #    define EXR_PRINTF_FUNC_ATTRIBUTE
 #endif
 
-#if defined(__cplusplus) && defined(OPENEXR_USE_NAMESPACES)
-#    if !defined(OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER)
-#        if !defined(OPENEXR_IMF_INTERNAL_NAMESPACE_SOURCE_ENTER)
-#            include "../OpenEXR/ImfNamespace.h"
-#        endif
-#        define OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER OPENEXR_IMF_INTERNAL_NAMESPACE_SOURCE_ENTER
-#        define OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT OPENEXR_IMF_INTERNAL_NAMESPACE_SOURCE_EXIT
-#    endif
-#else
-#    define OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER   
-#    define OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT 
-#endif // PXR_USE_NAMESPACES
+/// @}
 
 #endif /* OPENEXR_CONF_H */

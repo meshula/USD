@@ -40,7 +40,7 @@ pxr_library(hio
     CPPFILES
         OpenEXRImage.cpp
         stbImage.cpp
-        OpenEXR/openexr-c.cpp
+        OpenEXR/openexr-c.c
 
     RESOURCE_FILES
         plugInfo.json

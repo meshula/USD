@@ -11,7 +11,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
 
 /** @file */
 
@@ -56,7 +55,6 @@ dwaCompressionLevel
 
 /** @} */
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

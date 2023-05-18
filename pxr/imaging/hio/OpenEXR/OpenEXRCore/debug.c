@@ -12,8 +12,6 @@
 #include <stdio.h>
 #include <string.h>
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 /**************************************/
 
 static void
@@ -74,7 +72,7 @@ print_attr (const exr_attribute_t* a, int verbose)
                 (double) a->chromaticities->white_y);
             break;
         case EXR_ATTR_COMPRESSION: {
-            static const char* compressionnames[] = {
+            static char* compressionnames[] = {
                 "none",
                 "rle",
                 "zips",
@@ -253,14 +251,19 @@ print_attr (const exr_attribute_t* a, int verbose)
             printf ("[ %g, %g, %g ]", a->v3d->x, a->v3d->y, a->v3d->z);
             break;
         case EXR_ATTR_OPAQUE:
+        {
+            uintptr_t faddr_unpack = (uintptr_t)a->opaque->unpack_func_ptr;
+            uintptr_t faddr_pack = (uintptr_t)a->opaque->pack_func_ptr;
+            uintptr_t faddr_destroy = (uintptr_t)a->opaque->destroy_unpacked_func_ptr;
             printf (
                 "(size %d unp size %d hdlrs %p %p %p)",
                 a->opaque->size,
                 a->opaque->unpacked_size,
-                (void*) a->opaque->unpack_func_ptr,
-                (void*) a->opaque->pack_func_ptr,
-                (void*) a->opaque->destroy_unpacked_func_ptr);
+                (void*) faddr_unpack,
+                (void*) faddr_pack,
+                (void*) faddr_destroy);
             break;
+        }
         case EXR_ATTR_UNKNOWN:
         case EXR_ATTR_LAST_KNOWN_TYPE:
         default: printf ("<ERROR Unknown type '%s'>", a->type_name); break;
@@ -354,5 +357,3 @@ exr_print_context_info (exr_const_context_t ctxt, int verbose)
     }
     return EXR_UNLOCK_WRITE_AND_RETURN_PCTXT (EXR_ERR_SUCCESS);
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

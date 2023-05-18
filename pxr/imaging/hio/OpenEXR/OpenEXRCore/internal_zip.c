@@ -11,7 +11,6 @@
 
 #include <limits.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "openexr_compression.h"
@@ -31,7 +30,6 @@
 #endif
 
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
 /**************************************/
 
 #ifdef IMF_HAVE_SSE4_1
@@ -298,8 +296,7 @@ undo_zip_impl (
     {
         if (actual_out_bytes == uncompressed_size)
         {
-            internal_zip_reconstruct_bytes ((uint8_t*) uncompressed_data,
-                                            (uint8_t*) scratch_data, actual_out_bytes);
+            internal_zip_reconstruct_bytes (uncompressed_data, scratch_data, actual_out_bytes);
         }
         else
             res = EXR_ERR_CORRUPT_CHUNK;
@@ -354,8 +351,8 @@ apply_zip_impl (exr_encode_pipeline_t* encode)
     if (rv != EXR_ERR_SUCCESS) return rv;
 
     internal_zip_deconstruct_bytes (
-        (uint8_t*) encode->scratch_buffer_1,
-        (const uint8_t*) encode->packed_buffer,
+        encode->scratch_buffer_1,
+        encode->packed_buffer,
         encode->packed_bytes);
 
     rv = exr_compress_buffer (
@@ -385,8 +382,8 @@ apply_zip_impl (exr_encode_pipeline_t* encode)
             pctxt->print_error (
                 pctxt,
                 rv,
-                "Unable to compress buffer %llu -> %lu @ level %d",
-                encode->packed_bytes, encode->compressed_alloc_size, level);
+                "Unable to compress buffer %" PRIu64 " -> %" PRIu64 " @ level %d",
+                encode->packed_bytes, (uint64_t)encode->compressed_alloc_size, level);
     }
     
     return rv;
@@ -410,12 +407,10 @@ internal_exr_apply_zip (exr_encode_pipeline_t* encode)
             pctxt->print_error (
                 pctxt,
                 rv,
-                "Unable to allocate scratch buffer for deflate of %llu bytes",
+                "Unable to allocate scratch buffer for deflate of %" PRIu64 " bytes",
                 encode->packed_bytes);
         return rv;
     }
 
     return apply_zip_impl (encode);
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

@@ -12,8 +12,6 @@
 #include <string.h>
 #include "openexr_compression.h"
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 /**************************************/
 
 static inline uint32_t
@@ -24,6 +22,7 @@ float_to_float24 (float f)
         float    f;
         uint32_t i;
     } u;
+    uint32_t s, e, m, i;
 
     u.f = f;
 
@@ -32,10 +31,9 @@ float_to_float24 (float f)
     // into sign, s, exponent, e, and significand, m.
     //
 
-    uint32_t s = u.i & 0x80000000;
-    uint32_t e = u.i & 0x7f800000;
-    uint32_t m = u.i & 0x007fffff;
-    uint32_t i;
+    s = u.i & 0x80000000;
+    e = u.i & 0x7f800000;
+    m = u.i & 0x007fffff;
 
     if (e == 0x7f800000)
     {
@@ -91,9 +89,9 @@ float_to_float24 (float f)
 static exr_result_t
 apply_pxr24_impl (exr_encode_pipeline_t* encode)
 {
-    uint8_t*       out       = (uint8_t*) encode->scratch_buffer_1;
+    uint8_t*       out       = encode->scratch_buffer_1;
     uint64_t       nOut      = 0;
-    const uint8_t* lastIn    = (const uint8_t*) encode->packed_buffer;
+    const uint8_t* lastIn    = encode->packed_buffer;
     size_t         compbufsz;
     exr_result_t   rv;
 
@@ -270,10 +268,10 @@ undo_pxr24_impl (
 {
     size_t         outSize;
     exr_result_t   rstat;
-    uint8_t*       out    = (uint8_t*) uncompressed_data;
+    uint8_t*       out    = uncompressed_data;
     uint64_t       nOut   = 0;
     uint64_t       nDec   = 0;
-    const uint8_t* lastIn = (const uint8_t*) scratch_data;
+    const uint8_t* lastIn = scratch_data;
 
     if (scratch_size < uncompressed_size) return EXR_ERR_INVALID_ARGUMENT;
 
@@ -421,5 +419,3 @@ internal_exr_undo_pxr24 (
         decode->scratch_buffer_1,
         decode->scratch_alloc_size_1);
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

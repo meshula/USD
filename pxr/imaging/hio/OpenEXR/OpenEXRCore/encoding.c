@@ -12,8 +12,6 @@
 
 #include "openexr_compression.h"
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 /**************************************/
 
 static exr_result_t
@@ -352,7 +350,7 @@ exr_encoding_run (
             rv = internal_encode_alloc_buffer (
                 encode,
                 EXR_TRANSCODE_BUFFER_PACKED,
-                (void**) &(encode->packed_buffer),
+                &(encode->packed_buffer),
                 &(encode->packed_alloc_size),
                 packed_bytes);
 
@@ -443,7 +441,7 @@ exr_encoding_destroy (exr_const_context_t ctxt, exr_encode_pipeline_t* encode)
         internal_encode_free_buffer (
             encode,
             EXR_TRANSCODE_BUFFER_PACKED,
-            (void**) &(encode->packed_buffer),
+            &(encode->packed_buffer),
             &(encode->packed_alloc_size));
         internal_encode_free_buffer (
             encode,
@@ -469,5 +467,3 @@ exr_encoding_destroy (exr_const_context_t ctxt, exr_encode_pipeline_t* encode)
     }
     return EXR_UNLOCK_WRITE_AND_RETURN_PCTXT (EXR_ERR_SUCCESS);
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

@@ -5,9 +5,6 @@
 
 #include "openexr_base.h"
 #include "openexr_errors.h"
-#include "openexr_version.h"
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
 
 /**************************************/
 
@@ -210,5 +207,3 @@ exr_get_default_dwa_compression_quality (float* q)
 {
     if (q) *q = sDefaultDwaLevel;
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

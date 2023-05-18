@@ -19,8 +19,6 @@
 #    endif
 #endif
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 static exr_result_t
 print_error_helper (
     struct _internal_exr_context* pf,
@@ -489,5 +487,3 @@ make_temp_filename (struct _internal_exr_context* ret)
             (uint64_t) newlen + 1);
     return EXR_ERR_SUCCESS;
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

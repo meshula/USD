@@ -9,8 +9,6 @@
 
 #include <string.h>
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 /**************************************/
 
 exr_result_t
@@ -202,11 +200,11 @@ exr_attr_string_vector_add_entry_with_length (
     nent = sv->n_strings + 1;
     if (nent > sv->alloc_size)
     {
-        if (sv->alloc_size >= (INT32_MAX / (int) sizeof (exr_attr_string_t)))
-            return pctxt->standard_error (pctxt, EXR_ERR_OUT_OF_MEMORY);
-
         size_t  bytes;
         int32_t allsz = sv->alloc_size * 2;
+
+        if (sv->alloc_size >= (INT32_MAX / (int) sizeof (exr_attr_string_t)))
+            return pctxt->standard_error (pctxt, EXR_ERR_OUT_OF_MEMORY);
 
         if (nent > allsz) allsz = nent + 1;
         bytes = ((size_t) allsz) * sizeof (exr_attr_string_t);
@@ -244,5 +242,3 @@ exr_attr_string_vector_add_entry (
     if (s) len = (int32_t) strlen (s);
     return exr_attr_string_vector_add_entry_with_length (ctxt, sv, s, len);
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

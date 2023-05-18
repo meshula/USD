@@ -11,6 +11,18 @@
 
 #include "internal_structs.h"
 
+/* only recently has imath supported half in C (C++ only before),
+ * allow an older version to still work, and if that is available, we
+ * will favor the implementation there as it will be the latest
+ * up-to-date optimizations */
+#if (IMATH_VERSION_MAJOR > 3) ||                                               \
+    (IMATH_VERSION_MAJOR == 3 && IMATH_VERSION_MINOR >= 1)
+#    define IMATH_HALF_SAFE_FOR_C
+/* avoid the library dependency */
+#    define IMATH_HALF_NO_LOOKUP_TABLE
+#    include <half.h>
+#endif
+
 #ifdef _WIN32
 #    include <intrin.h>
 #elif defined(__x86_64__)
@@ -22,8 +34,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
 
 typedef exr_result_t (*internal_exr_unpack_fn) (exr_decode_pipeline_t*);
 
@@ -101,6 +111,9 @@ exr_result_t internal_decode_alloc_buffer (
 static inline float
 half_to_float (uint16_t hv)
 {
+#ifdef IMATH_HALF_SAFE_FOR_C
+    return imath_half_to_float (hv);
+#else
     /* replicate the code here from imath 3.1 since we are on an older
      * version which doesn't have a half that is safe for C code. Same
      * author, so free to do so. */
@@ -144,6 +157,7 @@ half_to_float (uint16_t hv)
         v.i -= (lc << 23);
     }
     return v.f;
+#endif
 }
 
 static inline uint32_t
@@ -161,6 +175,9 @@ half_to_float_int (uint16_t hv)
 static inline uint16_t
 float_to_half (float fv)
 {
+#ifdef IMATH_HALF_SAFE_FOR_C
+    return imath_float_to_half (fv);
+#else
     union
     {
         uint32_t i;
@@ -201,6 +218,7 @@ float_to_half (float fv)
     ret |= (m >> shift);
     if (r > 0x80000000 || (r == 0x80000000 && (ret & 0x1) != 0)) ++ret;
     return ret;
+#endif
 }
 
 static inline uint16_t
@@ -277,8 +295,6 @@ uint_to_float_int (uint32_t ui)
     v.f = uint_to_float (ui);
     return v.i;
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
 
 #ifdef __cplusplus
 } /* extern "C" */

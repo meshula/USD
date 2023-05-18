@@ -10,8 +10,6 @@
 extern "C" {
 #endif
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 /** 
  * @addtogroup InternalAttributeFunctions
  * @{
@@ -55,8 +53,6 @@ exr_result_t
 exr_attr_preview_destroy (exr_context_t ctxt, exr_attr_preview_t* p);
 
 /** @} */
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -17,18 +17,6 @@
 
 #include <stdio.h>
 
-#ifdef __clang__
-// suppress missing braces when compiling as C++
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-braces"
-#elif defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-braces"
-#endif
-
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 /**************************************/
 
 static exr_result_t
@@ -37,6 +25,8 @@ silent_error (
     exr_result_t                        code,
     const char*                         msg)
 {
+    (void)pctxt;
+    (void)msg;
     return code;
 }
 
@@ -44,6 +34,7 @@ static exr_result_t
 silent_standard_error (
     const struct _internal_exr_context* pctxt, exr_result_t code)
 {
+    (void)pctxt;
     return code;
 }
 
@@ -54,6 +45,8 @@ silent_print_error (
     const char*                         msg,
     ...)
 {
+    (void)pctxt;
+    (void)msg;
     return code;
 }
 
@@ -69,7 +62,7 @@ struct _internal_exr_seq_scratch
     exr_result_t (*sequential_read) (
         struct _internal_exr_seq_scratch*, void*, uint64_t);
     exr_result_t (*sequential_skip) (
-        struct _internal_exr_seq_scratch*, uint64_t);
+        struct _internal_exr_seq_scratch*, int32_t);
 
     struct _internal_exr_context* ctxt;
 };
@@ -93,7 +86,7 @@ scratch_attr_too_big (
 static exr_result_t
 scratch_seq_read (struct _internal_exr_seq_scratch* scr, void* buf, uint64_t sz)
 {
-    uint8_t*     outbuf  = (uint8_t*) buf;
+    uint8_t*     outbuf  = buf;
     uint64_t     nCopied = 0;
     uint64_t     notdone = sz;
     exr_result_t rv      = -1;
@@ -172,10 +165,10 @@ scratch_seq_read (struct _internal_exr_seq_scratch* scr, void* buf, uint64_t sz)
 }
 
 static exr_result_t
-scratch_seq_skip (struct _internal_exr_seq_scratch* scr, uint64_t sz)
+scratch_seq_skip (struct _internal_exr_seq_scratch* scr, int32_t sz)
 {
     uint64_t     nCopied = 0;
-    uint64_t     notdone = sz;
+    uint64_t     notdone = (uint64_t)sz;
     exr_result_t rv      = -1;
 
     while (notdone > 0)
@@ -218,7 +211,7 @@ scratch_seq_skip (struct _internal_exr_seq_scratch* scr, uint64_t sz)
     }
     if (rv == -1)
     {
-        if (nCopied == sz)
+        if (nCopied == (uint64_t)sz)
             rv = EXR_ERR_SUCCESS;
         else
             rv = EXR_ERR_READ_IO;
@@ -240,7 +233,7 @@ priv_init_scratch (
     scr->sequential_read = &scratch_seq_read;
     scr->sequential_skip = &scratch_seq_skip;
     scr->ctxt            = ctxt;
-    scr->scratch         = (uint8_t*) ctxt->alloc_fn (SCRATCH_BUFFER_SIZE);
+    scr->scratch         = ctxt->alloc_fn (SCRATCH_BUFFER_SIZE);
     if (scr->scratch == NULL)
         return ctxt->standard_error (ctxt, EXR_ERR_OUT_OF_MEMORY);
     return EXR_ERR_SUCCESS;
@@ -403,7 +396,7 @@ extract_attr_chlist (
             chname,
             chlen,
             (exr_pixel_type_t) ptype,
-            (exr_perceptual_treatment_t) flags[0],
+            flags[0],
             xsamp,
             ysamp);
     }
@@ -631,7 +624,7 @@ extract_attr_string_vector (
 
         if (nalloced == 0)
         {
-            clist = (exr_attr_string_t*) ctxt->alloc_fn (4 * sizeof (exr_attr_string_t));
+            clist = ctxt->alloc_fn (4 * sizeof (exr_attr_string_t));
             if (clist == NULL)
             {
                 rv = ctxt->standard_error (ctxt, EXR_ERR_OUT_OF_MEMORY);
@@ -642,7 +635,7 @@ extract_attr_string_vector (
         if ((nstr + 1) >= nalloced)
         {
             nalloced *= 2;
-            nlist = (exr_attr_string_t*) ctxt->alloc_fn (
+            nlist = ctxt->alloc_fn (
                 (size_t) (nalloced) * sizeof (exr_attr_string_t));
             if (nlist == NULL)
             {
@@ -1163,7 +1156,7 @@ check_populate_lineOrder (
             EXR_REQ_LO_STR);
 
     curpart->lineOrder->uc = data;
-    curpart->lineorder     = (exr_lineorder_t) data;
+    curpart->lineorder     = data;
     return rv;
 }
 
@@ -2428,12 +2421,14 @@ update_chunk_offsets (
 
     for (int p = 0; p < ctxt->num_parts; ++p)
     {
+        int32_t ccount;
+
         curpart = ctxt->parts[p];
 
         rv = internal_exr_compute_tile_information (ctxt, curpart, 0);
         if (rv != EXR_ERR_SUCCESS) break;
 
-        int32_t ccount = internal_exr_compute_chunk_offset_size (curpart);
+        ccount = internal_exr_compute_chunk_offset_size (curpart);
         if (ccount < 0)
         {
             rv = ctxt->print_error (
@@ -2691,11 +2686,3 @@ internal_exr_parse_header (struct _internal_exr_context* ctxt)
     priv_destroy_scratch (&scratch);
     return internal_exr_context_restore_handlers (ctxt, rv);
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#elif defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
