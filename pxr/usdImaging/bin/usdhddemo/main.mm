@@ -58,7 +58,7 @@ void blit(MTLRenderPassDescriptor* renderPassDescriptor,
     [renderEncoder popDebugGroup];
 }
 
-#define INSTALL_LOCN "usd0508"
+#define INSTALL_LOCN "usd0516"
 
 int main(int argc, char *argv[])
 {
@@ -211,6 +211,10 @@ int main(int argc, char *argv[])
         if (_image->ReadCropped(cropTop, cropBottom, 0, 0, _spec)) {
             // successfully read the image!
         }
+        
+        const char* output = "/var/tmp/test_exr.exr";
+        auto writeImage = HioImage::OpenForWriting(output);
+        writeImage->Write(_spec);
     }
     
     //-------------------------------------------------------------------------

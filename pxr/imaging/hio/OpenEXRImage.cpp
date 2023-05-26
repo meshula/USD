@@ -396,9 +396,131 @@ bool HioConvertFloatToFormat(HioFormat format, void *dst, const float *src, size
     }
 }
 
+
+int64_t exr_AssetRead_Func(
+    exr_const_context_t         ctxt,
+    void*                       userdata,
+    void*                       buffer,
+    uint64_t                    sz,
+    uint64_t                    offset,
+    exr_stream_error_func_ptr_t error_cb)
+{
+    ArAsset* asset = (ArAsset*)userdata;
+    if (!asset || !buffer || !sz) {
+        if (error_cb)
+            error_cb(ctxt, EXR_ERR_INVALID_ARGUMENT,
+                           "%s", "Invalid arguments to read callback");
+        return -1;
+    }
+    return asset->Read(buffer, sz, offset);
+}
+
+#if 0
+/// @TODO in the future Hio could use asset writing featuers
+int64_t exr_AssetWrite_Func(
+    exr_const_context_t         ctxt,
+    void*                       userdata,
+    const void*                 buffer,
+    uint64_t                    sz,
+    uint64_t                    offset,
+    exr_stream_error_func_ptr_t error_cb)
+{
+    ArAsset* asset = (ArAsset*)userdata;
+    if (!asset || !buffer || !sz) {
+        if (error_cb)
+            error_cb(ctxt, EXR_ERR_INVALID_ARGUMENT,
+                           "%s", "Invalid arguments to write callback");
+        return -1;
+    }
+    return asset->Write(buffer, sz, offset);
+}
+#endif
+
+
+
 bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &metadata)
 {
-    return false;
+    const HioType type = HioGetHioType(storage.format);
+    if (type != HioTypeFloat && type != HioTypeHalfFloat) {
+        TF_CODING_ERROR("Unsupported pixel type %d", type);
+        return false;
+    }
+    if (storage.format != HioFormatFloat16 &&
+        storage.format != HioFormatFloat16Vec2 &&
+        storage.format != HioFormatFloat16Vec3 &&
+        storage.format != HioFormatFloat16Vec4 &&
+        storage.format != HioFormatFloat32 &&
+        storage.format != HioFormatFloat32Vec2 &&
+        storage.format != HioFormatFloat32Vec3 &&
+        storage.format != HioFormatFloat32Vec4) {
+        TF_CODING_ERROR("Unsupported pixel format %d", storage.format);
+        return false;
+    }
+
+    exr_context_initializer_t exrInit = EXR_DEFAULT_CONTEXT_INITIALIZER;
+    //exrInit.read_fn = exr_AssetRead_Func;
+    //exrInit.write_fn = exr_AssetWrite_Func;
+    exrInit.read_fn = NULL; // If read is set, and write is not, things fail in write because user_data doesn't get allocated
+                            // and then when we try to set fh->fd = -1 that's a seg fault
+    exrInit.write_fn = NULL; // Use the default file system write, not ArAsset 
+                             // at the moment.
+                             // The reason is that none of the existing Hio write
+                             // routines use ArAsset.
+    exrInit.user_data = (void*) _asset.get(); // Hio_OpenEXRImage will outlast the reader.
+    nanoexr_Reader_t* exrWriter = nanoexr_new(_filename.c_str(), &exrInit);
+    if (!exrWriter) {
+        TF_CODING_ERROR("Cannot create image \"%s\" for writing",
+                        _filename.c_str());
+        return false;
+    }
+
+    if (storage.format == HioFormatFloat16Vec3 || storage.format == HioFormatFloat16Vec4) {
+        int32_t size = 2;
+        int32_t ch = storage.format == HioFormatFloat16Vec3 ? 3 : 4;
+        uint8_t* pixels = reinterpret_cast<uint8_t*>(storage.data);
+        int32_t lineStride = storage.width * size * ch;
+        int32_t pixelStride = size * ch;
+        exr_result_t rv = nanoexr_open_for_writing_fp16(
+                                exrWriter,
+                                storage.width, storage.height,
+                                pixels + (size * 2), pixelStride, lineStride,
+                                pixels +  size,      pixelStride, lineStride,
+                                pixels,              pixelStride, lineStride
+                            );
+        
+        if (rv != EXR_ERR_SUCCESS) {
+            TF_CODING_ERROR("Cannot open image \"%s\" for writing, %s",
+                            _filename.c_str(), nanoexr_get_error_code_as_string(rv));
+            return false;
+        }
+    }
+    
+    //set info to match storage
+    int width = storage.width;
+    int height = storage.height;
+    HioFormat format = storage.format;
+    HioType outputType = HioGetHioType(storage.format);
+    int nchannels = HioGetComponentCount(storage.format);
+
+    //Again, how to store metadata?
+    //for (const std::pair<std::string, VtValue>& m : metadata) {
+    //    _SetAttribute(&spec, m.first, m.second);
+    //}
+    
+    //Part definition (required attributes and additional metadata)
+
+    
+    
+    // Transition to writing data (this “commits” the part definitions, any changes requested after will result in an error)
+
+    // Write part data in sequential order of parts (part0 -> partN-1).
+
+    // Within each part, multiple threads can be encoding and writing data concurrently. For some EXR part definitions, this may be able to write data concurrently when it can predict the chunk sizes, or data is allowed to be padded. For others, it may need to temporarily cache chunks until the data is received to flush in order. The concurrency around this is handled by the library
+
+    // Once finished writing data, use exr_finish() to clean up the context, which will flush any unwritten data such as the final chunk offset tables, and handle the temporary file flags.
+    nanoexr_close(exrWriter);
+
+    return true;
 }
 
 std::string const& Hio_OpenEXRImage::GetFilename() const
@@ -514,23 +636,6 @@ bool Hio_OpenEXRImage::GetSamplerMetadata(HioAddressDimension dim,
     return HioAddressModeClampToEdge;
 }
 
-int64_t exr_AssetRead_Func(
-    exr_const_context_t         ctxt,
-    void*                       userdata,
-    void*                       buffer,
-    uint64_t                    sz,
-    uint64_t                    offset,
-    exr_stream_error_func_ptr_t error_cb)
-{
-    ArAsset* asset = (ArAsset*)userdata;
-    if (!asset || !buffer || !sz) {
-        if (error_cb)
-            error_cb(ctxt, EXR_ERR_INVALID_ARGUMENT,
-                           "%s", "Invalid arguments to read callback");
-        return -1;
-    }
-    return asset->Read(buffer, sz, offset);
-}
 
 // set inits.read_fn to exr_AssetRead_Func
 // called by HioImage::OpenForReading
@@ -548,6 +653,11 @@ bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
 
     exr_context_initializer_t exrInit = EXR_DEFAULT_CONTEXT_INITIALIZER;
     exrInit.read_fn = exr_AssetRead_Func;
+    //exrInit.write_fn = exr_AssetWrite_Func;
+    exrInit.write_fn = NULL; // Use the default file system write, not ArAsset 
+                             // at the moment.
+                             // The reason is that none of the existing Hio write
+                             // routines use ArAsset.
     exrInit.user_data = (void*) _asset.get(); // Hio_OpenEXRImage will outlast the reader.
     _exrReader = nanoexr_new(filename.c_str(), &exrInit);
 
@@ -568,7 +678,8 @@ bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
 
 bool Hio_OpenEXRImage::_OpenForWriting(std::string const &filename)
 {
-    return false;
+    _filename = filename;
+    return true;
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE

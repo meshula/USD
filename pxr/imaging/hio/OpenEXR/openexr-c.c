@@ -395,6 +395,8 @@ void nanoexr_delete(nanoexr_Reader_t* reader) {
     free(reader);
 }
 
+
+
 int nanoexr_open(nanoexr_Reader_t* reader, int partIndex) {
     if (!reader)
         return EXR_ERR_INVALID_ARGUMENT;
@@ -476,6 +478,179 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex) {
     reader->pixelType = chlist->entries[0].pixel_type;
 
     return rv;
+}
+
+/// @TODO Pass in the part name
+exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
+    int width, int height,
+    uint8_t* red,   int32_t redPixelStride,   int32_t redLineStride,
+    uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
+    uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride)
+{
+    int partidx = 0;
+    // switch to write mode after everything is set up
+    /// @TODO use EXR_INTERMEDIATE_TEMP_FILE after this code works
+    exr_result_t result = exr_start_write(&nexr->exr, nexr->filename, EXR_WRITE_FILE_DIRECTLY, &nexr->init);
+    if (result != EXR_ERR_SUCCESS) {
+        return result;
+    }
+
+    result = exr_add_part(nexr->exr, "beauty", EXR_STORAGE_SCANLINE, &partidx);
+    if (result != EXR_ERR_SUCCESS) {
+        return result;
+    }
+
+    // modern exr should support long names
+    exr_set_longname_support(nexr->exr, 1);
+
+
+    /// @TODO allow other compression levels
+    result = exr_set_zip_compression_level(nexr->exr, 0, 4);
+    if (result != EXR_ERR_SUCCESS) {
+        return result;
+    }
+
+    exr_attr_box2i_t dataw = {0, 0, width - 1, height - 1};
+    exr_attr_box2i_t dispw = dataw;
+    exr_attr_v2f_t   swc   = {0.5f, 0.5f}; // center of the screen window
+    result = exr_initialize_required_attr (
+        nexr->exr,
+        partidx,
+        &dataw,
+        &dispw,
+        1.f,    // pixel aspect ratio
+        &swc,
+        1.f,    // screen window width corresponding to swc
+        EXR_LINEORDER_INCREASING_Y,
+        EXR_COMPRESSION_ZIPS); // one line per chunk, ZIP is 16
+    if (result != EXR_ERR_SUCCESS) {
+        return result;
+    }
+
+    result = exr_add_channel(
+        nexr->exr,
+        partidx,
+        "R",
+        EXR_PIXEL_HALF,
+        EXR_PERCEPTUALLY_LOGARITHMIC, // hint to compression that pixels are an image (as opposed to data of some sort)
+        1, 1); // x & y sampling rate
+    if (result != EXR_ERR_SUCCESS) {
+        return result;
+    }
+    
+    result = exr_add_channel(
+        nexr->exr,
+        partidx,
+        "G",
+        EXR_PIXEL_HALF,
+        EXR_PERCEPTUALLY_LOGARITHMIC, // hint to compression that pixels are an image (as opposed to data of some sort)
+        1, 1); // x & y sampling rate
+    if (result != EXR_ERR_SUCCESS) {
+        return result;
+    }
+    
+    result = exr_add_channel(
+        nexr->exr,
+        partidx,
+        "B",
+        EXR_PIXEL_HALF,
+        EXR_PERCEPTUALLY_LOGARITHMIC, // hint to compression that pixels are an image (as opposed to data of some sort)
+        1, 1); // x & y sampling rate
+    if (result != EXR_ERR_SUCCESS) {
+        return result;
+    }
+
+    result = exr_set_version(nexr->exr, partidx, 1); // 1 is the latest version
+
+    // set chromaticities to Rec. ITU-R BT.709-3
+    exr_attr_chromaticities_t chroma = {
+        0.6400f, 0.3300f, // red
+        0.3000f, 0.6000f, // green
+        0.1500f, 0.0600f, // blue
+        0.3127f, 0.3290f};  // white
+    result = exr_attr_set_chromaticities(nexr->exr, partidx, "chromaticities", &chroma);
+    if (result != EXR_ERR_SUCCESS) {
+        return result;
+    }
+
+    result = exr_write_header(nexr->exr);
+    if (result != EXR_ERR_SUCCESS) {
+        return result;
+    }
+
+    exr_encode_pipeline_t encoder;
+
+
+    exr_chunk_info_t cinfo;
+    int32_t               scansperchunk = 0;
+    exr_get_scanlines_per_chunk(nexr->exr, partidx, &scansperchunk);
+    bool                  first = true;
+
+    uint8_t* pRed = red + (height - 1) * redLineStride;
+    uint8_t* pGreen = green + (height - 1) * greenLineStride;
+    uint8_t* pBlue = blue + (height - 1) * blueLineStride;
+    
+    int chunkInfoIndex = 0;
+    for (int y = dataw.min.y; y <= dataw.max.y; y += scansperchunk, ++chunkInfoIndex) {
+        result = exr_write_scanline_chunk_info(nexr->exr, partidx, y, &cinfo);
+        if (result != EXR_ERR_SUCCESS) {
+            return result;
+        }
+
+        if (first)
+        {
+            result = exr_encoding_initialize(nexr->exr, partidx, &cinfo, &encoder);
+            if (result != EXR_ERR_SUCCESS) {
+                return result;
+            }
+        }
+        else
+        {
+            result = exr_encoding_update(nexr->exr, partidx, &cinfo, &encoder);
+        }
+        
+        encoder.channel_count = 3;
+        encoder.channels[0].user_pixel_stride = redPixelStride;
+        encoder.channels[0].user_line_stride  = redLineStride;
+        encoder.channels[0].encode_from_ptr   = pRed;
+        encoder.channels[0].height            = scansperchunk; // chunk height
+        encoder.channels[0].width             = dataw.max.x - dataw.min.y + 1;
+        encoder.channels[1].user_pixel_stride = greenPixelStride;
+        encoder.channels[1].user_line_stride  = greenLineStride;
+        encoder.channels[1].height            = scansperchunk; // chunk height
+        encoder.channels[1].width             = dataw.max.x - dataw.min.y + 1;
+        encoder.channels[1].encode_from_ptr   = pGreen;
+        encoder.channels[2].user_pixel_stride = bluePixelStride;
+        encoder.channels[2].user_line_stride  = blueLineStride;
+        encoder.channels[2].height            = scansperchunk; // chunk height
+        encoder.channels[2].width             = dataw.max.x - dataw.min.y + 1;
+        encoder.channels[2].encode_from_ptr   = pBlue;
+
+        if (first) {
+            result = exr_encoding_choose_default_routines(nexr->exr, partidx, &encoder);
+            if (result != EXR_ERR_SUCCESS) {
+                return result;
+            }
+        }
+
+        result = exr_encoding_run(nexr->exr, partidx, &encoder);
+        if (result != EXR_ERR_SUCCESS) {
+            return result;
+        }
+
+        first = false;
+        pRed -= redLineStride;
+        pGreen -= greenLineStride;
+        pBlue -= blueLineStride;
+    }
+
+    result = exr_encoding_destroy(nexr->exr, &encoder);
+    if (result != EXR_ERR_SUCCESS) {
+        return result;
+    }
+
+    result = exr_finish(&nexr->exr);
+    return result;
 }
 
 bool nanoexr_isOpen(nanoexr_Reader_t* reader) {
