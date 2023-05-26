@@ -1546,7 +1546,7 @@ write_scan_chunk (
         return pctxt->print_error (
             pctxt,
             EXR_ERR_INVALID_ARGUMENT,
-            "Chunk index for scanline %d in chunk %d outside chunk count %d",
+            "while writing chunk, Chunk index for scanline %d in chunk %d outside chunk count %d",
             y,
             cidx,
             part->chunk_count);

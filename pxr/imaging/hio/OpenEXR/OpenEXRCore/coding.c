@@ -191,7 +191,7 @@ internal_encode_alloc_buffer (
             return pctxt->print_error (
                 pctxt,
                 EXR_ERR_OUT_OF_MEMORY,
-                "Unable to allocate %" PRIu64 " bytes",
+                "Unable to allocate %" PRIu64 " bytes for encoding",
                 (uint64_t) newsz);
         }
 
@@ -269,7 +269,7 @@ internal_decode_alloc_buffer (
             return pctxt->print_error (
                 pctxt,
                 EXR_ERR_OUT_OF_MEMORY,
-                "Unable to allocate %" PRIu64 " bytes",
+                "Unable to allocate %" PRIu64 " bytes for decoding",
                 (uint64_t) newsz);
         }
 

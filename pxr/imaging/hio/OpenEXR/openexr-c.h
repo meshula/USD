@@ -69,6 +69,11 @@ nanoexr_Reader_t* nanoexr_new(const char* filename,
                               exr_context_initializer_t*);
 
 exr_result_t nanoexr_open(nanoexr_Reader_t* reader, int partIndex);
+exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
+    int width, int height,
+    uint8_t* red, int32_t redPixelStride, int32_t redLineStride,
+    uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
+    uint8_t* blue, int32_t bluePixelStride, int32_t blueLineStride);
 bool         nanoexr_isOpen(nanoexr_Reader_t* reader);
 bool         nanoexr_isTiled(nanoexr_Reader_t* reader);
 void         nanoexr_close(nanoexr_Reader_t* reader);
