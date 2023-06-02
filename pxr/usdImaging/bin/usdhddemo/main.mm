@@ -58,7 +58,7 @@ void blit(MTLRenderPassDescriptor* renderPassDescriptor,
     [renderEncoder popDebugGroup];
 }
 
-#define INSTALL_LOCN "usd0516"
+#define INSTALL_LOCN "usd0528"
 
 int main(int argc, char *argv[])
 {
@@ -166,11 +166,22 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // Read a texture
     //-------------------------------------------------------------------------
-    const std::string stillLife = "/Users/nporcino/dev/assets/StillLife.exr";
+    //const std::string stillLife = "/Users/nporcino/dev/assets/textures/StillLife.exr";
+    const std::string stillLife = "/Users/nporcino/dev/assets/textures/GoldenGate.exr";
     HioImageSharedPtr _image;
     bool canReadExr = HioImage::IsSupportedImageFile(stillLife);
     std::unique_ptr<char[]> imageData;
     HioImage::StorageSpec _spec;
+    /*
+    bool
+    HdStTextureUtils::ReadAndConvertImage(
+        HioImageSharedPtr const &image,
+        const bool flipped,
+        const bool premultiplyAlpha,
+        const HgiMipInfo &mipInfo,
+        const size_t layer,
+        void * const bufferStart)
+     */
     if (canReadExr) {
         _image = HioImage::OpenForReading(stillLife,
                                               0, // int subimage,
@@ -196,6 +207,16 @@ int main(int argc, char *argv[])
         std::cout << " mips: " << _image->GetNumMipLevels() << "\n";
         std::cout << (_image->IsColorSpaceSRGB() ? " srgb pixels\n" : " linear pixels\n");
 
+        const bool premultiplyAlpha = false;
+        auto hgiFormat = HdStTextureUtils::GetHgiFormat(
+            _image->GetFormat(),
+            premultiplyAlpha);
+
+        const int layerCount = 1;
+        const GfVec3i dimensions((int)_image->GetWidth(), (int)_image->GetHeight(), 1);
+        const std::vector<HgiMipInfo> mipInfos =
+            HgiGetMipInfos(hgiFormat, dimensions, layerCount);
+
         int cropTop = 0;
         int cropBottom = 0;
         float scale = 1.f;//0.85f;
@@ -204,15 +225,28 @@ int main(int argc, char *argv[])
         _spec.format = _image->GetFormat();
         _spec.flipped = false;
 
-        const size_t bufsize = _spec.width * _spec.height * _image->GetBytesPerPixel();
+        const size_t bufsize = _spec.width * _spec.height * 4 * sizeof(uint16_t);
         imageData.reset(new char[bufsize]);
-
         _spec.data = imageData.get();
+
+#if 0
+        const int layer = 0;
+        if (!HdStTextureUtils::ReadAndConvertImage(
+                _image,
+                true, // flipped
+                premultiplyAlpha,
+                mipInfos[0],
+                layer,
+                imageData.get())) {
+            TF_WARN("Unable to read Texture '%s'.", stillLife.c_str());
+        }
+#else
         if (_image->ReadCropped(cropTop, cropBottom, 0, 0, _spec)) {
             // successfully read the image!
         }
-        
+#endif
         const char* output = "/var/tmp/test_exr.exr";
+        _spec.format = HioFormatFloat16Vec4;
         auto writeImage = HioImage::OpenForWriting(output);
         writeImage->Write(_spec);
     }

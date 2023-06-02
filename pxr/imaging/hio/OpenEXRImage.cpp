@@ -26,8 +26,6 @@
 #include "pxr/imaging/hio/image.h"
 #include "pxr/imaging/hio/types.h"
 
-#define OPENEXR_EXPORT static
-#define OPENEXR_C_STANDALONE
 #include "OpenEXR/OpenEXRCoreNamespaces.h"
 #include "OpenEXR/openexr-c.h"
 #include "OpenEXR/OpenEXRCore/internal_coding.h"
@@ -54,25 +52,24 @@ Open Questions:
 - Hydra may ask for downsampled images (constructing mips)
 - Hydra won't ask for upsampled images (I supplied a simple Gaussian upsample anyway)
 - What role does cropping play? (maybe there's a crop node in shadegraphs?)
-- how are int32 textures used? Are they in named layers? (id pixels, single layer exr files only)
+
+Answered Questions:
+
+- 4:2:0 chroma support needed? How about YUV? (No to both)
 - Hydra will never ask Hio for float to int8 tonemapping, right? (never)
 - Hydra will never ask Hio for exr files expecting gamma pixels back? (because exr are linear only) (never)
-- how are layers piped from MaterialX to Hio? (Seems to throw away layer info?)
-- where are the extended tests for Hio? (I think there are some tests I can explicitly run)
-- is there test data to check the permutations of Hydra with MaterialX, UDIMs, and MatX with UDIMs? (I think there are sample files somewhere)
-- 4:2:0 chroma support needed? How about YUV? (No to both)
-    
+- how are int32 textures used? Are they in named layers? (id pixels, single layer exr files only)
+- where are the extended tests for Hio? (not explicitly tested)
+- is there test data to check the permutations of Hydra with MaterialX, UDIMs, and MatX with UDIMs? (no)
+- how are layers piped from MaterialX to Hio? (Hio doesn't know about layers)
+
  Remaining:
 
- - inter miniz
- - hook it to stb_image/png  https://github.com/nothings/stb/issues/113
- - switch OpenEXR to using miniz
  - cropped reading
  - populate attributes dictionary
  - test writing via UsdRecord
- - move HioOpenEXR directly into Hio
  - final code clean up and checkin
- - start submitting patches to OpenEXR project (doesn't gate the task)
+ - test int32 textures
 
  Maybe:
  - should be able to do "stapled AOVs" from usd record unless usd record is too inflexible (USD-7846)
@@ -147,8 +144,8 @@ HioFormat HioFormatFromExrPixelType(exr_pixel_type_t pixelType, int numChannels)
         {
         case 1: return HioFormatInt32;
         case 2: return HioFormatInt32Vec2;
-        case 3: return HioFormatInt32Vec3;
-        default: return HioFormatInt32Vec4;
+        case 3: //return HioFormatInt32Vec3;
+        default: return HioFormatInt32Vec4;  // 3 will be promoted to 4 during the read
         }
 
     case EXR_PIXEL_HALF:
@@ -156,8 +153,8 @@ HioFormat HioFormatFromExrPixelType(exr_pixel_type_t pixelType, int numChannels)
         {
         case 1: return HioFormatFloat16;
         case 2: return HioFormatFloat16Vec2;
-        case 3: return HioFormatFloat16Vec3;
-        default: return HioFormatFloat16Vec4;
+        case 3: //return HioFormatFloat16Vec3;
+        default: return HioFormatFloat16Vec4;  // 3 will be promoted to 4 during the read
         }
 
     case EXR_PIXEL_FLOAT:
@@ -165,8 +162,8 @@ HioFormat HioFormatFromExrPixelType(exr_pixel_type_t pixelType, int numChannels)
         {
         case 1: return HioFormatFloat32;
         case 2: return HioFormatFloat32Vec2;
-        case 3: return HioFormatFloat32Vec3;
-        default: return HioFormatFloat32Vec4;
+        case 3: //return HioFormatFloat32Vec3;
+        default: return HioFormatFloat32Vec4;  // 3 will be promoted to 4 during the read
         }
 
     default:
@@ -231,62 +228,76 @@ bool Hio_OpenEXRImage::ReadCropped(
         return true;
     }
 
+    // ensure there's enough memory for the greater of input and output channel count, for
+    // in place conversions.
+    int maxChannelCount = std::max(fileChannelCount, outChannelCount);
     std::vector<uint16_t> halfInputBuffer;
     if (inputIsHalf) {
-        halfInputBuffer.resize(fileWidth * readHeight * fileChannelCount);
+        halfInputBuffer.resize(fileWidth * readHeight * maxChannelCount);
     }
     std::vector<float> floatInputBuffer;
     if (inputIsHalf && (resizing || outputIsFloat)) {
-        floatInputBuffer.resize(fileWidth * readHeight * fileChannelCount);
+        floatInputBuffer.resize(fileWidth * readHeight * maxChannelCount);
     }
-    
-    if (cropping) {
-        if (nanoexr_isTiled(_exrReader)) {
-            // ... @TODO read tiled cropped
+
+    if (nanoexr_isTiled(_exrReader)) {
+        
+        //nanoexr_close(_exrReader);
+        
+        /*
+         exr_result_t nanoexr_read_tiled_exr(const char* filename,
+                                             nanoexr_ImageData_t* img,
+                                             const char* layerName,
+                                             int partIndex,
+                                             int level)
+         */
+        
+        nanoexr_ImageData_t img;
+        img.channelCount = outChannelCount;
+        exr_result_t rv = nanoexr_read_tiled_exr(_exrReader->filename, &img, nullptr, 0, 0);
+        if (rv != EXR_ERR_SUCCESS) {
             return false;
         }
-        else {
-            // read only requested scan line data
-            nanoexr_ImageData_t img;
-            
-            if (inputIsHalf)
-                img.data = reinterpret_cast<uint8_t*>(&halfInputBuffer[0]);
-            else
-                img.data = reinterpret_cast<uint8_t*>(&floatInputBuffer[0]);
-            
-            img.channelCount = outChannelCount;
-            img.dataSize = fileWidth * readHeight * GetBytesPerPixel();
-            img.width = fileWidth;
-            img.height = readHeight;
-            img.pixelType = filePixelType;
-            exr_result_t rv = nanoexr_readScanlineData(_exrReader, &img, nullptr, cropTop);
-            if (rv != EXR_ERR_SUCCESS) {
-                return false;
-            }
+
+        memcpy(&halfInputBuffer[0], img.data, img.dataSize);
+#if 0
+        // read requested tiled data
+        
+        if (inputIsHalf)
+            img.data = reinterpret_cast<uint8_t*>(&halfInputBuffer[0]);
+        else
+            img.data = reinterpret_cast<uint8_t*>(&floatInputBuffer[0]);
+
+        img.channelCount = outChannelCount;
+        img.dataSize = fileWidth * readHeight * GetBytesPerPixel();
+        img.width = fileWidth;
+        img.height = readHeight;
+        img.pixelType = filePixelType;
+        exr_result_t rv = nanoexr_readAllTileData(_exrReader, &img,
+                                                  nanoexr_MipLevel_t{0}, nullptr);
+        if (rv != EXR_ERR_SUCCESS) {
+            return false;
         }
+#endif
     }
     else {
-        if (nanoexr_isTiled(_exrReader)) {
-            // ... @TODO read tiled, uncropped
+        // read requested scan line data
+        nanoexr_ImageData_t img;
+        
+        if (inputIsHalf)
+            img.data = reinterpret_cast<uint8_t*>(&halfInputBuffer[0]);
+        else
+            img.data = reinterpret_cast<uint8_t*>(&floatInputBuffer[0]);
+        
+        img.channelCount = outChannelCount;
+        img.dataSize = fileWidth * readHeight * GetBytesPerPixel();
+        img.width = fileWidth;
+        img.height = readHeight;
+        img.pixelType = filePixelType;
+        exr_result_t rv = nanoexr_readScanlineData(_exrReader, &img,
+                                                   nullptr, cropTop);
+        if (rv != EXR_ERR_SUCCESS) {
             return false;
-        }
-        else {
-            nanoexr_ImageData_t img;
-            
-            if (inputIsHalf)
-                img.data = reinterpret_cast<uint8_t*>(&halfInputBuffer[0]);
-            else
-                img.data = reinterpret_cast<uint8_t*>(&floatInputBuffer[0]);
-            
-            img.channelCount = outChannelCount;
-            img.dataSize = fileWidth * fileHeight * GetBytesPerPixel();
-            img.width = fileWidth;
-            img.height = fileHeight;
-            img.pixelType = filePixelType;
-            exr_result_t rv = nanoexr_readScanlineData(_exrReader, &img, nullptr, 0);
-            if (rv != EXR_ERR_SUCCESS) {
-                return false;
-            }
         }
     }
 
@@ -294,9 +305,9 @@ bool Hio_OpenEXRImage::ReadCropped(
     if (inputIsHalf) {
         for (int y = 0; y < readHeight / 2; ++y) {
             for (int x = 0; x < fileWidth; ++x) {
-                for (int c = 0; c < fileChannelCount; ++c) {
-                    std::swap(halfInputBuffer[(y * fileWidth + x) * fileChannelCount + c],
-                              halfInputBuffer[((readHeight - y - 1) * fileWidth + x) * fileChannelCount + c]);
+                for (int c = 0; c < outChannelCount; ++c) {
+                    std::swap(halfInputBuffer[(y * fileWidth + x) * outChannelCount + c],
+                              halfInputBuffer[((readHeight - y - 1) * fileWidth + x) * outChannelCount + c]);
                 }
             }
         }
@@ -304,9 +315,9 @@ bool Hio_OpenEXRImage::ReadCropped(
     else {
         for (int y = 0; y < readHeight / 2; ++y) {
             for (int x = 0; x < fileWidth; ++x) {
-                for (int c = 0; c < fileChannelCount; ++c) {
-                    std::swap(floatInputBuffer[(y * fileWidth + x) * fileChannelCount + c],
-                              floatInputBuffer[((readHeight - y - 1) * fileWidth + x) * fileChannelCount + c]);
+                for (int c = 0; c < outChannelCount; ++c) {
+                    std::swap(floatInputBuffer[(y * fileWidth + x) * outChannelCount + c],
+                              floatInputBuffer[((readHeight - y - 1) * fileWidth + x) * outChannelCount + c]);
                 }
             }
         }
