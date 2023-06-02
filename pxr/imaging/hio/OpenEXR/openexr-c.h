@@ -8,6 +8,12 @@
 #ifndef openexr_c_h
 #define openexr_c_h
 
+#if defined(__clang__)
+#pragma clang diagnostic ignored "-Wunused-function"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
+
 #include "OpenEXRCore/openexr_attr.h"
 #include "OpenEXRCore/openexr_context.h"
 #include "OpenEXRCore/openexr_part.h"
@@ -99,12 +105,21 @@ exr_result_t       nanoexr_readScanlineData(nanoexr_Reader_t* reader,
 exr_result_t       nanoexr_readTileData(nanoexr_Reader_t* reader,
                                         nanoexr_ImageData_t* img,
                                         nanoexr_MipLevel_t mipLevel,
+                                        const char* layerName,
                                         int col, int row);
 exr_result_t       nanoexr_readAllTileData(nanoexr_Reader_t* reader,
                                            nanoexr_ImageData_t* img,
-                                           nanoexr_MipLevel_t mip);
+                                           nanoexr_MipLevel_t mip,
+                                           const char* layerName);
 bool nanoexr_Gaussian_resample(const nanoexr_ImageData_t* src,
                                nanoexr_ImageData_t* dst);
+
+exr_result_t nanoexr_read_tiled_exr(const char* filename,
+                                    nanoexr_ImageData_t* img,
+                                    const char* layerName,
+                                    int partIndex,
+                                    int level);
+
 
 OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
 

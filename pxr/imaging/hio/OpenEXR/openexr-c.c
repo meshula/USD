@@ -1,67 +1,26 @@
 
-#define ILMTHREAD_THREADING_ENABLED
-#define OPENEXR_C_STANDALONE
-#define OPENEXR_EXPORT static
+// configuration settings for building OpenEXRCore are in the CMakeLists.txt file
 
 #ifdef IMATH_HALF_SAFE_FOR_C
 #undef IMATH_HALF_SAFE_FOR_C
 #endif
 
-#include "OpenEXRCoreNamespaces.h"
-#include "OpenEXRCore/openexr_conf.h"
+#if defined(__clang__)
+#pragma clang diagnostic ignored "-Wunused-function"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
 
-#include "deflate/lib/lib_common.h"
-#include "deflate/common_defs.h"
-#include "deflate/lib/utils.c"
-#include "deflate/lib/arm/cpu_features.c"
-#include "deflate/lib/x86/cpu_features.c"
-#include "deflate/lib/deflate_compress.c"
-#undef BITBUF_NBITS
-#include "deflate/lib/deflate_decompress.c"
-#include "deflate/lib/adler32.c"
-#include "deflate/lib/zlib_compress.c"
-#include "deflate/lib/zlib_decompress.c"
+#include "OpenEXRCoreUnity.h"
 
-#include "openexr-c.h"
-
-#include "OpenEXRCore/attributes.c"
-#include "OpenEXRCore/base.c"
-#include "OpenEXRCore/channel_list.c"
-#include "OpenEXRCore/chunk.c"
-#include "OpenEXRCore/coding.c"
-#include "OpenEXRCore/compression.c"
-#include "OpenEXRCore/context.c"
-#include "OpenEXRCore/debug.c"
-#include "OpenEXRCore/decoding.c"
-#include "OpenEXRCore/encoding.c"
-#include "OpenEXRCore/float_vector.c"
-#include "OpenEXRCore/internal_b44_table.c"
-#include "OpenEXRCore/internal_b44.c"
-#include "OpenEXRCore/internal_dwa.c"
-#include "OpenEXRCore/internal_huf.c"
-#include "OpenEXRCore/internal_piz.c"
-#include "OpenEXRCore/internal_pxr24.c"
-#include "OpenEXRCore/internal_rle.c"
-#include "OpenEXRCore/internal_structs.c"
-#include "OpenEXRCore/internal_zip.c"
-#include "OpenEXRCore/memory.c"
-#include "OpenEXRCore/opaque.c"
-#include "OpenEXRCore/pack.c"
-#include "OpenEXRCore/parse_header.c"
-#include "OpenEXRCore/part_attr.c"
-#include "OpenEXRCore/part.c"
-#include "OpenEXRCore/preview.c"
-#include "OpenEXRCore/std_attr.c"
-#include "OpenEXRCore/string_vector.c"
-#include "OpenEXRCore/string.c"
-#include "OpenEXRCore/unpack.c"
-#include "OpenEXRCore/validation.c"
-#include "OpenEXRCore/write_header.c"
 
 #include <ctype.h>
 #include <math.h>
 
 OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
+
+
+#include "exrTileReader.h"
 
 // re-export the statically hidden exr_ functions as required
 // for visibility from C++
@@ -761,82 +720,6 @@ exr_result_t nanoexr_convertPixelType(exr_pixel_type_t dstType, exr_pixel_type_t
     return EXR_ERR_INVALID_ARGUMENT;
 }
 
-static bool strIsRed(const char* layerName, const char* str) {
-    if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
-        return false;
-
-    // check if the case folded string is R or RED, or if it ends in .R or .RED
-    char* folded = strdup(str);
-    for (int i = 0; folded[i]; ++i) {
-        folded[i] = tolower(folded[i]);
-    }
-    if (strcmp(folded, "r") == 0 || strcmp(folded, "red") == 0)
-        return true;
-    size_t l = strlen(folded);
-    if ((l > 2) && (folded[l - 2] == '.') && (folded[l - 1] == 'r'))
-        return true;
-    if (l < 4)
-        return false;
-    return strcmp(folded + l - 4, ".red");
-}
-
-static bool strIsGreen(const char* layerName, const char* str) {
-    if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
-        return false;
-
-    // check if the case folded string is G or GREEN, or if it ends in .G or .GREEN
-    char* folded = strdup(str);
-    for (int i = 0; folded[i]; ++i) {
-        folded[i] = tolower(folded[i]);
-    }
-    if (strcmp(folded, "g") == 0 || strcmp(folded, "green") == 0)
-        return true;
-    size_t l = strlen(folded);
-    if ((l > 2) && (folded[l - 2] == '.') && (folded[l - 1] == 'g'))
-        return true;
-    if (l < 6)
-        return false;
-    return strcmp(folded + l - 6, ".green");
-}
-
-static bool strIsBlue(const char* layerName, const char* str) {
-    if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
-        return false;
-
-    // check if the case folded string is B or BLUE, or if it ends in .B or .BLUE
-    char* folded = strdup(str);
-    for (int i = 0; folded[i]; ++i) {
-        folded[i] = tolower(folded[i]);
-    }
-    if (strcmp(folded, "b") == 0 || strcmp(folded, "blue") == 0)
-        return true;
-    size_t l = strlen(folded);
-    if ((l > 2) && (folded[l - 2] == '.') && (folded[l - 1] == 'b'))
-        return true;
-    if (l < 5)
-        return false;
-    return strcmp(folded + l - 5, ".blue");
-}
-
-static bool strIsAlpha(const char* layerName, const char* str) {
-    if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
-        return false;
-
-    // check if the case folded string is A or ALPHA, or if it ends in .A or .ALPHA
-    char* folded = strdup(str);
-    for (int i = 0; folded[i]; ++i) {
-        folded[i] = tolower(folded[i]);
-    }
-    if (strcmp(folded, "a") == 0 || strcmp(folded, "alpha") == 0)
-        return true;
-    size_t l = strlen(folded);
-    if ((l > 2) && (folded[l - 2] == '.') && (folded[l - 1] == 'a'))
-        return true;
-    if (l < 6)
-        return false;
-    return strcmp(folded + l - 6, ".alpha");
-}
-
 /*
     Read an entire scanline based image
 */
@@ -960,11 +843,25 @@ exr_result_t nanoexr_readScanlineData(nanoexr_Reader_t* reader,
                 goto err;
         }
 
+        uint16_t oneValue = float_to_half(1.0f);
+        uint16_t zeroValue = float_to_half(0.0f);
+
         // Set pixmap pointers for this chunk
-        for (int c = 0; c < decoder.channel_count; c++) {
+        // and fill in data for missing chunk channels
+        for (int c = 0; c < reader->channelCount; c++) {
             if (rgbaIndex[c] >= 0)
                 decoder.channels[c].decode_to_ptr = chunk_buffer + rgbaIndex[c] * bytesPerElement;
+            else {
+                uint16_t fillValue = c == 3 ? oneValue : zeroValue;
+                uint16_t* fillPtr = (uint16_t*) (chunk_buffer + c * bytesPerElement);
+                for (int y = 0; y < scanLinesPerChunk; ++y) {
+                    for (int x = 0; x < window_width; ++x)
+                        fillPtr[x * img->channelCount + c] = fillValue;
+                    fillPtr += window_width * img->channelCount;
+                }
+            }
         }
+
 
         checkpoint = 70;
         rv = exr_decoding_run(reader->exr, reader->partIndex, &decoder);
@@ -1021,7 +918,11 @@ err:
 /*
     Read a single tile of a tiled image at a certain miplevel
 */
-int nanoexr_readTileData(nanoexr_Reader_t* reader, nanoexr_ImageData_t* img, nanoexr_MipLevel_t mipLevel, int col, int row)
+int nanoexr_readTileData(nanoexr_Reader_t* reader, 
+                         nanoexr_ImageData_t* img, 
+                         nanoexr_MipLevel_t mipLevel,
+                         const char* layerName,
+                         int col, int row)
 {
     if (!reader || !reader->exr)
         return EXR_ERR_INVALID_ARGUMENT;
@@ -1029,7 +930,7 @@ int nanoexr_readTileData(nanoexr_Reader_t* reader, nanoexr_ImageData_t* img, nan
         return EXR_ERR_INVALID_ARGUMENT;
     if (reader->channelCount < 1 || reader->channelCount > 4)
         return EXR_ERR_INVALID_ARGUMENT;
-    if (!reader->isScanline)
+    if (reader->isScanline)
         return EXR_ERR_INVALID_ARGUMENT;
 
     int tileWidth = reader->tileLevelInfo[mipLevel.level].tileWidth;
@@ -1040,11 +941,13 @@ int nanoexr_readTileData(nanoexr_Reader_t* reader, nanoexr_ImageData_t* img, nan
     int numberOfColumns = (levelWidth + tileWidth - 1) / tileWidth;
     int numberOfRows = (levelHeight + tileHeight - 1) / tileHeight;
 
+    int rgbaIndex[4] = {-1, -1, -1, -1};
+
     if (col >= numberOfColumns || row >= numberOfRows)
         return EXR_ERR_INVALID_ARGUMENT;
 
     exr_chunk_info_t chunkInfo;
-    exr_decode_pipeline_t decoder;
+    exr_decode_pipeline_t decoder = EXR_DECODE_PIPELINE_INITIALIZER;
     int rv = exr_read_tile_chunk_info(reader->exr, reader->partIndex, 
                 col, row, mipLevel.level, mipLevel.level, &chunkInfo);
     if (rv != EXR_ERR_SUCCESS)
@@ -1054,13 +957,37 @@ int nanoexr_readTileData(nanoexr_Reader_t* reader, nanoexr_ImageData_t* img, nan
         return rv;
     
     int bytesPerChannel = decoder.channels[0].bytes_per_element;
-    int rowPitch = bytesPerChannel * decoder.channel_count * tileWidth;
+    int rowPitch = bytesPerChannel * decoder.channel_count * img->width;
 
     size_t bytesPerTile = rowPitch * tileHeight;
     if (bytesPerTile > img->dataSize)
         return EXR_ERR_INVALID_ARGUMENT;
 
     for (int c = 0; c < decoder.channel_count; ++c) {
+        int channelIndex = -1;
+        if (strIsRed(layerName, decoder.channels[c].channel_name)) {
+            rgbaIndex[0] = c;
+            channelIndex = 0;
+        }
+        else if (strIsGreen(layerName, decoder.channels[c].channel_name)) {
+            rgbaIndex[1] = c;
+            channelIndex = 1;
+        }
+        else if (strIsBlue(layerName, decoder.channels[c].channel_name)) {
+            rgbaIndex[2] = c;
+            channelIndex = 2;
+        }
+        else if (strIsAlpha(layerName, decoder.channels[c].channel_name)) {
+            rgbaIndex[3] = c;
+            channelIndex = 3;
+        }
+        else {
+            continue;   // skip this unknown channel
+        }
+        if (channelIndex >= img->channelCount) {
+            continue; // skip channels beyond what fits in the output buffer
+        }
+
         if (decoder.channels[c].bytes_per_element != bytesPerChannel) {
             exr_decoding_destroy(reader->exr, &decoder);
             return EXR_ERR_INVALID_ARGUMENT;
@@ -1071,36 +998,34 @@ int nanoexr_readTileData(nanoexr_Reader_t* reader, nanoexr_ImageData_t* img, nan
             return EXR_ERR_INVALID_ARGUMENT;
         }
 
-        int channelIndex = -1;
-        if (strcmp(decoder.channels[c].channel_name, "R") == 0)
-            channelIndex = 0;
-        else if (strcmp(decoder.channels[c].channel_name, "G") == 0)
-            channelIndex = 1;
-        else if (strcmp(decoder.channels[c].channel_name, "B") == 0)
-            channelIndex = 2;
-        else if (strcmp(decoder.channels[c].channel_name, "A") == 0)
-            channelIndex = 3;
-        else {
-            exr_decoding_destroy(reader->exr, &decoder);
-            return EXR_ERR_INVALID_ARGUMENT;
-        }
-
         decoder.channels[c].decode_to_ptr = img->data + channelIndex * bytesPerChannel;
         decoder.channels[c].user_pixel_stride = reader->channelCount * bytesPerChannel;
-        decoder.channels[c].user_line_stride = decoder.channels[c].user_pixel_stride * tileWidth;
+        decoder.channels[c].user_line_stride = img->width * reader->channelCount * bytesPerChannel;
         decoder.channels[c].user_bytes_per_element = bytesPerChannel;
     }
 
-    rv = exr_decoding_choose_default_routines(reader->exr, 0, &decoder);
+    rv = exr_decoding_choose_default_routines(reader->exr, reader->partIndex, &decoder);
     if (rv != EXR_ERR_SUCCESS) {
         exr_decoding_destroy(reader->exr, &decoder);
         return rv;
     }
-    rv = exr_decoding_run(reader->exr, reader->partIndex, &decoder);
-    if (rv != EXR_ERR_SUCCESS) {
-        exr_decoding_destroy(reader->exr, &decoder);
-        return rv;
+
+    int bpp = img->channelCount * bytesPerChannel;
+    int bw = (col * row) & 1;
+    int16_t color = bw ? 0x7fff : 0x0000;
+    for (int x = 0; x < tileWidth; ++x) {
+        for (int y = 0; y < tileHeight; ++y) {
+            int x_off = col * tileWidth;
+            int y_off = row * tileHeight;
+            int addr = x_off + x + (y_off + y) * img->width;
+            int16_t* pixel = (int16_t*) (img->data + addr * bpp);
+            pixel[0] = color;
+            pixel[1] = color;
+            pixel[2] = color;
+        }
     }
+
+    //rv = exr_decoding_run(reader->exr, reader->partIndex, &decoder);
     rv = exr_decoding_destroy(reader->exr, &decoder);
     return rv;
 }
@@ -1110,7 +1035,10 @@ int nanoexr_readTileData(nanoexr_Reader_t* reader, nanoexr_ImageData_t* img, nan
 */
 
 
-int nanoexr_readAllTileData(nanoexr_Reader_t* reader, nanoexr_ImageData_t* img, nanoexr_MipLevel_t mip) {
+int nanoexr_readAllTileData(nanoexr_Reader_t* reader,
+                            nanoexr_ImageData_t* img,
+                            nanoexr_MipLevel_t mip,
+                            const char* layerName) {
     if (!reader || !reader->exr)
         return EXR_ERR_INVALID_ARGUMENT;
     if (mip.level >= reader->mipLevels.level)
@@ -1149,14 +1077,17 @@ int nanoexr_readAllTileData(nanoexr_Reader_t* reader, nanoexr_ImageData_t* img, 
     for (int row = 0; row < tileCountY; ++ row) {
         int rowOffset = row * levelWidth * tileHeight;
         for (int col = 0; col < tileCountX; ++ col) {
-            int colOffset = col * tileWidth;
+            int colOffset = col * levelWidth;
             // create a window into the image data where the valid memory
             // size has been adjusted so that overruns can be guarded
-            nanoexr_ImageData_t window = {
-                img->data + (rowOffset + colOffset) * bytesPePixel,
-                img->dataSize - (rowOffset + colOffset) * bytesPePixel
-            };
-            rv = nanoexr_readTileData(reader, &window, mip, col, row);
+            nanoexr_ImageData_t window;
+            window.channelCount = reader->channelCount;
+            window.data = img->data + (rowOffset + colOffset) * bytesPePixel;
+            window.dataSize = img->dataSize - (rowOffset + colOffset) * bytesPePixel;
+            window.height = tileHeight;
+            window.width = levelWidth;
+            window.pixelType = reader->pixelType;
+            rv = nanoexr_readTileData(reader, &window, mip, layerName, col, row);
             if (rv != EXR_ERR_SUCCESS)
                 return rv;
         }
