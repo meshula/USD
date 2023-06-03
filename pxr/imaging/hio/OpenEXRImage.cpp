@@ -240,18 +240,7 @@ bool Hio_OpenEXRImage::ReadCropped(
         floatInputBuffer.resize(fileWidth * readHeight * maxChannelCount);
     }
 
-    if (nanoexr_isTiled(_exrReader)) {
-        
-        //nanoexr_close(_exrReader);
-        
-        /*
-         exr_result_t nanoexr_read_tiled_exr(const char* filename,
-                                             nanoexr_ImageData_t* img,
-                                             const char* layerName,
-                                             int partIndex,
-                                             int level)
-         */
-        
+    if (nanoexr_isTiled(_exrReader)) {        
         nanoexr_ImageData_t img;
         img.channelCount = outChannelCount;
         exr_result_t rv = nanoexr_read_tiled_exr(_exrReader->filename, &img, nullptr, 0, 0);
@@ -260,25 +249,6 @@ bool Hio_OpenEXRImage::ReadCropped(
         }
 
         memcpy(&halfInputBuffer[0], img.data, img.dataSize);
-#if 0
-        // read requested tiled data
-        
-        if (inputIsHalf)
-            img.data = reinterpret_cast<uint8_t*>(&halfInputBuffer[0]);
-        else
-            img.data = reinterpret_cast<uint8_t*>(&floatInputBuffer[0]);
-
-        img.channelCount = outChannelCount;
-        img.dataSize = fileWidth * readHeight * GetBytesPerPixel();
-        img.width = fileWidth;
-        img.height = readHeight;
-        img.pixelType = filePixelType;
-        exr_result_t rv = nanoexr_readAllTileData(_exrReader, &img,
-                                                  nanoexr_MipLevel_t{0}, nullptr);
-        if (rv != EXR_ERR_SUCCESS) {
-            return false;
-        }
-#endif
     }
     else {
         // read requested scan line data

@@ -47,9 +47,6 @@ pxr_library(hio
     RESOURCE_FILES
         plugInfo.json
 
-    PRIVATE_PREPROCESSOR
-
-
     DOXYGEN_FILES
         overview.dox
 )

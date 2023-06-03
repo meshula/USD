@@ -219,7 +219,16 @@ exr_result_t nanoexr_read_tiled_exr(const char* filename,
     rv = exr_get_compression(exr, partIndex, &compression);
     CHECK_RV(rv);
 
-    int bytesPerChannel = sizeof(uint16_t);
+    const exr_attr_chlist_t* chlist = NULL;
+    rv = exr_get_channels(exr, partIndex, &chlist);
+    CHECK_RV(rv);
+
+    exr_pixel_type_t pixelType = chlist->entries[0].pixel_type;
+    int bytesPerChannel = nanoexr_getPixelTypeSize(pixelType);
+    if (bytesPerChannel == 0) {
+        fprintf(stderr, "nanoexr error: unsupported pixel type\n");
+        CHECK_RV(EXR_ERR_INVALID_ARGUMENT);
+    }
 
     //img->channelCount = 3; externally supplied
     img->width = width;
@@ -228,6 +237,7 @@ exr_result_t nanoexr_read_tiled_exr(const char* filename,
     img->data = (unsigned char*) malloc(img->dataSize);
     img->pixelType = EXR_PIXEL_HALF;
 
+#if 0
     // testing: fill with gradient
     uint16_t* d = (uint16_t*) img->data;
     uint16_t oneVal = float_to_half(1.0f);
@@ -240,15 +250,12 @@ exr_result_t nanoexr_read_tiled_exr(const char* filename,
             }
         }
     }
+#endif
 
     int rgbaIndex[4] = {-1, -1, -1, -1};
     
-    int32_t xTiles = width / tilew;
-    int32_t yTiles = height / tileh;
-    if (xTiles * tilew < width)
-        ++xTiles;
-    if (yTiles * tileh < height)
-        ++yTiles;
+    int32_t xTiles = (width + tilew - 1) / tilew;
+    int32_t yTiles = (height + tileh - 1) / tileh;
 
     for (int tileY = 0; tileY < yTiles; ++tileY) {
         for (int tileX = 0; tileX < xTiles; ++tileX) {
