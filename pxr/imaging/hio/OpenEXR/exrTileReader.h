@@ -17,12 +17,6 @@ extern "C" {
 // the size of the data in bytes.  The caller is responsible for
 // freeing the data pointer when it is no longer needed.
 
-exr_result_t nanoexr_read_tiled_exr(const char* filename,
-                                    nanoexr_ImageData_t* img,
-                                    const char* layerName,
-                                    int partIndex,
-                                    int level);
-
 void nanoexr_release_image_data(nanoexr_ImageData_t* imageData);
 
 #ifdef __cplusplus
@@ -125,10 +119,8 @@ void nanoexr_release_image_data(nanoexr_ImageData_t* imageData)
 static void nanoexr_cleanup(exr_context_t exr, 
                              exr_decode_pipeline_t* decoder)
 {
-    if (exr) {
-        exr_finish(&exr);
-        if (decoder)
-            exr_decoding_destroy(exr, decoder);
+    if (exr && decoder) {
+        exr_decoding_destroy(exr, decoder);
     }
 }
 
@@ -153,25 +145,14 @@ static bool nanoexr_check_rv(exr_result_t rv, exr_context_t exr,
 
 #define CHECK_RV(rv) if (!nanoexr_check_rv(rv, exr, &decoder, img)) return rv;
 
-exr_result_t nanoexr_read_tiled_exr(const char* filename,
+exr_result_t nanoexr_read_tiled_exr(exr_context_t exr,
                                     nanoexr_ImageData_t* img,
                                     const char* layerName,
                                     int partIndex,
                                     int level)
 {
-    exr_context_t exr = NULL;
     exr_result_t rv = EXR_ERR_SUCCESS;
-    exr_context_initializer_t cinit = EXR_DEFAULT_CONTEXT_INITIALIZER;
     exr_decode_pipeline_t decoder = EXR_DECODE_PIPELINE_INITIALIZER;
-    cinit.error_handler_fn = tiled_exr_err_cb;
-    cinit.read_fn = NULL;    // nanoexr_read_func;
-    cinit.size_fn = NULL;    // nanoexr_query_size_func;
-    cinit.user_data = NULL;  // data for read and size functions
-    rv = exr_test_file_header(filename, &cinit);
-    CHECK_RV(rv);
-
-    rv = exr_start_read(&exr, filename, &cinit);
-    CHECK_RV(rv);
 
     exr_attr_box2i_t datawin;
     exr_attr_box2i_t displaywin;
@@ -321,7 +302,7 @@ exr_result_t nanoexr_read_tiled_exr(const char* filename,
                 CHECK_RV(rv);
             }
             else {
-               // Reuse existing pipeline
+                // Reuse existing pipeline
                 rv = exr_decoding_update(exr, partIndex, &cinfo, &decoder);
                 CHECK_RV(rv);
             }
@@ -335,25 +316,13 @@ exr_result_t nanoexr_read_tiled_exr(const char* filename,
     return rv;
 }
 
-exr_result_t nanoexr_read_scanline_exr(const char* filename,
+exr_result_t nanoexr_read_scanline_exr(exr_context_t exr,
                                        nanoexr_ImageData_t* img,
                                        const char* layerName,
-                                       int partIndex,
-                                       int level)
+                                       int partIndex)
 {
-    exr_context_t exr = NULL;
     exr_result_t rv = EXR_ERR_SUCCESS;
-    exr_context_initializer_t cinit = EXR_DEFAULT_CONTEXT_INITIALIZER;
     exr_decode_pipeline_t decoder = EXR_DECODE_PIPELINE_INITIALIZER;
-    cinit.error_handler_fn = tiled_exr_err_cb;
-    cinit.read_fn = NULL;    // nanoexr_read_func;
-    cinit.size_fn = NULL;    // nanoexr_query_size_func;
-    cinit.user_data = NULL;  // data for read and size functions
-    rv = exr_test_file_header(filename, &cinit);
-    CHECK_RV(rv);
-
-    rv = exr_start_read(&exr, filename, &cinit);
-    CHECK_RV(rv);
 
     exr_attr_box2i_t datawin;
     exr_attr_box2i_t displaywin;
@@ -499,5 +468,50 @@ exr_result_t nanoexr_read_scanline_exr(const char* filename,
     return rv;
 }
 
+exr_result_t nanoexr_read_exr(const char* filename, 
+                              nanoexr_ImageData_t* img,
+                              const char* layerName,
+                              int partIndex,
+                              int level) {
+    exr_context_t exr = NULL;
+    exr_result_t rv = EXR_ERR_SUCCESS;
+    exr_context_initializer_t cinit = EXR_DEFAULT_CONTEXT_INITIALIZER;
+    cinit.error_handler_fn = tiled_exr_err_cb;
+    cinit.read_fn = NULL;    // nanoexr_read_func;
+    cinit.size_fn = NULL;    // nanoexr_query_size_func;
+    cinit.user_data = NULL;  // data for read and size functions
+    rv = exr_test_file_header(filename, &cinit);
+    if (rv != EXR_ERR_SUCCESS) {
+        fprintf(stderr, "nanoexr header error: %s\n", exr_get_default_error_message(rv));
+        return rv;
+    }
+
+    rv = exr_start_read(&exr, filename, &cinit);
+    if (rv != EXR_ERR_SUCCESS) {
+        fprintf(stderr, "nanoexr start error: %s\n", exr_get_default_error_message(rv));
+        exr_finish(&exr);
+        return rv;
+    }
+    exr_storage_t storage;
+    rv = exr_get_storage(exr, partIndex, &storage);
+    if (rv != EXR_ERR_SUCCESS) {
+        fprintf(stderr, "nanoexr storage error: %s\n", exr_get_default_error_message(rv));
+        exr_finish(&exr);
+        return rv;
+    }
+
+    if (storage == EXR_STORAGE_TILED) {
+        rv = nanoexr_read_tiled_exr(exr, img, layerName, partIndex, level);
+    }
+    else {
+        rv = nanoexr_read_scanline_exr(exr, img, layerName, partIndex);
+    }
+
+    rv = exr_finish(&exr);
+    if (rv != EXR_ERR_SUCCESS) {
+        fprintf(stderr, "nanoexr finish error: %s\n", exr_get_default_error_message(rv));
+    }
+    return rv;
+}
 
 #endif
