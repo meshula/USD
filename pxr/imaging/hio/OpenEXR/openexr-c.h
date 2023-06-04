@@ -114,17 +114,11 @@ exr_result_t       nanoexr_readAllTileData(nanoexr_Reader_t* reader,
 bool nanoexr_Gaussian_resample(const nanoexr_ImageData_t* src,
                                nanoexr_ImageData_t* dst);
 
-exr_result_t nanoexr_read_tiled_exr(const char* filename,
-                                    nanoexr_ImageData_t* img,
-                                    const char* layerName,
-                                    int partIndex,
-                                    int level);
-exr_result_t nanoexr_read_scanline_exr(const char* filename,
-                                       nanoexr_ImageData_t* img,
-                                       const char* layerName,
-                                       int partIndex,
-                                       int level);
-
+exr_result_t nanoexr_read_exr(const char* filename,
+                              nanoexr_ImageData_t* img,
+                              const char* layerName,
+                              int partIndex,
+                              int level);
 
 OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
 

@@ -240,18 +240,19 @@ bool Hio_OpenEXRImage::ReadCropped(
         floatInputBuffer.resize(fileWidth * readHeight * maxChannelCount);
     }
 
-    if (nanoexr_isTiled(_exrReader)) {        
+    {
         nanoexr_ImageData_t img;
         img.channelCount = outChannelCount;
-        exr_result_t rv = nanoexr_read_tiled_exr(_exrReader->filename, &img, nullptr, 0, 0);
+        exr_result_t rv = nanoexr_read_exr(_exrReader->filename, &img, nullptr, 0, 0);
         if (rv != EXR_ERR_SUCCESS) {
             return false;
         }
 
         memcpy(&halfInputBuffer[0], img.data, img.dataSize);
     }
+    #if 0
     else {
-/*        // read requested scan line data
+        // read requested scan line data
         nanoexr_ImageData_t img;
         
         if (inputIsHalf)
@@ -278,8 +279,8 @@ bool Hio_OpenEXRImage::ReadCropped(
         }
 
         memcpy(&halfInputBuffer[0], img.data, img.dataSize);
-
     }
+    #endif
 
     // flip the image
     if (inputIsHalf) {
