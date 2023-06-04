@@ -164,41 +164,6 @@ exr_result_t nanoexr_read_tiled_exr(exr_context_t exr,
     int width = datawin.max.x - datawin.min.x + 1;
     int height = datawin.max.y - datawin.min.y + 1;
 
-    exr_storage_t storage;
-    rv = exr_get_storage(exr, partIndex, &storage);
-    CHECK_RV(rv);
-    if (storage != EXR_STORAGE_TILED) {
-        fprintf(stderr, "nanoexr error: file is not tiled\n");
-        CHECK_RV(EXR_ERR_INVALID_ARGUMENT);
-    }
-
-    int num_sub_images = 0;
-    rv = exr_get_count(exr, &num_sub_images);
-    CHECK_RV(rv);
-    if (partIndex >= num_sub_images) {
-        fprintf(stderr, "nanoexr error: part index %d out of range\n", partIndex);
-        CHECK_RV(EXR_ERR_INVALID_ARGUMENT);
-    }
-
-    uint32_t tilew, tileh;
-    exr_tile_level_mode_t levelMode;
-    exr_tile_round_mode_t roundMode;
-    rv = exr_get_tile_descriptor(exr, partIndex, &tilew, &tileh, &levelMode, &roundMode);
-    CHECK_RV(rv);
-
-    int mipLevelsX, mipLvelsY;
-    rv = exr_get_tile_levels(exr, partIndex, &mipLevelsX, &mipLvelsY);
-    CHECK_RV(rv);
-
-    const int mipLevel = 0; // only reading mip level zero
-    int levelWidth, levelHeight;
-    rv = exr_get_level_sizes(exr, partIndex, mipLevel, mipLevel, &levelWidth, &levelHeight);
-    CHECK_RV(rv);
-
-    exr_compression_t compression;
-    rv = exr_get_compression(exr, partIndex, &compression);
-    CHECK_RV(rv);
-
     const exr_attr_chlist_t* chlist = NULL;
     rv = exr_get_channels(exr, partIndex, &chlist);
     CHECK_RV(rv);
@@ -220,6 +185,22 @@ exr_result_t nanoexr_read_tiled_exr(exr_context_t exr,
         fprintf(stderr, "nanoexr error: could not allocate memory for image data\n");
         CHECK_RV(EXR_ERR_OUT_OF_MEMORY);
     }
+
+    uint32_t tilew, tileh;
+    exr_tile_level_mode_t levelMode;
+    exr_tile_round_mode_t roundMode;
+    rv = exr_get_tile_descriptor(exr, partIndex, &tilew, &tileh, &levelMode, &roundMode);
+    CHECK_RV(rv);
+
+    int mipLevelsX, mipLvelsY;
+    rv = exr_get_tile_levels(exr, partIndex, &mipLevelsX, &mipLvelsY);
+    CHECK_RV(rv);
+
+    const int mipLevel = 0; // only reading mip level zero
+    int levelWidth, levelHeight;
+    rv = exr_get_level_sizes(exr, partIndex, mipLevel, mipLevel, &levelWidth, &levelHeight);
+    CHECK_RV(rv);
+
 
 #if 0
     // testing: fill with gradient
@@ -333,26 +314,6 @@ exr_result_t nanoexr_read_scanline_exr(exr_context_t exr,
 
     int width = datawin.max.x - datawin.min.x + 1;
     int height = datawin.max.y - datawin.min.y + 1;
-
-    exr_storage_t storage;
-    rv = exr_get_storage(exr, partIndex, &storage);
-    CHECK_RV(rv);
-    if (storage != EXR_STORAGE_SCANLINE) {
-        fprintf(stderr, "nanoexr error: file is not scanline\n");
-        CHECK_RV(EXR_ERR_INVALID_ARGUMENT);
-    }
-
-    int num_sub_images = 0;
-    rv = exr_get_count(exr, &num_sub_images);
-    CHECK_RV(rv);
-    if (partIndex >= num_sub_images) {
-        fprintf(stderr, "nanoexr error: part index %d out of range\n", partIndex);
-        CHECK_RV(EXR_ERR_INVALID_ARGUMENT);
-    }
-
-    exr_compression_t compression;
-    rv = exr_get_compression(exr, partIndex, &compression);
-    CHECK_RV(rv);
 
     const exr_attr_chlist_t* chlist = NULL;
     rv = exr_get_channels(exr, partIndex, &chlist);
@@ -496,6 +457,23 @@ exr_result_t nanoexr_read_exr(const char* filename,
     rv = exr_get_storage(exr, partIndex, &storage);
     if (rv != EXR_ERR_SUCCESS) {
         fprintf(stderr, "nanoexr storage error: %s\n", exr_get_default_error_message(rv));
+        exr_finish(&exr);
+        return rv;
+    }
+
+    int num_sub_images = 0;
+    rv = exr_get_count(exr, &num_sub_images);
+    if (rv != EXR_ERR_SUCCESS || partIndex >= num_sub_images) {
+        fprintf(stderr, "nanoexr error: part index %d out of range\n", partIndex);
+        exr_finish(&exr);
+        return rv;
+    }
+
+    // check that compression type is understood
+    exr_compression_t compression;
+    rv = exr_get_compression(exr, partIndex, &compression);
+    if (rv != EXR_ERR_SUCCESS) {
+        fprintf(stderr, "nanoexr compression error: %s\n", exr_get_default_error_message(rv));
         exr_finish(&exr);
         return rv;
     }
