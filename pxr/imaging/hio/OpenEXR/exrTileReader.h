@@ -173,6 +173,16 @@ exr_result_t nanoexr_read_tiled_exr(const char* filename,
     rv = exr_start_read(&exr, filename, &cinit);
     CHECK_RV(rv);
 
+    exr_attr_box2i_t datawin;
+    exr_attr_box2i_t displaywin;
+    rv = exr_get_data_window(exr, partIndex, &datawin);
+    CHECK_RV(rv);
+    rv = exr_get_display_window(exr, partIndex, &displaywin);
+    CHECK_RV(rv);
+
+    int width = datawin.max.x - datawin.min.x + 1;
+    int height = datawin.max.y - datawin.min.y + 1;
+
     exr_storage_t storage;
     rv = exr_get_storage(exr, partIndex, &storage);
     CHECK_RV(rv);
@@ -188,17 +198,6 @@ exr_result_t nanoexr_read_tiled_exr(const char* filename,
         fprintf(stderr, "nanoexr error: part index %d out of range\n", partIndex);
         CHECK_RV(EXR_ERR_INVALID_ARGUMENT);
     }
-
-    exr_attr_box2i_t datawin;
-    exr_attr_box2i_t displaywin;
-
-    rv = exr_get_data_window(exr, partIndex, &datawin);
-    CHECK_RV(rv);
-    rv = exr_get_display_window(exr, partIndex, &displaywin);
-    CHECK_RV(rv);
-
-    int width = datawin.max.x - datawin.min.x + 1;
-    int height = datawin.max.y - datawin.min.y + 1;
 
     uint32_t tilew, tileh;
     exr_tile_level_mode_t levelMode;
@@ -234,8 +233,12 @@ exr_result_t nanoexr_read_tiled_exr(const char* filename,
     img->width = width;
     img->height = height;
     img->dataSize = width * height * img->channelCount * bytesPerChannel;
+    img->pixelType = pixelType;
     img->data = (unsigned char*) malloc(img->dataSize);
-    img->pixelType = EXR_PIXEL_HALF;
+    if (img->data == NULL) {
+        fprintf(stderr, "nanoexr error: could not allocate memory for image data\n");
+        CHECK_RV(EXR_ERR_OUT_OF_MEMORY);
+    }
 
 #if 0
     // testing: fill with gradient
@@ -328,9 +331,173 @@ exr_result_t nanoexr_read_tiled_exr(const char* filename,
         }
     }
 
+    nanoexr_cleanup(exr, &decoder);
+    return rv;
+}
+
+exr_result_t nanoexr_read_scanline_exr(const char* filename,
+                                       nanoexr_ImageData_t* img,
+                                       const char* layerName,
+                                       int partIndex,
+                                       int level)
+{
+    exr_context_t exr = NULL;
+    exr_result_t rv = EXR_ERR_SUCCESS;
+    exr_context_initializer_t cinit = EXR_DEFAULT_CONTEXT_INITIALIZER;
+    exr_decode_pipeline_t decoder = EXR_DECODE_PIPELINE_INITIALIZER;
+    cinit.error_handler_fn = tiled_exr_err_cb;
+    cinit.read_fn = NULL;    // nanoexr_read_func;
+    cinit.size_fn = NULL;    // nanoexr_query_size_func;
+    cinit.user_data = NULL;  // data for read and size functions
+    rv = exr_test_file_header(filename, &cinit);
+    CHECK_RV(rv);
+
+    rv = exr_start_read(&exr, filename, &cinit);
+    CHECK_RV(rv);
+
+    exr_attr_box2i_t datawin;
+    exr_attr_box2i_t displaywin;
+    rv = exr_get_data_window(exr, partIndex, &datawin);
+    CHECK_RV(rv);
+    rv = exr_get_display_window(exr, partIndex, &displaywin);
+    CHECK_RV(rv);
+
+    int width = datawin.max.x - datawin.min.x + 1;
+    int height = datawin.max.y - datawin.min.y + 1;
+
+    exr_storage_t storage;
+    rv = exr_get_storage(exr, partIndex, &storage);
+    CHECK_RV(rv);
+    if (storage != EXR_STORAGE_SCANLINE) {
+        fprintf(stderr, "nanoexr error: file is not scanline\n");
+        CHECK_RV(EXR_ERR_INVALID_ARGUMENT);
+    }
+
+    int num_sub_images = 0;
+    rv = exr_get_count(exr, &num_sub_images);
+    CHECK_RV(rv);
+    if (partIndex >= num_sub_images) {
+        fprintf(stderr, "nanoexr error: part index %d out of range\n", partIndex);
+        CHECK_RV(EXR_ERR_INVALID_ARGUMENT);
+    }
+
+    exr_compression_t compression;
+    rv = exr_get_compression(exr, partIndex, &compression);
+    CHECK_RV(rv);
+
+    const exr_attr_chlist_t* chlist = NULL;
+    rv = exr_get_channels(exr, partIndex, &chlist);
+    CHECK_RV(rv);
+
+    exr_pixel_type_t pixelType = chlist->entries[0].pixel_type;
+    int bytesPerChannel = nanoexr_getPixelTypeSize(pixelType);
+    if (bytesPerChannel == 0) {
+        fprintf(stderr, "nanoexr error: unsupported pixel type\n");
+        CHECK_RV(EXR_ERR_INVALID_ARGUMENT);
+    }
+
+    //img->channelCount = 3; externally supplied
+    img->width = width;
+    img->height = height;
+    img->dataSize = width * height * img->channelCount * bytesPerChannel;
+    img->pixelType = pixelType;
+    img->data = (unsigned char*) malloc(img->dataSize);
+    if (img->data == NULL) {
+        fprintf(stderr, "nanoexr error: could not allocate memory for image data\n");
+        CHECK_RV(EXR_ERR_OUT_OF_MEMORY);
+    }
+
+    int rgbaIndex[4] = {-1, -1, -1, -1};
+
+    int scanLinesPerChunk;
+    rv = exr_get_scanlines_per_chunk(exr, partIndex, &scanLinesPerChunk);
+    CHECK_RV(rv);
+    
+    int bytesPerElement = bytesPerChannel;
+    int pixelbytes = bytesPerElement * img->channelCount;
+
+    for (int chunky = datawin.min.y; chunky < datawin.max.y; chunky += scanLinesPerChunk) {
+        exr_chunk_info_t cinfo;
+        rv = exr_read_scanline_chunk_info(exr, partIndex, chunky, &cinfo);
+        CHECK_RV(rv);
+        if (decoder.channels == NULL) {
+            rv = exr_decoding_initialize(exr, partIndex, &cinfo, &decoder);
+            CHECK_RV(rv);
+            bytesPerElement = decoder.channels[0].bytes_per_element;
+            pixelbytes = bytesPerElement * img->channelCount;
+
+            for (int c = 0; c < decoder.channel_count; ++c) {
+                int channelIndex = -1;
+                if (strIsRed(layerName, decoder.channels[c].channel_name)) {
+                    rgbaIndex[0] = c;
+                    channelIndex = 0;
+                }
+                else if (strIsGreen(layerName, decoder.channels[c].channel_name)) {
+                    rgbaIndex[1] = c;
+                    channelIndex = 1;
+                }
+                else if (strIsBlue(layerName, decoder.channels[c].channel_name)) {
+                    rgbaIndex[2] = c;
+                    channelIndex = 2;
+                }
+                else if (strIsAlpha(layerName, decoder.channels[c].channel_name)) {
+                    rgbaIndex[3] = c;
+                    channelIndex = 3;
+                }
+                else {
+                    continue;   // skip this unknown channel
+                }
+                if (channelIndex >= img->channelCount) {
+                    continue; // skip channels beyond what fits in the output buffer
+                }
+                
+                if (decoder.channels[c].bytes_per_element != bytesPerElement) {
+                    CHECK_RV(EXR_ERR_INVALID_ARGUMENT);
+                }
+                
+                decoder.channels[c].decode_to_ptr = NULL;
+                decoder.channels[c].user_pixel_stride = img->channelCount * bytesPerElement;
+                decoder.channels[c].user_line_stride = decoder.channels[c].user_pixel_stride * width;
+                decoder.channels[c].user_bytes_per_element = bytesPerElement;
+            }
+            
+            rv = exr_decoding_choose_default_routines(exr, partIndex, &decoder);
+            CHECK_RV(rv);
+        }
+        else {
+            // Reuse existing pipeline
+            rv = exr_decoding_update(exr, partIndex, &cinfo, &decoder);
+            CHECK_RV(rv);
+        }
+
+        uint16_t oneValue = float_to_half(1.0f);
+        uint16_t zeroValue = float_to_half(0.0f);
+
+        // fill in data for missing chunk channels
+        for (int c = 0; c < img->channelCount; c++) {
+            if (rgbaIndex[c] >= 0) {
+                uint8_t* start = img->data + (chunky - datawin.min.y) * width * pixelbytes;
+                decoder.channels[c].decode_to_ptr = start + rgbaIndex[c] * bytesPerChannel;
+            }
+            else {
+                uint8_t* curtilestart = img->data + (chunky - datawin.min.y) * width * bytesPerChannel * img->channelCount;
+                uint16_t fillValue = c == 3 ? oneValue : zeroValue;
+                uint16_t* fillPtr = (uint16_t*) (curtilestart + c * bytesPerChannel);
+                for (int y = 0; y < scanLinesPerChunk; ++y) {
+                    for (int x = 0; x < width; ++x)
+                        fillPtr[x * img->channelCount + c] = fillValue;
+                    fillPtr += width * img->channelCount;
+                }
+            }
+        }
+
+        rv = exr_decoding_run(exr, partIndex, &decoder);
+        CHECK_RV(rv);
+    }
 
     nanoexr_cleanup(exr, &decoder);
     return rv;
 }
+
 
 #endif

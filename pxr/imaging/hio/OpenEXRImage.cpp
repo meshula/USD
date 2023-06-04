@@ -251,7 +251,7 @@ bool Hio_OpenEXRImage::ReadCropped(
         memcpy(&halfInputBuffer[0], img.data, img.dataSize);
     }
     else {
-        // read requested scan line data
+/*        // read requested scan line data
         nanoexr_ImageData_t img;
         
         if (inputIsHalf)
@@ -268,7 +268,17 @@ bool Hio_OpenEXRImage::ReadCropped(
                                                    nullptr, cropTop);
         if (rv != EXR_ERR_SUCCESS) {
             return false;
+        }*/
+
+        nanoexr_ImageData_t img;
+        img.channelCount = outChannelCount;
+        exr_result_t rv = nanoexr_read_scanline_exr(_exrReader->filename, &img, nullptr, 0, 0);
+        if (rv != EXR_ERR_SUCCESS) {
+            return false;
         }
+
+        memcpy(&halfInputBuffer[0], img.data, img.dataSize);
+
     }
 
     // flip the image
@@ -307,13 +317,14 @@ bool Hio_OpenEXRImage::ReadCropped(
                 reinterpret_cast<float*>(storage.data)[i] = half_to_float(halfInputBuffer[i]);
         }
         else {
+            // output is half
             for (size_t i = 0; i < floatInputBuffer.size(); ++i)
                 reinterpret_cast<uint16_t*>(storage.data)[i] = float_to_half(floatInputBuffer[i]);
         }
         return true;
     }
     
-    // resizing
+    // resizing case, if half input, convert to float
     if (inputIsHalf) {
         floatInputBuffer.resize(readWidth * readHeight * fileChannelCount);
         for (int y = 0; y < readHeight; ++y) {

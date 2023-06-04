@@ -89,7 +89,7 @@ int          nanoexr_getHeight(nanoexr_Reader_t* reader);
 int          nanoexr_getChannelCount(nanoexr_Reader_t* reader);
 nanoexr_MipLevel_t nanoexr_getMipLevels(nanoexr_Reader_t* reader);
 exr_pixel_type_t   nanoexr_getPixelType(nanoexr_Reader_t* reader);
-size_t             nanoexr_getPixelTypeSize(exr_pixel_type_t t);
+int                nanoexr_getPixelTypeSize(exr_pixel_type_t t);
 
 // image will be read into the allocation pointed to by img.
 // no more than img->height lines will be read. If initialLinesToSkip
@@ -119,6 +119,11 @@ exr_result_t nanoexr_read_tiled_exr(const char* filename,
                                     const char* layerName,
                                     int partIndex,
                                     int level);
+exr_result_t nanoexr_read_scanline_exr(const char* filename,
+                                       nanoexr_ImageData_t* img,
+                                       const char* layerName,
+                                       int partIndex,
+                                       int level);
 
 
 OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

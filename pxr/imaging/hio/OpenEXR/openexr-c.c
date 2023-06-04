@@ -652,7 +652,7 @@ exr_pixel_type_t nanoexr_getPixelType(nanoexr_Reader_t* reader) {
     return reader->pixelType;
 }
 
-size_t nanoexr_getPixelTypeSize(exr_pixel_type_t t)
+int nanoexr_getPixelTypeSize(exr_pixel_type_t t)
 {
     switch (t) {
         case EXR_PIXEL_HALF: return 2;
