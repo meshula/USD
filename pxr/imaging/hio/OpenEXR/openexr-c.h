@@ -46,6 +46,7 @@ typedef struct {
     exr_pixel_type_t pixelType;
     int channelCount; // 1 for luminance, 3 for RGB, 4 for RGBA
     int width, height;
+    int dataWindowMinY, dataWindowMaxY;
 } nanoexr_ImageData_t;
 
 // simple struct to force type safety on interface
