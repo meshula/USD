@@ -240,6 +240,7 @@ exr_result_t nanoexr_read_tiled_exr(exr_context_t exr,
 
             if (decoder.channels == NULL) {
                 rv = _nanoexr_rgba_decoding_initialize(exr, img, layerName, partIndex, &cinfo, &decoder, rgbaIndex);
+                CHECK_RV(rv);
                 int bytesPerElement = decoder.channels[0].bytes_per_element;
                 int pixelbytes = bytesPerElement * img->channelCount;
                 
@@ -291,40 +292,12 @@ exr_result_t nanoexr_read_scanline_exr(exr_context_t exr,
         rv = exr_read_scanline_chunk_info(exr, partIndex, chunky, &cinfo);
         CHECK_RV(rv);
         if (decoder.channels == NULL) {
-            rv = exr_decoding_initialize(exr, partIndex, &cinfo, &decoder);
+            rv = _nanoexr_rgba_decoding_initialize(exr, img, layerName, partIndex, &cinfo, &decoder, rgbaIndex);
             CHECK_RV(rv);
             bytesPerChannel = decoder.channels[0].bytes_per_element;
             pixelbytes = bytesPerChannel * img->channelCount;
 
-            for (int c = 0; c < decoder.channel_count; ++c) {
-                int channelIndex = -1;
-                if (strIsRed(layerName, decoder.channels[c].channel_name)) {
-                    rgbaIndex[0] = c;
-                    channelIndex = 0;
-                }
-                else if (strIsGreen(layerName, decoder.channels[c].channel_name)) {
-                    rgbaIndex[1] = c;
-                    channelIndex = 1;
-                }
-                else if (strIsBlue(layerName, decoder.channels[c].channel_name)) {
-                    rgbaIndex[2] = c;
-                    channelIndex = 2;
-                }
-                else if (strIsAlpha(layerName, decoder.channels[c].channel_name)) {
-                    rgbaIndex[3] = c;
-                    channelIndex = 3;
-                }
-                else {
-                    continue;   // skip this unknown channel
-                }
-                if (channelIndex >= img->channelCount) {
-                    continue; // skip channels beyond what fits in the output buffer
-                }
-                
-                if (decoder.channels[c].bytes_per_element != bytesPerChannel) {
-                    CHECK_RV(EXR_ERR_INVALID_ARGUMENT);
-                }
-                
+            for (int c = 0; c < decoder.channel_count; ++c) {                
                 decoder.channels[c].decode_to_ptr = NULL;
                 decoder.channels[c].user_pixel_stride = img->channelCount * bytesPerChannel;
                 decoder.channels[c].user_line_stride = decoder.channels[c].user_pixel_stride * img->width;
