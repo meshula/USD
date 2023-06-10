@@ -83,8 +83,6 @@ Answered Questions:
  
  */
 
-
-
 PXR_NAMESPACE_OPEN_SCOPE
 
 #ifdef OPENEXR_USE_NAMESPACES
@@ -103,14 +101,16 @@ class Hio_OpenEXRImage final : public HioImage
 
 public:
     Hio_OpenEXRImage() = default;
-    ~Hio_OpenEXRImage() override;
+    virtual ~Hio_OpenEXRImage() override {
+        nanoexr_close(_exrReader); }
 
     using Base = HioImage;
-    std::string const &GetFilename() const override;
-    bool      Read(StorageSpec const &storage) override;
+    bool      Read(StorageSpec const &storage) override {
+                  return ReadCropped(0, 0, 0, 0, storage); }
     bool      ReadCropped(int const cropTop, int const cropBottom, int const cropLeft,
                           int const cropRight, StorageSpec const &storage) override;
     bool      Write(StorageSpec const &storage, VtDictionary const &metadata) override;
+    
     int       GetWidth() const override;
     int       GetHeight() const override;
     HioFormat GetFormat() const override;
@@ -120,6 +120,7 @@ public:
     bool      GetMetadata(TfToken const &key, VtValue *value) const override;
     bool      GetSamplerMetadata(HioAddressDimension dim,
                                  HioAddressMode *param) const override;
+    std::string const &GetFilename() const override;
 
 protected:
     bool _OpenForReading(std::string const &filename, int subimage, int mip,
@@ -171,20 +172,64 @@ HioFormat HioFormatFromExrPixelType(exr_pixel_type_t pixelType, int numChannels)
     }
 }
 
-Hio_OpenEXRImage::~Hio_OpenEXRImage()
+template<typename T>
+class ImageProcessor
 {
-    nanoexr_close(_exrReader);
-}
+public:
+    // Flip the image in-place.
+    static void FlipImage(T* buffer, int width, int height, int channelCount)
+    {
+        for (int y = 0; y < height / 2; ++y) {
+            for (int x = 0; x < width; ++x) {
+                for (int c = 0; c < channelCount; ++c) {
+                    std::swap(buffer[(y * width + x) * channelCount + c],
+                              buffer[((height - y - 1) * width + x) * channelCount + c]);
+                }
+            }
+        }
+    }
 
-bool Hio_OpenEXRImage::Read(StorageSpec const &storage)
-{
-    return ReadCropped(0, 0, 0, 0, storage);
-}
+    // Crop the image in-place.
+    static void CropImage(T* buffer, 
+                          int width, int height, int channelCount,
+                          int cropTop, int cropBottom, int cropLeft, int cropRight)
+    {
+        int newWidth = width - cropLeft - cropRight;
+        int newHeight = height - cropTop - cropBottom;
 
-//should be read image (tiled or scanline)
-//  read a tile, if scanline treat it as if there's just one tile
-//  read an image, croppped (tiled or scanline)
+        if (newWidth <= 0 || newHeight <= 0 || (newWidth == width && newHeight == height))
+            return;
 
+        for (int y = 0; y < newHeight; ++y) {
+            for (int x = 0; x < newWidth; ++x) {
+                for (int c = 0; c < channelCount; ++c) {
+                    buffer[(y * newWidth + x) * channelCount + c] =
+                        buffer[((y + cropTop) * width + x + cropLeft) * channelCount + c];
+                }
+            }
+        }
+    }
+
+    static void HalfToFloat(GfHalf* buffer, float* outBuffer, int width, int height, int channelCount)
+    {
+        if (!buffer || !outBuffer)
+            return;
+        
+        for (int i = 0; i < width * height * channelCount; ++i) {
+            outBuffer[i] = buffer[i];
+        }
+    }
+
+    static void FloatToHalf(float* buffer, GfHalf* outBuffer, int width, int height, int channelCount)
+    {
+        if (!buffer || !outBuffer)
+            return;
+        
+        for (int i = 0; i < width * height * channelCount; ++i) {
+            outBuffer[i] = buffer[i];
+        }
+    }
+};
 
 bool Hio_OpenEXRImage::ReadCropped(
                 int const cropTop,  int const cropBottom,
@@ -214,24 +259,23 @@ bool Hio_OpenEXRImage::ReadCropped(
     bool outputIsFloat = HioGetHioType(storage.format) == HioTypeFloat;
     bool outputIsHalf =  HioGetHioType(storage.format) == HioTypeHalfFloat;
 
-    bool cropping = cropTop || cropBottom || cropLeft || cropRight;
-    bool resizing = (fileWidth != outWidth) || (fileHeight != outHeight);
+    if (!outputIsFloat && !outputIsHalf)
+        return false;
 
-    int readHeight = fileHeight - cropTop - cropBottom;
-    if (readHeight < 0) {
-        memset(storage.data, 0, GetWidth() * GetHeight() * GetBytesPerPixel());
-        return true;
-    }
+    int outputBytesPerPixel = (outputIsFloat ? sizeof(float) : sizeof(GfHalf)) * outChannelCount;
+
     int readWidth = fileWidth - cropLeft - cropRight;
-    if (readWidth < 0) {
-        memset(storage.data, 0, GetWidth() * GetHeight() * GetBytesPerPixel());
+    int readHeight = fileHeight - cropTop - cropBottom;
+    if (readHeight <= 0 || readWidth <= 0) {
+        memset(storage.data, 0, outWidth * outHeight * outputBytesPerPixel);
         return true;
     }
+    bool resizing = (readWidth != outWidth) || (readHeight != outHeight);
 
     // ensure there's enough memory for the greater of input and output channel count, for
     // in place conversions.
     int maxChannelCount = std::max(fileChannelCount, outChannelCount);
-    std::vector<uint16_t> halfInputBuffer;
+    std::vector<GfHalf> halfInputBuffer;
     if (inputIsHalf) {
         halfInputBuffer.resize(fileWidth * readHeight * maxChannelCount);
     }
@@ -248,59 +292,25 @@ bool Hio_OpenEXRImage::ReadCropped(
             return false;
         }
 
-        memcpy(&halfInputBuffer[0], img.data, img.dataSize);
-    }
-    #if 0
-    else {
-        // read requested scan line data
-        nanoexr_ImageData_t img;
-        
-        if (inputIsHalf)
-            img.data = reinterpret_cast<uint8_t*>(&halfInputBuffer[0]);
-        else
-            img.data = reinterpret_cast<uint8_t*>(&floatInputBuffer[0]);
-        
-        img.channelCount = outChannelCount;
-        img.dataSize = fileWidth * readHeight * GetBytesPerPixel();
-        img.width = fileWidth;
-        img.height = readHeight;
-        img.pixelType = filePixelType;
-        exr_result_t rv = nanoexr_readScanlineData(_exrReader, &img,
-                                                   nullptr, cropTop);
-        if (rv != EXR_ERR_SUCCESS) {
-            return false;
-        }*/
-
-        nanoexr_ImageData_t img;
-        img.channelCount = outChannelCount;
-        exr_result_t rv = nanoexr_read_scanline_exr(_exrReader->filename, &img, nullptr, 0, 0);
-        if (rv != EXR_ERR_SUCCESS) {
-            return false;
+        if (img.pixelType == EXR_PIXEL_HALF) {
+            memcpy(&halfInputBuffer[0], img.data, img.dataSize);
+        }
+        else {
+            memcpy(&floatInputBuffer[0], img.data, img.dataSize);
         }
 
-        memcpy(&halfInputBuffer[0], img.data, img.dataSize);
-    }
-    #endif
-
-    // flip the image
-    if (inputIsHalf) {
-        for (int y = 0; y < readHeight / 2; ++y) {
-            for (int x = 0; x < fileWidth; ++x) {
-                for (int c = 0; c < outChannelCount; ++c) {
-                    std::swap(halfInputBuffer[(y * fileWidth + x) * outChannelCount + c],
-                              halfInputBuffer[((readHeight - y - 1) * fileWidth + x) * outChannelCount + c]);
-                }
-            }
+        // flip and crop the image in place
+        if (inputIsHalf) {
+            ImageProcessor<GfHalf>::FlipImage(&halfInputBuffer[0], fileWidth, fileHeight, fileChannelCount);
+            ImageProcessor<GfHalf>::CropImage(&halfInputBuffer[0], 
+                                              fileWidth, fileHeight, fileChannelCount,
+                                              cropTop, cropBottom, cropLeft, cropRight);
         }
-    }
-    else {
-        for (int y = 0; y < readHeight / 2; ++y) {
-            for (int x = 0; x < fileWidth; ++x) {
-                for (int c = 0; c < outChannelCount; ++c) {
-                    std::swap(floatInputBuffer[(y * fileWidth + x) * outChannelCount + c],
-                              floatInputBuffer[((readHeight - y - 1) * fileWidth + x) * outChannelCount + c]);
-                }
-            }
+        else {
+            ImageProcessor<float>::FlipImage(&floatInputBuffer[0], fileWidth, fileHeight, fileChannelCount);
+            ImageProcessor<float>::CropImage(&floatInputBuffer[0], 
+                                            fileWidth, fileHeight, fileChannelCount,
+                                            cropTop, cropBottom, cropLeft, cropRight);
         }
     }
 
@@ -324,16 +334,13 @@ bool Hio_OpenEXRImage::ReadCropped(
         }
         return true;
     }
-    
-    // resizing case, if half input, convert to float
+
+    // resize the image, so promote to float if necessary
     if (inputIsHalf) {
-        floatInputBuffer.resize(readWidth * readHeight * fileChannelCount);
-        for (int y = 0; y < readHeight; ++y) {
-            int srcAddr = fileWidth * fileChannelCount * y;
-            for (int i = 0; i < readWidth * fileChannelCount; ++i) {
-                floatInputBuffer[i] = half_to_float(halfInputBuffer[srcAddr + i + (cropLeft * fileChannelCount)]);
-            }
-        }
+        ImageProcessor<uint16_t>::HalfToFloat(&halfInputBuffer[0], &floatInputBuffer[0],
+                                              fileWidth, readHeight, fileChannelCount);
+        inputIsFloat = true;
+        inputIsHalf = false;
     }
 
     std::vector<float> resizeOutputBuffer;
@@ -361,35 +368,16 @@ bool Hio_OpenEXRImage::ReadCropped(
         dst.data = reinterpret_cast<uint8_t*>(&resizeOutputBuffer[0]);
     }
     nanoexr_Gaussian_resample(&src, &dst);
-    
-    if (outputIsHalf) {
-        for (size_t i = 0; i < resizeOutputBuffer.size(); ++i)
-            reinterpret_cast<uint16_t*>(storage.data)[i] =
-            float_to_half(resizeOutputBuffer[i]);
-    }
+    if (outputIsFloat)
+        return true;
+
+    ImageProcessor<float>::FloatToHalf(&resizeOutputBuffer[0],
+                                       reinterpret_cast<GfHalf*>(dst.data),
+                                       outWidth, outHeight, outChannelCount);
     return true;
 }
 
-
-bool HioConvertFloatToFormat(HioFormat format, void *dst, const float *src, size_t numPixels)
-{
-    int c = HioGetComponentCount(format);
-    switch (HioGetHioType(format)) {
-    case HioTypeFloat:
-        for (size_t i = 0; i < numPixels * c; ++i)
-            ((float *)dst)[i] = src[i];
-        return true;
-    case HioTypeHalfFloat:
-        for (size_t i = 0; i < numPixels * c; ++i)
-            ((GfHalf *)dst)[i] = src[i];
-        return true;
-
-    default:
-        return false;
-    }
-}
-
-
+// XXX for consistency with other plugins, there is currently no ArAsset write function.
 int64_t exr_AssetRead_Func(
     exr_const_context_t         ctxt,
     void*                       userdata,
@@ -407,27 +395,6 @@ int64_t exr_AssetRead_Func(
     }
     return asset->Read(buffer, sz, offset);
 }
-
-#if 0
-/// @TODO in the future Hio could use asset writing featuers
-int64_t exr_AssetWrite_Func(
-    exr_const_context_t         ctxt,
-    void*                       userdata,
-    const void*                 buffer,
-    uint64_t                    sz,
-    uint64_t                    offset,
-    exr_stream_error_func_ptr_t error_cb)
-{
-    ArAsset* asset = (ArAsset*)userdata;
-    if (!asset || !buffer || !sz) {
-        if (error_cb)
-            error_cb(ctxt, EXR_ERR_INVALID_ARGUMENT,
-                           "%s", "Invalid arguments to write callback");
-        return -1;
-    }
-    return asset->Write(buffer, sz, offset);
-}
-#endif
 
 
 
@@ -451,14 +418,8 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &met
     }
 
     exr_context_initializer_t exrInit = EXR_DEFAULT_CONTEXT_INITIALIZER;
-    //exrInit.read_fn = exr_AssetRead_Func;
-    //exrInit.write_fn = exr_AssetWrite_Func;
-    exrInit.read_fn = NULL; // If read is set, and write is not, things fail in write because user_data doesn't get allocated
-                            // and then when we try to set fh->fd = -1 that's a seg fault
-    exrInit.write_fn = NULL; // Use the default file system write, not ArAsset 
-                             // at the moment.
-                             // The reason is that none of the existing Hio write
-                             // routines use ArAsset.
+    exrInit.read_fn = NULL;
+    exrInit.write_fn = NULL;
     exrInit.user_data = (void*) _asset.get(); // Hio_OpenEXRImage will outlast the reader.
     nanoexr_Reader_t* exrWriter = nanoexr_new(_filename.c_str(), &exrInit);
     if (!exrWriter) {
@@ -571,29 +532,10 @@ int Hio_OpenEXRImage::GetNumMipLevels() const
 
 bool Hio_OpenEXRImage::IsColorSpaceSRGB() const
 {
-    // the code below tests for an SRGB color space, but
-    // what Hydra really wants to know is if it's linear or not.
+    // the function asks if the color space is SRGB, but fundamentally
+    // what Hydra reall wants to know is whether the pixels are gamma pixels.
     // OpenEXR images are always linear, so we can just return false.
     return false;
-       /*
-    exr_attr_chromaticities_t chr {};
-    if (EXR_ERR_SUCCESS != exr_attr_get_chromaticities(
-                                _exrReader->f,
-                                _exrReader->partIndex,
-                               "chromaticities", &chr)) {
-        return true; // actually REC709, but the chromaticities are the same
-    }
-
-    auto approx = [](float a, float b) -> bool {
-        return (std::abs(a-b) < 0.01f);
-    };
-    
-    // test chromaticities against Rec709.
-    return approx(chr.red_x, 0.64f) && approx(chr.red_y, 0.33f) &&
-           approx(chr.green_x, 0.30f) && approx(chr.green_y, 0.60f) &&
-           approx(chr.blue_x, 0.15f) && approx(chr.blue_y, 0.06f) &&
-           approx(chr.white_x, 0.3127f) && approx(chr.white_y, 0.3290f);
-*/
 }
 
 bool Hio_OpenEXRImage::GetMetadata(TfToken const &key, VtValue *value) const
@@ -646,8 +588,8 @@ bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
 
     exr_context_initializer_t exrInit = EXR_DEFAULT_CONTEXT_INITIALIZER;
     exrInit.read_fn = exr_AssetRead_Func;
-    //exrInit.write_fn = exr_AssetWrite_Func;
-    exrInit.write_fn = NULL; // Use the default file system write, not ArAsset 
+    exrInit.write_fn = NULL;
+    exrInit.write_fn = NULL; // Use the default file system write, not ArAsset
                              // at the moment.
                              // The reason is that none of the existing Hio write
                              // routines use ArAsset.

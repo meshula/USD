@@ -369,20 +369,20 @@ internal_exr_unlock (const struct _internal_exr_context* c)
             pi)
 
 
-void internal_exr_update_default_handlers (exr_context_initializer_t* inits);
+EXR_INTERNAL void internal_exr_update_default_handlers (exr_context_initializer_t* inits);
 
-exr_result_t internal_exr_add_part (
+EXR_INTERNAL exr_result_t internal_exr_add_part (
     struct _internal_exr_context*, struct _internal_exr_part**, int* new_index);
-void internal_exr_revert_add_part (
+EXR_INTERNAL void internal_exr_revert_add_part (
     struct _internal_exr_context*, struct _internal_exr_part**, int* new_index);
 
-exr_result_t internal_exr_context_restore_handlers (
+EXR_INTERNAL exr_result_t internal_exr_context_restore_handlers (
     struct _internal_exr_context* ctxt, exr_result_t rv);
-exr_result_t internal_exr_alloc_context (
+EXR_INTERNAL exr_result_t internal_exr_alloc_context (
     struct _internal_exr_context**   out,
     const exr_context_initializer_t* initializers,
     enum _INTERNAL_EXR_CONTEXT_MODE  mode,
     size_t                           extra_data);
-void internal_exr_destroy_context (struct _internal_exr_context* ctxt);
+EXR_INTERNAL void internal_exr_destroy_context (struct _internal_exr_context* ctxt);
 
 #endif /* OPENEXR_PRIVATE_STRUCTS_H */

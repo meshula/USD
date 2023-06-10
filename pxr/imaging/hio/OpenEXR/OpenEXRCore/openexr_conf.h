@@ -30,6 +30,10 @@
 
 #endif
 
+#ifndef EXR_INTERNAL
+#    define EXR_INTERNAL
+#endif
+
 /*
  * MSVC does have printf format checks, but it is not in the form of a
  * function attribute, so just skip for non-GCC/clang builds

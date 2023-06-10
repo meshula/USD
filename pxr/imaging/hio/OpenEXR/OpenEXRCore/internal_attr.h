@@ -36,7 +36,7 @@
 extern "C" {
 #endif
 
-int internal_exr_is_standard_type (const char* typen);
+EXR_INTERNAL int internal_exr_is_standard_type (const char* typen);
 
 /** @addtogroup InternalAttributeFunctions
  * @{
@@ -52,18 +52,18 @@ typedef struct exr_attribute_list
 } exr_attribute_list_t;
 
 /** Initialize a list to an empty attribute list */
-exr_result_t exr_attr_list_init (exr_context_t ctxt, exr_attribute_list_t* l);
+EXR_INTERNAL exr_result_t exr_attr_list_init (exr_context_t ctxt, exr_attribute_list_t* l);
 
 /** Free memory for all the owned attributes in the list as well as the list itself */
-exr_result_t
+EXR_INTERNAL exr_result_t
 exr_attr_list_destroy (exr_context_t ctxt, exr_attribute_list_t* l);
 
 /** Compute the number of bytes required to store this attribute list in a file */
-exr_result_t exr_attr_list_compute_size (
+EXR_INTERNAL exr_result_t exr_attr_list_compute_size (
     exr_context_t ctxt, exr_attribute_list_t* l, uint64_t* out);
 
 /** Find an attribute in the list by name */
-exr_result_t exr_attr_list_find_by_name (
+EXR_INTERNAL exr_result_t exr_attr_list_find_by_name (
     exr_const_context_t   ctxt,
     exr_attribute_list_t* l,
     const char*           name,
@@ -79,7 +79,7 @@ exr_result_t exr_attr_list_find_by_name (
  * not to free this returned memory.
  *
  */
-exr_result_t exr_attr_list_add_by_type (
+EXR_INTERNAL exr_result_t exr_attr_list_add_by_type (
     exr_context_t         ctxt,
     exr_attribute_list_t* l,
     const char*           name,
@@ -98,7 +98,7 @@ exr_result_t exr_attr_list_add_by_type (
  * not to free this returned memory.
  *
  */
-exr_result_t exr_attr_list_add (
+EXR_INTERNAL exr_result_t exr_attr_list_add (
     exr_context_t         ctxt,
     exr_attribute_list_t* l,
     const char*           name,
@@ -118,7 +118,7 @@ exr_result_t exr_attr_list_add (
  * not to free this returned memory.
  *
  */
-exr_result_t exr_attr_list_add_static_name (
+EXR_INTERNAL exr_result_t exr_attr_list_add_static_name (
     exr_context_t         ctxt,
     exr_attribute_list_t* l,
     const char*           name,
@@ -128,7 +128,7 @@ exr_result_t exr_attr_list_add_static_name (
     exr_attribute_t**     attr);
 
 /** Removes an attribute from the list and frees any associated memory */
-exr_result_t exr_attr_list_remove (
+EXR_INTERNAL exr_result_t exr_attr_list_remove (
     exr_context_t ctxt, exr_attribute_list_t* l, exr_attribute_t* attr);
 
 /**

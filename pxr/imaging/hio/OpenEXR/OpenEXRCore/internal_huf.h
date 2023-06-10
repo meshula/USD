@@ -9,10 +9,10 @@
 #include "openexr_errors.h"
 #include "openexr_decode.h"
 
-uint64_t internal_exr_huf_compress_spare_bytes (void);
-uint64_t internal_exr_huf_decompress_spare_bytes (void);
+EXR_INTERNAL uint64_t internal_exr_huf_compress_spare_bytes (void);
+EXR_INTERNAL uint64_t internal_exr_huf_decompress_spare_bytes (void);
 
-exr_result_t internal_huf_compress (
+EXR_INTERNAL exr_result_t internal_huf_compress (
     uint64_t*       encbytes,
     void*           out,
     uint64_t        outsz,
@@ -21,7 +21,7 @@ exr_result_t internal_huf_compress (
     void*           spare,
     uint64_t        sparebytes);
 
-exr_result_t internal_huf_decompress (
+EXR_INTERNAL exr_result_t internal_huf_decompress (
     exr_decode_pipeline_t* decode,
     const uint8_t*         compressed,
     uint64_t               nCompressed,

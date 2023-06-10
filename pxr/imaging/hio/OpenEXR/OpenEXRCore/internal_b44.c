@@ -13,8 +13,8 @@
 
 /**************************************/
 
-extern const uint16_t* exrcore_expTable;
-extern const uint16_t* exrcore_logTable;
+/* pxr extern const uint16_t* exrcore_expTable;
+extern const uint16_t* exrcore_logTable; */
 
 static inline void
 convertFromLinear (uint16_t s[16])

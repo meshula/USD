@@ -19,7 +19,7 @@ extern "C" {
  *
  * Leaves the float data uninitialized
  */
-exr_result_t exr_attr_float_vector_init (
+EXR_INTERNAL exr_result_t exr_attr_float_vector_init (
     exr_context_t ctxt, exr_attr_float_vector_t* fv, int32_t nent);
 /** Initializes a float vector with the provided number of entries and sets the pointer to the provided pointer
  *
@@ -27,20 +27,20 @@ exr_result_t exr_attr_float_vector_init (
  * is owned by the calling application and will not be freed, and is
  * expected to outlive the lifetime of the attribute.
  */
-exr_result_t exr_attr_float_vector_init_static (
+EXR_INTERNAL exr_result_t exr_attr_float_vector_init_static (
     exr_context_t            ctxt,
     exr_attr_float_vector_t* fv,
     const float*             arr,
     int32_t                  nent);
 /** Allocates storage for a float vector with the provided number of entries and initializes */
-exr_result_t exr_attr_float_vector_create (
+EXR_INTERNAL exr_result_t exr_attr_float_vector_create (
     exr_context_t            ctxt,
     exr_attr_float_vector_t* fv,
     const float*             arr,
     int32_t                  nent);
 
 /** Frees any owned storage for a float vector */
-exr_result_t
+EXR_INTERNAL exr_result_t
 exr_attr_float_vector_destroy (exr_context_t ctxt, exr_attr_float_vector_t* fv);
 
 /** @} */

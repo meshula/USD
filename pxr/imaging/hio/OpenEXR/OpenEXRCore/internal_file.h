@@ -19,22 +19,22 @@
      EXR_MULTI_PART_FLAG)
 
 /* in openexr_parse_header.c, just checks the magic number and header */
-exr_result_t internal_exr_check_magic (struct _internal_exr_context* ctxt);
+EXR_INTERNAL exr_result_t internal_exr_check_magic (struct _internal_exr_context* ctxt);
 /* in openexr_parse_header.c, reads the header and populates the file structure */
-exr_result_t internal_exr_parse_header (struct _internal_exr_context* ctxt);
-exr_result_t internal_exr_compute_tile_information (
+EXR_INTERNAL exr_result_t internal_exr_parse_header (struct _internal_exr_context* ctxt);
+EXR_INTERNAL exr_result_t internal_exr_compute_tile_information (
     struct _internal_exr_context* ctxt,
     struct _internal_exr_part*    curpart,
     int                           rebuild);
-int32_t
+EXR_INTERNAL int32_t
 internal_exr_compute_chunk_offset_size (struct _internal_exr_part* curpart);
 
-exr_result_t internal_exr_write_header (struct _internal_exr_context* ctxt);
+EXR_INTERNAL exr_result_t internal_exr_write_header (struct _internal_exr_context* ctxt);
 
 /* in openexr_validate.c, functions to validate the header during read / pre-write */
-exr_result_t internal_exr_validate_read_part (
+EXR_INTERNAL exr_result_t internal_exr_validate_read_part (
     struct _internal_exr_context* ctxt, struct _internal_exr_part* curpart);
-exr_result_t internal_exr_validate_write_part (
+EXR_INTERNAL exr_result_t internal_exr_validate_write_part (
     struct _internal_exr_context* ctxt, struct _internal_exr_part* curpart);
 
 #endif /* OPENEXR_PRIVATE_FILE_UTIL_H */

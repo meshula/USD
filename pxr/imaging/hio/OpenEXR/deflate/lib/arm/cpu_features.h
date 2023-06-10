@@ -57,7 +57,8 @@
 
 #if HAVE_DYNAMIC_ARM_CPU_FEATURES
 #define ARM_CPU_FEATURES_KNOWN		0x80000000
-extern volatile u32 libdeflate_arm_cpu_features;
+/* pxr extern */
+static volatile u32 libdeflate_arm_cpu_features;
 
 static void libdeflate_init_arm_cpu_features(void);
 

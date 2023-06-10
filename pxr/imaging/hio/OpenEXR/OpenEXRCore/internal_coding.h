@@ -37,7 +37,7 @@ extern "C" {
 
 typedef exr_result_t (*internal_exr_unpack_fn) (exr_decode_pipeline_t*);
 
-internal_exr_unpack_fn internal_exr_match_decode (
+EXR_INTERNAL internal_exr_unpack_fn internal_exr_match_decode (
     exr_decode_pipeline_t* decode,
     int                    isdeep,
     int                    chanstofill,
@@ -55,10 +55,10 @@ internal_exr_unpack_fn internal_exr_match_decode (
 
 typedef exr_result_t (*internal_exr_pack_fn) (exr_encode_pipeline_t*);
 
-internal_exr_pack_fn
+EXR_INTERNAL internal_exr_pack_fn
 internal_exr_match_encode (exr_encode_pipeline_t* encode, int isdeep);
 
-exr_result_t internal_coding_fill_channel_info (
+EXR_INTERNAL exr_result_t internal_coding_fill_channel_info (
     exr_coding_channel_info_t**         channels,
     int16_t*                            num_chans,
     exr_coding_channel_info_t*          builtinextras,
@@ -66,40 +66,40 @@ exr_result_t internal_coding_fill_channel_info (
     const struct _internal_exr_context* pctxt,
     const struct _internal_exr_part*    part);
 
-exr_result_t internal_coding_update_channel_info (
+EXR_INTERNAL exr_result_t internal_coding_update_channel_info (
     exr_coding_channel_info_t*          channels,
     int16_t                             num_chans,
     const exr_chunk_info_t*             cinfo,
     const struct _internal_exr_context* pctxt,
     const struct _internal_exr_part*    part);
 
-exr_result_t internal_validate_next_chunk (
+EXR_INTERNAL exr_result_t internal_validate_next_chunk (
     exr_encode_pipeline_t*              encode,
     const struct _internal_exr_context* pctxt,
     const struct _internal_exr_part*    part);
 
 /**************************************/
 
-exr_result_t internal_encode_free_buffer (
+EXR_INTERNAL exr_result_t internal_encode_free_buffer (
     exr_encode_pipeline_t*               encode,
     exr_transcoding_pipeline_buffer_id_t bufid,
     void**                               buf,
     size_t*                              sz);
 
-exr_result_t internal_encode_alloc_buffer (
+EXR_INTERNAL exr_result_t internal_encode_alloc_buffer (
     exr_encode_pipeline_t*               encode,
     exr_transcoding_pipeline_buffer_id_t bufid,
     void**                               buf,
     size_t*                              cursz,
     size_t                               newsz);
 
-exr_result_t internal_decode_free_buffer (
+EXR_INTERNAL exr_result_t internal_decode_free_buffer (
     exr_decode_pipeline_t*               decode,
     exr_transcoding_pipeline_buffer_id_t bufid,
     void**                               buf,
     size_t*                              sz);
 
-exr_result_t internal_decode_alloc_buffer (
+EXR_INTERNAL exr_result_t internal_decode_alloc_buffer (
     exr_decode_pipeline_t*               decode,
     exr_transcoding_pipeline_buffer_id_t bufid,
     void**                               buf,
