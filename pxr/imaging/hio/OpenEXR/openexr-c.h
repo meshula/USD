@@ -74,6 +74,19 @@ nanoexr_Reader_t* nanoexr_new(const char* filename,
 
 const char* nanoexr_get_error_code_as_string (exr_result_t code);
 
+
+// reads an entire tiled image into memory
+// returns any exr_result_t error code encountered upon reading
+// if no error, returns EXR_ERR_SUCCESS
+//
+// imageData is a pointer to a nanoexr_ImageData_t struct supplied
+// by the caller.  The data pointer in this struct will be set to
+// point to the image data, and the dataSize field will be set to
+// the size of the data in bytes.  The caller is responsible for
+// freeing the data pointer when it is no longer needed.
+
+void nanoexr_release_image_data(nanoexr_ImageData_t* imageData);
+
 exr_result_t nanoexr_open(nanoexr_Reader_t* reader, int partIndex);
 exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     int width, int height,
