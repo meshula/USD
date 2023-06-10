@@ -93,7 +93,7 @@ class Hio_OpenEXRImage final : public HioImage
 {
     std::shared_ptr<ArAsset> _asset;
     std::string              _filename;
-    nanoexr_Reader_t*        _exrReader = nullptr;
+    nanoexr_Reader_t         _exrReader;
     SourceColorSpace         _sourceColorSpace;
     int                      _subimage = 0;
     int                      _mip = 0;
@@ -101,8 +101,7 @@ class Hio_OpenEXRImage final : public HioImage
 
 public:
     Hio_OpenEXRImage() = default;
-    virtual ~Hio_OpenEXRImage() override {
-        nanoexr_close(_exrReader); }
+    virtual ~Hio_OpenEXRImage() override = default;
 
     using Base = HioImage;
     bool      Read(StorageSpec const &storage) override {
@@ -236,19 +235,16 @@ bool Hio_OpenEXRImage::ReadCropped(
                 int const cropLeft, int const cropRight, 
                 StorageSpec const &storage)
 {
-    if (!_exrReader)
-        return false;
-
     if (cropTop < 0 || cropBottom < 0 || cropLeft < 0 || cropRight < 0)
         return false;
 
     // cache values and
     // determine what needs to happen as a consequence of the input parameters
 
-    int fileWidth =  _exrReader->width;
-    int fileHeight = _exrReader->height;
-    int fileChannelCount = _exrReader->channelCount;
-    exr_pixel_type_t filePixelType = _exrReader->pixelType;
+    int fileWidth =  _exrReader.width;
+    int fileHeight = _exrReader.height;
+    int fileChannelCount = _exrReader.channelCount;
+    exr_pixel_type_t filePixelType = _exrReader.pixelType;
 
     int outWidth =  storage.width;
     int outHeight = storage.height;
@@ -287,7 +283,7 @@ bool Hio_OpenEXRImage::ReadCropped(
     {
         nanoexr_ImageData_t img;
         img.channelCount = outChannelCount;
-        exr_result_t rv = nanoexr_read_exr(_exrReader->filename, &img, nullptr, 0, 0);
+        exr_result_t rv = nanoexr_read_exr(_exrReader.filename, &img, nullptr, 0, 0);
         if (rv != EXR_ERR_SUCCESS) {
             return false;
         }
@@ -417,16 +413,12 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &met
         return false;
     }
 
-    exr_context_initializer_t exrInit = EXR_DEFAULT_CONTEXT_INITIALIZER;
-    exrInit.read_fn = NULL;
-    exrInit.write_fn = NULL;
-    exrInit.user_data = (void*) _asset.get(); // Hio_OpenEXRImage will outlast the reader.
-    nanoexr_Reader_t* exrWriter = nanoexr_new(_filename.c_str(), &exrInit);
-    if (!exrWriter) {
-        TF_CODING_ERROR("Cannot create image \"%s\" for writing",
-                        _filename.c_str());
-        return false;
-    }
+    //exr_context_initializer_t exrInit = EXR_DEFAULT_CONTEXT_INITIALIZER;
+    //exrInit.read_fn = NULL;
+    //exrInit.write_fn = NULL;
+    //exrInit.user_data = (void*) _asset.get(); // Hio_OpenEXRImage will outlast the reader.
+    nanoexr_Reader_t exrWriter = { 0 };
+    nanoexr_new(_filename.c_str(), &exrWriter);
 
     if (storage.format == HioFormatFloat16Vec3 || storage.format == HioFormatFloat16Vec4) {
         int32_t size = 2;
@@ -435,7 +427,7 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &met
         int32_t lineStride = storage.width * size * ch;
         int32_t pixelStride = size * ch;
         exr_result_t rv = nanoexr_open_for_writing_fp16(
-                                exrWriter,
+                                &exrWriter,
                                 storage.width, storage.height,
                                 pixels + (size * 2), pixelStride, lineStride,
                                 pixels +  size,      pixelStride, lineStride,
@@ -448,14 +440,14 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &met
             return false;
         }
     }
-    
+#if 0
     //set info to match storage
     int width = storage.width;
     int height = storage.height;
     HioFormat format = storage.format;
     HioType outputType = HioGetHioType(storage.format);
     int nchannels = HioGetComponentCount(storage.format);
-
+#endif
     //Again, how to store metadata?
     //for (const std::pair<std::string, VtValue>& m : metadata) {
     //    _SetAttribute(&spec, m.first, m.second);
@@ -472,8 +464,6 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &met
     // Within each part, multiple threads can be encoding and writing data concurrently. For some EXR part definitions, this may be able to write data concurrently when it can predict the chunk sizes, or data is allowed to be padded. For others, it may need to temporarily cache chunks until the data is received to flush in order. The concurrency around this is handled by the library
 
     // Once finished writing data, use exr_finish() to clean up the context, which will flush any unwritten data such as the final chunk offset tables, and handle the temporary file flags.
-    nanoexr_close(exrWriter);
-
     return true;
 }
 
@@ -484,50 +474,26 @@ std::string const& Hio_OpenEXRImage::GetFilename() const
 
 int Hio_OpenEXRImage::GetWidth() const
 {
-    if (!_exrReader)
-        return 0;
-    
-    return _exrReader->width;
+    return _exrReader.width;
 }
 int Hio_OpenEXRImage::GetHeight() const
 {
-    if (!_exrReader)
-        return 0;
-    
-    return _exrReader->height;
+    return _exrReader.height;
 }
 
 HioFormat Hio_OpenEXRImage::GetFormat() const
 {
-    if (!_exrReader)
-        return HioFormatInvalid;
-
-    return HioFormatFromExrPixelType(nanoexr_getPixelType(_exrReader), _exrReader->channelCount);
+    return HioFormatFromExrPixelType(_exrReader.pixelType, _exrReader.channelCount);
 }
 
 int Hio_OpenEXRImage::GetBytesPerPixel() const
 {
-    if (!_exrReader)
-        return 0;
-
-    switch (nanoexr_getPixelType(_exrReader))
-    {
-    case EXR_PIXEL_UINT:
-        return _exrReader->channelCount * 4;
-    case EXR_PIXEL_HALF:
-        return _exrReader->channelCount * 2;
-    case EXR_PIXEL_FLOAT:
-        return _exrReader->channelCount * 4;
-    default:
-        return 0;
-    }
+    return _exrReader.channelCount * nanoexr_getPixelTypeSize(_exrReader.pixelType);
 }
 
 int Hio_OpenEXRImage::GetNumMipLevels() const
 {
-    if (!_exrReader)
-        return 0;
-    return _exrReader->mipLevels.level;
+    return _exrReader.mipLevels.level;
 }
 
 bool Hio_OpenEXRImage::IsColorSpaceSRGB() const
@@ -546,31 +512,18 @@ bool Hio_OpenEXRImage::GetMetadata(TfToken const &key, VtValue *value) const
 bool Hio_OpenEXRImage::GetSamplerMetadata(HioAddressDimension dim,
                         HioAddressMode *param) const
 {
-    const exr_attribute_t* attr;
-    if (EXR_ERR_SUCCESS != nanoexr_get_attribute_by_name(
-                                _exrReader->exr,
-                                _exrReader->partIndex,
-                                "wrapmodes", &attr)) {
-        return HioAddressModeClampToEdge;
-    }
+    if (!param)
+        return false;
     
-    if (attr->type != EXR_ATTR_STRING) {
-        return HioAddressModeClampToEdge;
+    switch (_exrReader.wrapMode) {
+        case nanoexr_WrapModeClampToEdge: *param = HioAddressModeClampToEdge; break;
+        case nanoexr_WrapModeMirrorClampToEdge: *param = HioAddressModeClampToEdge; break;
+        case nanoexr_WrapModeRepeat: *param = HioAddressModeRepeat; break;
+        case nanoexr_WrapModeMirrorRepeat: *param = HioAddressModeMirrorRepeat; break;
+        case nanoexr_WrapModeClampToBorderColor: *param = HioAddressModeClampToBorderColor;
     }
-    
-    std::string wrapmodes(attr->string->str, attr->string->length);
-    if (wrapmodes.find("black") != std::string::npos)
-        return HioAddressModeClampToBorderColor;    // hydra only has HdWrapBlack
-    if (wrapmodes.find("clamp") != std::string::npos)
-        return HioAddressModeClampToEdge;
-    if (wrapmodes.find("periodic") != std::string::npos)
-        return HioAddressModeRepeat;
-    if (wrapmodes.find("mirror") != std::string::npos)
-        return HioAddressModeMirrorRepeat;
-    // Hio has no "no opinion" enum, match the OIIO plugin.
-    return HioAddressModeClampToEdge;
+    return true;
 }
-
 
 // set inits.read_fn to exr_AssetRead_Func
 // called by HioImage::OpenForReading
@@ -586,17 +539,17 @@ bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
         return false;
     }
 
-    exr_context_initializer_t exrInit = EXR_DEFAULT_CONTEXT_INITIALIZER;
+/*    exr_context_initializer_t exrInit = EXR_DEFAULT_CONTEXT_INITIALIZER;
     exrInit.read_fn = exr_AssetRead_Func;
     exrInit.write_fn = NULL;
     exrInit.write_fn = NULL; // Use the default file system write, not ArAsset
                              // at the moment.
                              // The reason is that none of the existing Hio write
                              // routines use ArAsset.
-    exrInit.user_data = (void*) _asset.get(); // Hio_OpenEXRImage will outlast the reader.
-    _exrReader = nanoexr_new(filename.c_str(), &exrInit);
+    exrInit.user_data = (void*) _asset.get(); // Hio_OpenEXRImage will outlast the reader. */
+    nanoexr_new(filename.c_str(), &_exrReader);
 
-    int rv = nanoexr_open(_exrReader, 0);
+    int rv = nanoexr_open(&_exrReader, 0);
     if (rv != 0) {
         TF_CODING_ERROR("Cannot open image \"%s\" for reading, %s",
                         filename.c_str(), nanoexr_get_error_code_as_string(rv));

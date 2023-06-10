@@ -51,9 +51,15 @@ typedef struct {
     int level;
 } nanoexr_MipLevel_t;
 
+typedef enum {
+    nanoexr_WrapModeClampToEdge = 0,
+    nanoexr_WrapModeMirrorClampToEdge,
+    nanoexr_WrapModeRepeat,
+    nanoexr_WrapModeMirrorRepeat,
+    nanoexr_WrapModeClampToBorderColor
+} nanoexr_WrapMode;
+
 typedef struct {
-    exr_context_t exr;
-    exr_context_initializer_t init;
     char* filename;
     bool isScanline;
     int partIndex;
@@ -61,6 +67,7 @@ typedef struct {
     int channelCount;
     int width, height;
     int tileLevelCount;
+    nanoexr_WrapMode wrapMode;
     nanoexr_MipLevel_t mipLevels;
     nanoexr_TileMipInfo_t* tileLevelInfo;
     int exrSDKVersionMajor;
@@ -69,8 +76,7 @@ typedef struct {
     const char* exrSDKExtraInfo;
 } nanoexr_Reader_t;
 
-nanoexr_Reader_t* nanoexr_new(const char* filename, 
-                              exr_context_initializer_t*);
+void nanoexr_new(const char* filename, nanoexr_Reader_t* reader);
 
 const char* nanoexr_get_error_code_as_string (exr_result_t code);
 
@@ -93,9 +99,7 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     uint8_t* red, int32_t redPixelStride, int32_t redLineStride,
     uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
     uint8_t* blue, int32_t bluePixelStride, int32_t blueLineStride);
-void         nanoexr_close(nanoexr_Reader_t* reader);
 void         nanoexr_delete(nanoexr_Reader_t* reader);
-exr_pixel_type_t   nanoexr_getPixelType(nanoexr_Reader_t* reader);
 int                nanoexr_getPixelTypeSize(exr_pixel_type_t t);
 
 bool nanoexr_Gaussian_resample(const nanoexr_ImageData_t* src,
