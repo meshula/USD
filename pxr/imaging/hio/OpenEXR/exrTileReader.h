@@ -206,7 +206,8 @@ exr_result_t nanoexr_read_tiled_exr(exr_context_t exr,
                                     nanoexr_ImageData_t* img,
                                     const char* layerName,
                                     int partIndex,
-                                    int level)
+                                    int level,
+                                    int* rgbaIndex)
 {
     exr_decode_pipeline_t decoder = EXR_DECODE_PIPELINE_INITIALIZER;
     exr_result_t rv = EXR_ERR_SUCCESS;
@@ -225,8 +226,6 @@ exr_result_t nanoexr_read_tiled_exr(exr_context_t exr,
     int levelWidth, levelHeight;
     rv = exr_get_level_sizes(exr, partIndex, mipLevel, mipLevel, &levelWidth, &levelHeight);
     CHECK_RV(rv);
-
-    int rgbaIndex[4] = {-1, -1, -1, -1};
     
     int32_t xTiles = (img->width + tilew - 1) / tilew;
     int32_t yTiles = (img->height + tileh - 1) / tileh;
@@ -274,11 +273,11 @@ exr_result_t nanoexr_read_tiled_exr(exr_context_t exr,
 exr_result_t nanoexr_read_scanline_exr(exr_context_t exr,
                                        nanoexr_ImageData_t* img,
                                        const char* layerName,
-                                       int partIndex)
+                                       int partIndex,
+                                       int* rgbaIndex)
 {
     exr_decode_pipeline_t decoder = EXR_DECODE_PIPELINE_INITIALIZER;
     exr_result_t rv = EXR_ERR_SUCCESS;
-    int rgbaIndex[4] = {-1, -1, -1, -1};
 
     int scanLinesPerChunk;
     rv = exr_get_scanlines_per_chunk(exr, partIndex, &scanLinesPerChunk);
@@ -298,7 +297,8 @@ exr_result_t nanoexr_read_scanline_exr(exr_context_t exr,
             pixelbytes = bytesPerChannel * img->channelCount;
 
             for (int c = 0; c < decoder.channel_count; ++c) {                
-                decoder.channels[c].decode_to_ptr = NULL;
+                uint8_t* start = img->data + (chunky - img->dataWindowMinY) * img->width * pixelbytes;
+                decoder.channels[c].decode_to_ptr = start + rgbaIndex[c] * bytesPerChannel;
                 decoder.channels[c].user_pixel_stride = img->channelCount * bytesPerChannel;
                 decoder.channels[c].user_line_stride = decoder.channels[c].user_pixel_stride * img->width;
                 decoder.channels[c].user_bytes_per_element = bytesPerChannel;
@@ -311,27 +311,6 @@ exr_result_t nanoexr_read_scanline_exr(exr_context_t exr,
             // Reuse existing pipeline
             rv = exr_decoding_update(exr, partIndex, &cinfo, &decoder);
             CHECK_RV(rv);
-        }
-
-        uint16_t oneValue = float_to_half(1.0f);
-        uint16_t zeroValue = float_to_half(0.0f);
-
-        // fill in data for missing chunk channels
-        for (int c = 0; c < img->channelCount; c++) {
-            if (rgbaIndex[c] >= 0) {
-                uint8_t* start = img->data + (chunky - img->dataWindowMinY) * img->width * pixelbytes;
-                decoder.channels[c].decode_to_ptr = start + rgbaIndex[c] * bytesPerChannel;
-            }
-            else {
-                uint8_t* curtilestart = img->data + (chunky - img->dataWindowMinY) * img->width * bytesPerChannel * img->channelCount;
-                uint16_t fillValue = c == 3 ? oneValue : zeroValue;
-                uint16_t* fillPtr = (uint16_t*) (curtilestart + c * bytesPerChannel);
-                for (int y = 0; y < scanLinesPerChunk; ++y) {
-                    for (int x = 0; x < img->width; ++x)
-                        fillPtr[x * img->channelCount + c] = fillValue;
-                    fillPtr += img->width * img->channelCount;
-                }
-            }
         }
 
         rv = exr_decoding_run(exr, partIndex, &decoder);
@@ -439,11 +418,29 @@ exr_result_t nanoexr_read_exr(const char* filename,
         return rv;
     }
 
+    int rgbaIndex[4] = {-1, -1, -1, -1};
     if (storage == EXR_STORAGE_TILED) {
-        rv = nanoexr_read_tiled_exr(exr, img, layerName, partIndex, level);
+        rv = nanoexr_read_tiled_exr(exr, img, layerName, partIndex, level, rgbaIndex);
     }
     else {
-        rv = nanoexr_read_scanline_exr(exr, img, layerName, partIndex);
+        rv = nanoexr_read_scanline_exr(exr, img, layerName, partIndex, rgbaIndex);
+    }
+
+    // xxx specialize for float, uint16 and half.
+    uint16_t oneValue = float_to_half(1.0f);
+    uint16_t zeroValue = float_to_half(0.0f);
+
+    // fill in data for missing channels
+    for (int c = 0; c < img->channelCount; c++) {
+        if (rgbaIndex[c] < 0) {
+            for (int y = 0; y < img->height; ++y) {
+                for (int x = 0; x < img->width; ++x) {
+                    uint8_t* curpixel = img->data + (y * img->width + x) * img->channelCount * bytesPerChannel;
+                    uint16_t fillValue = c == 3 ? oneValue : zeroValue;
+                    ((uint16_t*) curpixel)[c] = fillValue;
+                }
+            }
+        }
     }
 
     rv = exr_finish(&exr);

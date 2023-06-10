@@ -32,9 +32,6 @@ exr_result_t nanoexr_get_attribute_by_name (
     const char*             name,
     const exr_attribute_t** outattr);
 
-const char* nanoexr_get_error_code_as_string (exr_result_t code);
-
-
 typedef struct {
     int tileWidth,  tileHeight;
     int levelWidth, levelHeight;
@@ -75,43 +72,19 @@ typedef struct {
 nanoexr_Reader_t* nanoexr_new(const char* filename, 
                               exr_context_initializer_t*);
 
+const char* nanoexr_get_error_code_as_string (exr_result_t code);
+
 exr_result_t nanoexr_open(nanoexr_Reader_t* reader, int partIndex);
 exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     int width, int height,
     uint8_t* red, int32_t redPixelStride, int32_t redLineStride,
     uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
     uint8_t* blue, int32_t bluePixelStride, int32_t blueLineStride);
-bool         nanoexr_isOpen(nanoexr_Reader_t* reader);
-bool         nanoexr_isTiled(nanoexr_Reader_t* reader);
 void         nanoexr_close(nanoexr_Reader_t* reader);
 void         nanoexr_delete(nanoexr_Reader_t* reader);
-int          nanoexr_getWidth(nanoexr_Reader_t* reader);
-int          nanoexr_getHeight(nanoexr_Reader_t* reader);
-int          nanoexr_getChannelCount(nanoexr_Reader_t* reader);
-nanoexr_MipLevel_t nanoexr_getMipLevels(nanoexr_Reader_t* reader);
 exr_pixel_type_t   nanoexr_getPixelType(nanoexr_Reader_t* reader);
 int                nanoexr_getPixelTypeSize(exr_pixel_type_t t);
 
-// image will be read into the allocation pointed to by img.
-// no more than img->height lines will be read. If initialLinesToSkip
-// is greater than zero, those lines will not be read into img->data,
-// the data in img->data will start at that offset. If sufficient
-// lines cannot be read to fill img->data per img->height, the
-// remainder of the buffer will be filled with zeroes.
-exr_result_t       nanoexr_readScanlineData(nanoexr_Reader_t* reader,
-                                            nanoexr_ImageData_t* img,
-                                            const char* layerName,
-                                            int initialLinesToSkip);
-
-exr_result_t       nanoexr_readTileData(nanoexr_Reader_t* reader,
-                                        nanoexr_ImageData_t* img,
-                                        nanoexr_MipLevel_t mipLevel,
-                                        const char* layerName,
-                                        int col, int row);
-exr_result_t       nanoexr_readAllTileData(nanoexr_Reader_t* reader,
-                                           nanoexr_ImageData_t* img,
-                                           nanoexr_MipLevel_t mip,
-                                           const char* layerName);
 bool nanoexr_Gaussian_resample(const nanoexr_ImageData_t* src,
                                nanoexr_ImageData_t* dst);
 

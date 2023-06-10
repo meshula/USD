@@ -197,7 +197,8 @@ static const struct cpu_feature arm_cpu_feature_table[] = {
 	{ARM_CPU_FEATURE_DOTPROD,	"dotprod"},
 };
 
-volatile u32 libdeflate_arm_cpu_features = 0;
+/* pxr
+volatile u32 libdeflate_arm_cpu_features = 0; */
 
 void libdeflate_init_arm_cpu_features(void)
 {

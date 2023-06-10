@@ -10,8 +10,8 @@
 
 #include <stdint.h>
 
-extern const uint16_t* exrcore_expTable;
-extern const uint16_t* exrcore_logTable;
+/* pxr extern const uint16_t* exrcore_expTable;
+extern const uint16_t* exrcore_logTable; */
 
 static const uint16_t exrcore_expTable_data[] = {
     0x3c00, 0x3c00, 0x3c00, 0x3c00, 0x3c00, 0x3c00, 0x3c00, 0x3c00, 0x3c00,

@@ -330,6 +330,7 @@ convertFloatToHalf64_scalar (uint16_t* dst, float* src)
 
 #ifdef IMF_HAVE_NEON_AARCH64
 
+static
 void
 convertFloatToHalf64_neon (uint16_t* dst, float* src)
 {
@@ -760,7 +761,7 @@ fromHalfZigZag_f16c (uint16_t* src, float* dst)
 
 #ifdef IMF_HAVE_NEON_AARCH64
 
-void
+EXR_INTERNAL void
 fromHalfZigZag_neon (uint16_t* __restrict__ src, float* __restrict__ dst)
 {
     uint8x16_t res_tbl[4] = {

@@ -94,7 +94,7 @@ FUNCNAME(u32 adler, const u8 *p, size_t len)
 
 		s2 += s1 * chunk_len;
 
-		FUNCNAME_CHUNK((const uint8x16_t *)p, (const uint8x16_t *)(p + chunk_len),
+		FUNCNAME_CHUNK((const void *)p, (const void *)(p + chunk_len),
 			       &s1, &s2);
 
 		p += chunk_len;
