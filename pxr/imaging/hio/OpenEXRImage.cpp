@@ -297,9 +297,9 @@ bool Hio_OpenEXRImage::ReadCropped(
 
         // flip and crop the image in place
         if (inputIsHalf) {
-            ImageProcessor<GfHalf>::FlipImage(&halfInputBuffer[0], fileWidth, fileHeight, fileChannelCount);
-            ImageProcessor<GfHalf>::CropImage(&halfInputBuffer[0], 
-                                              fileWidth, fileHeight, fileChannelCount,
+                       ImageProcessor<GfHalf>::FlipImage(&halfInputBuffer[0], fileWidth, fileHeight, img.channelCount);
+            ImageProcessor<GfHalf>::CropImage(&halfInputBuffer[0],
+                                              fileWidth, fileHeight, img.channelCount,
                                               cropTop, cropBottom, cropLeft, cropRight);
         }
         else {
