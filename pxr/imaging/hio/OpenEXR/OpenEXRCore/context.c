@@ -16,6 +16,7 @@
 #include "internal_file.h"
 #include "backward_compatibility.h"
 
+// pxr #include <IlmThreadConfig.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 #    include "internal_win32_file_impl.h"
@@ -115,10 +116,7 @@ process_query_size (
         ctxt->file_size =
             (inits->size_fn) ((exr_const_context_t) ctxt, ctxt->user_data);
     }
-    else
-    {
-        ctxt->file_size = -1;
-    }
+    else { ctxt->file_size = -1; }
     return EXR_ERR_SUCCESS;
 }
 

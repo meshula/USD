@@ -4,6 +4,7 @@
 */
 
 /* implementation for unix-like file io routines (used in context.c) */
+// pxr #include <IlmThreadConfig.h>
 
 #include <errno.h>
 
