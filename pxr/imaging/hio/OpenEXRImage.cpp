@@ -392,7 +392,22 @@ int64_t exr_AssetRead_Func(
     return asset->Read(buffer, sz, offset);
 }
 
-
+// For compatability with Ice/Imr we transmogrify some matrix metadata
+/// XXX is this historical or is it still necessary?
+static std::string
+_TranslateMetadataKey(std::string const & metadataKey, bool *convertMatrixTypes)
+{
+    if (metadataKey == "NP") {
+        *convertMatrixTypes = true;
+        return "worldtoscreen";
+    } else
+    if (metadataKey == "Nl") {
+        *convertMatrixTypes = true;
+        return "worldtocamera";
+    } else {
+        return metadataKey;
+    }
+}
 
 bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &metadata)
 {
@@ -420,6 +435,71 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &met
     nanoexr_Reader_t exrWriter = { 0 };
     nanoexr_new(_filename.c_str(), &exrWriter);
 
+    std::vector<nanoexr_metadata_t> exrAttributes;
+    exrAttributes.reserve(metadata.size());
+
+    for (const std::pair<std::string, VtValue> m : metadata) {
+        bool convertMatrixTypes = false;
+        std::string key = _TranslateMetadataKey(m.first, &convertMatrixTypes);
+        nanoexr_metadata_t attr;
+        attr.name = strdup(key.c_str());
+
+        if (m.second.IsHolding<std::string>()) {
+            attr.type = EXR_ATTR_STRING;
+            attr.value.s = strdup(m.second.Get<std::string>().c_str());
+            exrAttributes.push_back(attr);
+        } 
+        else if (m.second.IsHolding<unsigned char>()) {
+            attr.type = EXR_ATTR_INT;
+            attr.value.i = m.second.Get<unsigned char>();
+            exrAttributes.push_back(attr);
+        }
+        else if (m.second.IsHolding<char>()) {
+            attr.type = EXR_ATTR_INT;
+            attr.value.i = m.second.Get<char>();
+            exrAttributes.push_back(attr);
+        }
+        else if (m.second.IsHolding<int>()) {
+            attr.type = EXR_ATTR_INT;
+            attr.value.i = m.second.Get<int>();
+            exrAttributes.push_back(attr);
+        } 
+        else if (m.second.IsHolding<unsigned int>()) {
+            attr.type = EXR_ATTR_INT;
+            attr.value.i = static_cast<int>(m.second.Get<unsigned int>());
+            exrAttributes.push_back(attr);
+        } 
+        else if (m.second.IsHolding<float>()) {
+            attr.type = EXR_ATTR_FLOAT;
+            attr.value.f = m.second.Get<float>();
+            exrAttributes.push_back(attr);
+        } 
+        else if (m.second.IsHolding<double>()) {
+            attr.type = EXR_ATTR_DOUBLE;
+            attr.value.f = m.second.Get<double>();
+            exrAttributes.push_back(attr);
+        } 
+        else if (m.second.IsHolding<GfMatrix4f>()) {
+            attr.type = EXR_ATTR_M44F;
+            memcpy(attr.value.m44f, m.second.Get<GfMatrix4f>().GetArray(), 16 * sizeof(float));
+            exrAttributes.push_back(attr);
+        }
+        else if (m.second.IsHolding<GfMatrix4d>()) {
+            // For compatibility with Ice/Imr write double matrix as float matrix
+            if (convertMatrixTypes) {
+                GfMatrix4f floatMatrix(m.second.Get<GfMatrix4d>());
+                attr.type = EXR_ATTR_M44F;
+                memcpy(attr.value.m44f, floatMatrix.GetArray(), 16 * sizeof(float));
+                exrAttributes.push_back(attr);
+            } 
+            else {
+                attr.type = EXR_ATTR_M44D;
+                memcpy(attr.value.m44d, m.second.Get<GfMatrix4d>().GetArray(), 16 * sizeof(double));
+                exrAttributes.push_back(attr);
+            }
+        }
+    }
+
     if (storage.format == HioFormatFloat16Vec3 || storage.format == HioFormatFloat16Vec4) {
         int32_t size = 2;
         int32_t ch = storage.format == HioFormatFloat16Vec3 ? 3 : 4;
@@ -429,10 +509,10 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &met
         exr_result_t rv = nanoexr_open_for_writing_fp16(
                                 &exrWriter,
                                 storage.width, storage.height,
-                                pixels + (size * 2), pixelStride, lineStride,
-                                pixels +  size,      pixelStride, lineStride,
-                                pixels,              pixelStride, lineStride
-                            );
+                                pixels + (size * 2), pixelStride, lineStride, // red
+                                pixels +  size,      pixelStride, lineStride, // green
+                                pixels,              pixelStride, lineStride, // blue
+                                exrAttributes.data(), exrAttributes.size());
         
         if (rv != EXR_ERR_SUCCESS) {
             TF_CODING_ERROR("Cannot open image \"%s\" for writing, %s",
@@ -440,30 +520,14 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &met
             return false;
         }
     }
-#if 0
-    //set info to match storage
-    int width = storage.width;
-    int height = storage.height;
-    HioFormat format = storage.format;
-    HioType outputType = HioGetHioType(storage.format);
-    int nchannels = HioGetComponentCount(storage.format);
-#endif
-    //Again, how to store metadata?
-    //for (const std::pair<std::string, VtValue>& m : metadata) {
-    //    _SetAttribute(&spec, m.first, m.second);
-    //}
-    
-    //Part definition (required attributes and additional metadata)
 
-    
-    
-    // Transition to writing data (this “commits” the part definitions, any changes requested after will result in an error)
-
-    // Write part data in sequential order of parts (part0 -> partN-1).
-
-    // Within each part, multiple threads can be encoding and writing data concurrently. For some EXR part definitions, this may be able to write data concurrently when it can predict the chunk sizes, or data is allowed to be padded. For others, it may need to temporarily cache chunks until the data is received to flush in order. The concurrency around this is handled by the library
-
-    // Once finished writing data, use exr_finish() to clean up the context, which will flush any unwritten data such as the final chunk offset tables, and handle the temporary file flags.
+    for (int i = 0; i < exrAttributes.size(); i++) {
+        // free the memory allocated for each of the attributes created above
+        free(exrAttributes[i].name);
+        if (exrAttributes[i].type == EXR_ATTR_M44F) {
+            free(exrAttributes[i].value.s);
+        } 
+    }
     return true;
 }
 

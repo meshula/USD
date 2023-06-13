@@ -33,6 +33,18 @@ exr_result_t nanoexr_get_attribute_by_name (
     const exr_attribute_t** outattr);
 
 typedef struct {
+    char* name;
+    exr_attribute_type_t type;
+    union {
+        int32_t i;
+        float f;
+        char* s;
+        float m44f[16];
+        double m44d[16];
+    } value;
+} nanoexr_metadata_t;
+
+typedef struct {
     int tileWidth,  tileHeight;
     int levelWidth, levelHeight;
 } nanoexr_TileMipInfo_t;
@@ -80,7 +92,6 @@ void nanoexr_new(const char* filename, nanoexr_Reader_t* reader);
 
 const char* nanoexr_get_error_code_as_string (exr_result_t code);
 
-
 // reads an entire tiled image into memory
 // returns any exr_result_t error code encountered upon reading
 // if no error, returns EXR_ERR_SUCCESS
@@ -98,9 +109,10 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     int width, int height,
     uint8_t* red, int32_t redPixelStride, int32_t redLineStride,
     uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
-    uint8_t* blue, int32_t bluePixelStride, int32_t blueLineStride);
+    uint8_t* blue, int32_t bluePixelStride, int32_t blueLineStride,
+    nanoexr_metadata_t* metadata, int metadataCount);
 void         nanoexr_delete(nanoexr_Reader_t* reader);
-int                nanoexr_getPixelTypeSize(exr_pixel_type_t t);
+int          nanoexr_getPixelTypeSize(exr_pixel_type_t t);
 
 bool nanoexr_Gaussian_resample(const nanoexr_ImageData_t* src,
                                nanoexr_ImageData_t* dst);
