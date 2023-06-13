@@ -11,6 +11,7 @@
 
 #include "internal_structs.h"
 
+// prr #include <ImathConfig.h>
 /* only recently has imath supported half in C (C++ only before),
  * allow an older version to still work, and if that is available, we
  * will favor the implementation there as it will be the latest
