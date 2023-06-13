@@ -266,7 +266,8 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     int width, int height,
     uint8_t* red,   int32_t redPixelStride,   int32_t redLineStride,
     uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
-    uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride)
+    uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride,
+    nanoexr_metadata_t* metadata, int metadataCount)
 {
     int partidx = 0;
     exr_context_t exr;
@@ -287,7 +288,6 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
 
     // modern exr should support long names
     exr_set_longname_support(exr, 1);
-
 
     /// @TODO allow other compression levels
     result = exr_set_zip_compression_level(exr, 0, 4);
@@ -361,6 +361,26 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     result = exr_write_header(exr);
     if (result != EXR_ERR_SUCCESS) {
         return result;
+    }
+
+    for (int i = 0; i < metadataCount; ++i) {
+        switch (metadata[i].type) {
+            case EXR_ATTR_INT:
+                result = exr_attr_set_int(exr, partidx, metadata[i].name, metadata[i].value.i);
+                break;
+            case EXR_ATTR_FLOAT:
+                result = exr_attr_set_float(exr, partidx, metadata[i].name, metadata[i].value.f);
+                break;
+            case EXR_ATTR_STRING:
+                result = exr_attr_set_string(exr, partidx, metadata[i].name, metadata[i].value.s);
+                break;
+            case EXR_ATTR_M44F:
+                result = exr_attr_set_m44f(exr, partidx, metadata[i].name, metadata[i].value.m44f);
+                break;
+            case EXR_ATTR_M44D:
+                result = exr_attr_set_m44d(exr, partidx, metadata[i].name, metadata[i].value.m44d);
+                break;
+        }
     }
 
     exr_encode_pipeline_t encoder;
@@ -606,9 +626,6 @@ static exr_result_t _nanoexr_rgba_decoding_initialize(
     }
     return rv;
 }
-
-
-
 
 exr_result_t nanoexr_read_tiled_exr(exr_context_t exr,
                                     nanoexr_ImageData_t* img,
@@ -864,7 +881,7 @@ exr_result_t nanoexr_read_exr(const char* filename,
     // xxx specialize for float, uint16 and half.
     uint16_t oneValue = float_to_half(1.0f);
     uint16_t zeroValue = float_to_half(0.0f);
-/*
+
     // fill in data for missing channels
     int pixelStride = img->channelCount * bytesPerChannel;
     int lineStride = img->width * pixelStride;
@@ -883,7 +900,7 @@ exr_result_t nanoexr_read_exr(const char* filename,
             }
         }
     }
-*/
+
     rv = exr_finish(&exr);
     if (rv != EXR_ERR_SUCCESS) {
         fprintf(stderr, "nanoexr finish error: %s\n", exr_get_default_error_message(rv));
