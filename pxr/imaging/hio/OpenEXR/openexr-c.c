@@ -1,9 +1,7 @@
 
 // configuration settings for building OpenEXRCore are in the CMakeLists.txt file
 
-#ifdef IMATH_HALF_SAFE_FOR_C
-#undef IMATH_HALF_SAFE_FOR_C
-#endif
+#include "OpenEXRCore/openexr.h"
 
 #if defined(__clang__)
 #pragma clang diagnostic ignored "-Wunused-function"
@@ -11,13 +9,10 @@
 #pragma GCC diagnostic ignored "-Wunused-function"
 #endif
 
-#define EXR_INTERNAL static
 #include "OpenEXRCoreUnity.h"
 
 #include <ctype.h>
 #include <math.h>
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
 
 // re-export the statically hidden exr_ functions as required
 // for visibility from C++
@@ -163,6 +158,12 @@ void nanoexr_delete(nanoexr_Reader_t* reader) {
     free(reader->filename);
     free(reader->tileLevelInfo);
     free(reader);
+
+    for (int i = 0; i < reader->exrMetaDataCount; ++i) {
+        free(reader->exrMetaData[i].name);
+        if (reader->exrMetaData[i].type == EXR_ATTR_STRING)
+            free(reader->exrMetaData[i].value.s);
+    }
 }
 
 int nanoexr_open(nanoexr_Reader_t* reader, int partIndex) {
@@ -256,6 +257,161 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex) {
             reader->wrapMode = nanoexr_WrapModeRepeat;
         else if (!strncmp("mirror", attr->string->str, 6))
             reader->wrapMode = nanoexr_WrapModeMirrorRepeat;
+    }
+
+    rv = exr_get_attribute_count(exr, partIndex, &reader->exrMetaDataCount);
+    if (rv != EXR_ERR_SUCCESS) {
+        exr_finish(&exr);
+        return rv;
+    }
+
+    if (reader->exrMetaDataCount > 0) {
+        int i = 0;
+        reader->exrMetaData = (nanoexr_metadata_t*) calloc(sizeof(nanoexr_metadata_t), reader->exrMetaDataCount);
+        for (int attrIndex = 0; attrIndex < reader->exrMetaDataCount; attrIndex++) {
+            exr_attribute_t* attr;
+            rv = exr_get_attribute_by_index(exr, partIndex, EXR_ATTR_LIST_SORTED_ORDER, i, &attr);
+            if (rv != EXR_ERR_SUCCESS) {
+                exr_finish(&exr);
+                return rv;
+            }
+
+            switch (attr->type) {
+                case EXR_ATTR_UNKNOWN:       // nothing to do
+                case EXR_ATTR_CHLIST:        // handled above
+                case EXR_ATTR_COMPRESSION:   // handled above
+                case EXR_ATTR_LINEORDER:     // handled above
+                case EXR_ATTR_TILEDESC:      // handled above
+                case EXR_ATTR_FLOAT_VECTOR:  // future?
+                case EXR_ATTR_PREVIEW:       // future? x,y, then 8 bit rgba per pixel
+                case EXR_ATTR_STRING_VECTOR: // future? entire files, such as Academy FDL files may be stored here
+                case EXR_ATTR_OPAQUE:        // future? opaque data
+                    continue;
+
+                case EXR_ATTR_BOX2I:
+                    reader->exrMetaData[i].value.i[0] = attr->box2i->min.x;
+                    reader->exrMetaData[i].value.i[1] = attr->box2i->min.y;
+                    reader->exrMetaData[i].value.i[2] = attr->box2i->max.x;
+                    reader->exrMetaData[i].value.i[3] = attr->box2i->max.y;
+                    break;
+
+                case EXR_ATTR_BOX2F:
+                    reader->exrMetaData[i].value.f[0] = attr->box2f->min.x;
+                    reader->exrMetaData[i].value.f[1] = attr->box2f->min.y;
+                    reader->exrMetaData[i].value.f[2] = attr->box2f->max.x;
+                    reader->exrMetaData[i].value.f[3] = attr->box2f->max.y;
+                    break;
+
+                case EXR_ATTR_CHROMATICITIES:
+                    reader->exrMetaData[i].value.f[0] = attr->chromaticities->red_x;
+                    reader->exrMetaData[i].value.f[1] = attr->chromaticities->red_y;
+                    reader->exrMetaData[i].value.f[2] = attr->chromaticities->green_x;
+                    reader->exrMetaData[i].value.f[3] = attr->chromaticities->green_y;
+                    reader->exrMetaData[i].value.f[4] = attr->chromaticities->blue_x;
+                    reader->exrMetaData[i].value.f[5] = attr->chromaticities->blue_y;
+                    reader->exrMetaData[i].value.f[6] = attr->chromaticities->white_x;
+                    reader->exrMetaData[i].value.f[7] = attr->chromaticities->white_y;
+                    break;
+
+                case EXR_ATTR_DOUBLE:
+                    reader->exrMetaData[i].value.d[0] = attr->d;
+                    break;
+
+                case EXR_ATTR_ENVMAP:
+                    reader->exrMetaData[i].value.i[0] = attr->uc;
+                    break;
+
+                case EXR_ATTR_FLOAT:
+                    reader->exrMetaData[i].value.f[0] = attr->f;
+                    break;
+
+                case EXR_ATTR_INT:
+                    reader->exrMetaData[i].value.i[0] = attr->i;
+                    break;
+
+                case EXR_ATTR_KEYCODE:
+                    reader->exrMetaData[i].value.i[0] = attr->keycode->film_mfc_code;
+                    reader->exrMetaData[i].value.i[1] = attr->keycode->film_type;
+                    reader->exrMetaData[i].value.i[2] = attr->keycode->prefix;
+                    reader->exrMetaData[i].value.i[3] = attr->keycode->count;
+                    reader->exrMetaData[i].value.i[4] = attr->keycode->perf_offset;
+                    reader->exrMetaData[i].value.i[5] = attr->keycode->perfs_per_frame;
+                    reader->exrMetaData[i].value.i[6] = attr->keycode->perfs_per_count;
+                    break;
+
+                case EXR_ATTR_M33F:
+                    memcpy(reader->exrMetaData[i].value.m44f, attr->m33f->m, sizeof(float) * 9);
+                    break;
+
+                case EXR_ATTR_M33D:
+                    memcpy(reader->exrMetaData[i].value.m44d, attr->m33d->m, sizeof(double) * 9);
+                    break;
+
+                case EXR_ATTR_M44F:
+                    memcpy(reader->exrMetaData[i].value.m44f, attr->m44f->m, sizeof(float) * 16);
+                    break;
+
+                case EXR_ATTR_M44D:
+                    memcpy(reader->exrMetaData[i].value.m44d, attr->m44d->m, sizeof(double) * 16);
+                    break;
+
+                case EXR_ATTR_RATIONAL:
+                    reader->exrMetaData[i].value.i[0] = attr->rational->num;
+                    reader->exrMetaData[i].value.i[1] = attr->rational->denom;
+                    break;
+
+                case EXR_ATTR_STRING:
+                    reader->exrMetaData[i].value.s = (char*) malloc(sizeof(char) * (attr->string->length + 1));
+                    memcpy(reader->exrMetaData[i].value.s, attr->string->str, sizeof(char) * attr->string->length);
+                    reader->exrMetaData[i].value.s[attr->string->length] = '\0';
+                    break;
+
+                case EXR_ATTR_TIMECODE:
+                    reader->exrMetaData[i].value.i[0] = attr->timecode->time_and_flags;
+                    reader->exrMetaData[i].value.i[1] = attr->timecode->user_data;
+                    break;
+
+                case EXR_ATTR_V2I:
+                    reader->exrMetaData[i].value.i[0] = attr->v2i->x;
+                    reader->exrMetaData[i].value.i[1] = attr->v2i->y;
+                    break;
+
+                case EXR_ATTR_V2F:
+                    reader->exrMetaData[i].value.f[0] = attr->v2f->x;
+                    reader->exrMetaData[i].value.f[1] = attr->v2f->y;
+                    break;
+
+                case EXR_ATTR_V2D:
+                    reader->exrMetaData[i].value.d[0] = attr->v2d->x;
+                    reader->exrMetaData[i].value.d[1] = attr->v2d->y;
+                    break;
+
+                case EXR_ATTR_V3I:
+                    reader->exrMetaData[i].value.i[0] = attr->v3i->x;
+                    reader->exrMetaData[i].value.i[1] = attr->v3i->y;
+                    reader->exrMetaData[i].value.i[2] = attr->v3i->z;
+                    break;
+
+                case EXR_ATTR_V3F:
+                    reader->exrMetaData[i].value.f[0] = attr->v3f->x;
+                    reader->exrMetaData[i].value.f[1] = attr->v3f->y;
+                    reader->exrMetaData[i].value.f[2] = attr->v3f->z;
+                    break;
+
+                case EXR_ATTR_V3D:
+                    reader->exrMetaData[i].value.d[0] = attr->v3d->x;
+                    reader->exrMetaData[i].value.d[1] = attr->v3d->y;
+                    reader->exrMetaData[i].value.d[2] = attr->v3d->z;
+                    break;
+            }
+
+            reader->exrMetaData[i].name = strdup(attr->name);
+            reader->exrMetaData[i].type = attr->type;
+            ++i;
+        }
+        // rewrite the count to the number of attributes actually stashed.
+        // it's fine that we allocated extra memory, it'll just be unused.
+        reader->exrMetaDataCount = i;
     }
     exr_finish(&exr);
     return rv;
@@ -369,7 +525,7 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
                 result = exr_attr_set_int(exr, partidx, metadata[i].name, metadata[i].value.i);
                 break;
             case EXR_ATTR_FLOAT:
-                result = exr_attr_set_float(exr, partidx, metadata[i].name, metadata[i].value.f);
+                result = exr_attr_set_float(exr, partidx, metadata[i].name, metadata[i].value.f[0]);
                 break;
             case EXR_ATTR_STRING:
                 result = exr_attr_set_string(exr, partidx, metadata[i].name, metadata[i].value.s);
@@ -907,5 +1063,3 @@ exr_result_t nanoexr_read_exr(const char* filename,
     }
     return rv;
 }
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT

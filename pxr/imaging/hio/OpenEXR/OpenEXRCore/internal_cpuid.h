@@ -4,7 +4,6 @@
 */
 #ifndef IMF_INTERNAL_CPUID_H_HAS_BEEN_INCLUDED
 #define IMF_INTERNAL_CPUID_H_HAS_BEEN_INCLUDED
-// pxr #include "OpenEXRConfigInternal.h"
 
 #if defined(__x86_64__) || defined(_M_X64)
 #    if defined(_MSC_VER) && defined(_WIN32)

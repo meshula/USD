@@ -1,5 +1,4 @@
 
-#include "OpenEXRCoreNamespaces.h"
 #include "OpenEXRCore/openexr_conf.h"
 
 #include "deflate/lib/lib_common.h"

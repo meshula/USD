@@ -26,7 +26,6 @@
 #include "pxr/imaging/hio/image.h"
 #include "pxr/imaging/hio/types.h"
 
-#include "OpenEXR/OpenEXRCoreNamespaces.h"
 #include "OpenEXR/openexr-c.h"
 #include "OpenEXR/OpenEXRCore/internal_coding.h"
 
@@ -451,32 +450,32 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &met
         } 
         else if (m.second.IsHolding<unsigned char>()) {
             attr.type = EXR_ATTR_INT;
-            attr.value.i = m.second.Get<unsigned char>();
+            attr.value.i[0] = m.second.Get<unsigned char>();
             exrAttributes.push_back(attr);
         }
         else if (m.second.IsHolding<char>()) {
             attr.type = EXR_ATTR_INT;
-            attr.value.i = m.second.Get<char>();
+            attr.value.i[0] = m.second.Get<char>();
             exrAttributes.push_back(attr);
         }
         else if (m.second.IsHolding<int>()) {
             attr.type = EXR_ATTR_INT;
-            attr.value.i = m.second.Get<int>();
+            attr.value.i[0] = m.second.Get<int>();
             exrAttributes.push_back(attr);
         } 
         else if (m.second.IsHolding<unsigned int>()) {
             attr.type = EXR_ATTR_INT;
-            attr.value.i = static_cast<int>(m.second.Get<unsigned int>());
+            attr.value.i[0] = static_cast<int>(m.second.Get<unsigned int>());
             exrAttributes.push_back(attr);
         } 
         else if (m.second.IsHolding<float>()) {
             attr.type = EXR_ATTR_FLOAT;
-            attr.value.f = m.second.Get<float>();
+            attr.value.f[0] = m.second.Get<float>();
             exrAttributes.push_back(attr);
         } 
         else if (m.second.IsHolding<double>()) {
             attr.type = EXR_ATTR_DOUBLE;
-            attr.value.f = m.second.Get<double>();
+            attr.value.f[0] = m.second.Get<double>();
             exrAttributes.push_back(attr);
         } 
         else if (m.second.IsHolding<GfMatrix4f>()) {

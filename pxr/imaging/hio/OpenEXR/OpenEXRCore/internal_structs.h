@@ -8,7 +8,7 @@
 
 #include "internal_attr.h"
 
-// pxr #include <IlmThreadConfig.h>
+#include "openexr_conf.h"
 
 #ifdef ILMTHREAD_THREADING_ENABLED
 #    ifdef _WIN32
