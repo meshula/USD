@@ -24,8 +24,6 @@
 extern "C" {
 #endif
 
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_ENTER
-
 exr_result_t nanoexr_get_attribute_by_name (
     exr_const_context_t     ctxt,
     int                     part_index,
@@ -36,8 +34,9 @@ typedef struct {
     char* name;
     exr_attribute_type_t type;
     union {
-        int32_t i;
-        float f;
+        int32_t i[4];
+        float f[8];
+        double d[4];
         char* s;
         float m44f[16];
         double m44d[16];
@@ -86,6 +85,9 @@ typedef struct {
     int exrSDKVersionMinor;
     int exrSDKVersionPatch;
     const char* exrSDKExtraInfo;
+
+    int exrMetaDataCount;
+    nanoexr_metadata_t* exrMetaData;
 } nanoexr_Reader_t;
 
 void nanoexr_new(const char* filename, nanoexr_Reader_t* reader);
@@ -122,8 +124,6 @@ exr_result_t nanoexr_read_exr(const char* filename,
                               const char* layerName,
                               int partIndex,
                               int level);
-
-OPENEXR_CORE_INTERNAL_NAMESPACE_SOURCE_EXIT
 
 #ifdef __cplusplus
 }

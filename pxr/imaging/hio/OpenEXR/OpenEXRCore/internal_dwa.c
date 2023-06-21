@@ -116,8 +116,6 @@
 #include <string.h>
 #include <stdio.h>
 
-// pxr #include "OpenEXRConfigInternal.h"
-
 #include "internal_dwa_helpers.h"
 
 /**************************************/
