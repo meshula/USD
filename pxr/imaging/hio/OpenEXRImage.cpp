@@ -44,6 +44,10 @@
 #include "pxr/base/tf/stringUtils.h"
 #include "pxr/base/tf/type.h"
 
+#ifdef _MSC_VER
+// suppress MSVC warning about preferring _strdup.
+#define _strdup strdup
+#endif
 
 /*
 
@@ -92,8 +96,8 @@ class Hio_OpenEXRImage final : public HioImage
 {
     std::shared_ptr<ArAsset> _asset;
     std::string              _filename;
-    nanoexr_Reader_t         _exrReader;
-    SourceColorSpace         _sourceColorSpace;
+    nanoexr_Reader_t         _exrReader = {};
+    SourceColorSpace         _sourceColorSpace = SourceColorSpace::Raw;
     int                      _subimage = 0;
     int                      _mip = 0;
     bool                     _suppressErrors = false;

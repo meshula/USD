@@ -8,6 +8,10 @@
 #elif defined(__GNUC__)
 #pragma GCC diagnostic ignored "-Wunused-function"
 #endif
+#ifdef _MSC_VER
+// suppress MSVC warning about preferring _strdup.
+#define _strdup strdup
+#endif
 
 #include "OpenEXRCoreUnity.h"
 
@@ -68,6 +72,9 @@ bool nanoexr_Gaussian_resample(const nanoexr_ImageData_t* src,
     const float support = 0.995f;
     float radius = ceilf(sqrtf(-2.0f * sigma * sigma * logf(1.0f - support)));
     int filterSize = (int)radius;
+    if (!filterSize)
+        return false;
+    
     float* filter = (float*) malloc(sizeof(float) * 1 + filterSize * 2);
     float sum = 0.0f;
     for (int i = 0; i <= filterSize; i++) {
@@ -155,15 +162,17 @@ void nanoexr_new(const char* filename, nanoexr_Reader_t* reader) {
 
 
 void nanoexr_delete(nanoexr_Reader_t* reader) {
-    free(reader->filename);
-    free(reader->tileLevelInfo);
-    free(reader);
+    if (!reader)
+        return;
 
     for (int i = 0; i < reader->exrMetaDataCount; ++i) {
         free(reader->exrMetaData[i].name);
         if (reader->exrMetaData[i].type == EXR_ATTR_STRING)
             free(reader->exrMetaData[i].value.s);
     }
+    free(reader->filename);
+    free(reader->tileLevelInfo);
+    free(reader);
 }
 
 int nanoexr_open(nanoexr_Reader_t* reader, int partIndex) {
@@ -522,7 +531,7 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     for (int i = 0; i < metadataCount; ++i) {
         switch (metadata[i].type) {
             case EXR_ATTR_INT:
-                result = exr_attr_set_int(exr, partidx, metadata[i].name, metadata[i].value.i);
+                result = exr_attr_set_int(exr, partidx, metadata[i].name, metadata[i].value.i[0]);
                 break;
             case EXR_ATTR_FLOAT:
                 result = exr_attr_set_float(exr, partidx, metadata[i].name, metadata[i].value.f[0]);
@@ -531,10 +540,12 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
                 result = exr_attr_set_string(exr, partidx, metadata[i].name, metadata[i].value.s);
                 break;
             case EXR_ATTR_M44F:
-                result = exr_attr_set_m44f(exr, partidx, metadata[i].name, metadata[i].value.m44f);
+                result = exr_attr_set_m44f(exr, partidx, metadata[i].name, (exr_attr_m44f_t*) metadata[i].value.m44f);
                 break;
             case EXR_ATTR_M44D:
-                result = exr_attr_set_m44d(exr, partidx, metadata[i].name, metadata[i].value.m44d);
+                result = exr_attr_set_m44d(exr, partidx, metadata[i].name, (exr_attr_m44d_t*) metadata[i].value.m44d);
+                break;
+            default:
                 break;
         }
     }
@@ -778,7 +789,7 @@ static exr_result_t _nanoexr_rgba_decoding_initialize(
             continue;
         }
         // precompute pixel channel byte offset
-        decoder->channels[c].decode_to_ptr = channelIndex * bytesPerChannel;
+        decoder->channels[c].decode_to_ptr = (uint8_t*) (ptrdiff_t) (channelIndex * bytesPerChannel);
     }
     return rv;
 }
@@ -898,6 +909,9 @@ exr_result_t nanoexr_read_scanline_exr(exr_context_t exr,
         if (decoder.channels == NULL) {
             rv = _nanoexr_rgba_decoding_initialize(exr, img, layerName, partIndex, &cinfo, &decoder, rgbaIndex);
             CHECK_RV(rv);
+            if (decoder.channels == NULL) {
+                return EXR_ERR_INCORRECT_CHUNK;
+            }
             bytesPerChannel = decoder.channels[0].bytes_per_element;
             pixelbytes = bytesPerChannel * img->channelCount;
 

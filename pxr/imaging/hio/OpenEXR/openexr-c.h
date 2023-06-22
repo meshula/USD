@@ -34,7 +34,7 @@ typedef struct {
     char* name;
     exr_attribute_type_t type;
     union {
-        int32_t i[4];
+        int32_t i[8];
         float f[8];
         double d[4];
         char* s;

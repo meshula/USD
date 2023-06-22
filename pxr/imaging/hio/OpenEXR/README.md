@@ -11,12 +11,6 @@ interred OpenEXRCore library will not conflict with any user-preferred
 OpenEXR libraries that may be on the system and otherwise linking to an
 application or plugin.
 
-A subsequent change will introduce the EXR reading plugin itself, however this
-change does not include it. The reading plugin will be broken into two parts,
-a C++ portion implementing OpenEXRImage as a Hio Image subclass, and a minimal
-C API, implemented into openexr-c.c, and whose functions are not marked static,
-in order that those functions may be accessible from the Hio Image subclass.
-
 A few changes are still in progress to upstreamed to the OpenEXR project, but
 these are minor, and otherwise, almost all differences between the interred 
 OpenEXRCore and the official OpenEXR repo are consolidated to the
