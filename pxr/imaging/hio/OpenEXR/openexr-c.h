@@ -24,24 +24,19 @@
 extern "C" {
 #endif
 
-exr_result_t nanoexr_get_attribute_by_name (
+exr_result_t nanoexr_get_attribute_by_name(
     exr_const_context_t     ctxt,
     int                     part_index,
     const char*             name,
     const exr_attribute_t** outattr);
 
-typedef struct {
-    char* name;
-    exr_attribute_type_t type;
-    union {
-        int32_t i[8];
-        float f[8];
-        double d[4];
-        char* s;
-        float m44f[16];
-        double m44d[16];
-    } value;
-} nanoexr_metadata_t;
+exr_result_t nanoexr_get_attribute_by_index(
+    exr_const_context_t     ctxt,
+    int                     part_index,
+    int                     i,
+    const exr_attribute_t** outattr);
+
+int nanoexr_get_attribute_count(exr_const_context_t, int part_index);
 
 typedef struct {
     int tileWidth,  tileHeight;
@@ -71,6 +66,7 @@ typedef enum {
 } nanoexr_WrapMode;
 
 typedef struct {
+    exr_context_t exr;
     char* filename;
     bool isScanline;
     int partIndex;
@@ -85,9 +81,6 @@ typedef struct {
     int exrSDKVersionMinor;
     int exrSDKVersionPatch;
     const char* exrSDKExtraInfo;
-
-    int exrMetaDataCount;
-    nanoexr_metadata_t* exrMetaData;
 } nanoexr_Reader_t;
 
 void nanoexr_new(const char* filename, nanoexr_Reader_t* reader);
@@ -111,8 +104,7 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     int width, int height,
     uint8_t* red, int32_t redPixelStride, int32_t redLineStride,
     uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
-    uint8_t* blue, int32_t bluePixelStride, int32_t blueLineStride,
-    nanoexr_metadata_t* metadata, int metadataCount);
+    uint8_t* blue, int32_t bluePixelStride, int32_t blueLineStride);
 void         nanoexr_delete(nanoexr_Reader_t* reader);
 int          nanoexr_getPixelTypeSize(exr_pixel_type_t t);
 

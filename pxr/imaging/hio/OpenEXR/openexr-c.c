@@ -21,7 +21,7 @@
 // re-export the statically hidden exr_ functions as required
 // for visibility from C++
 
-exr_result_t nanoexr_get_attribute_by_name (
+exr_result_t nanoexr_get_attribute_by_name(
     exr_const_context_t     ctxt,
     int                     part_index,
     const char*             name,
@@ -29,6 +29,22 @@ exr_result_t nanoexr_get_attribute_by_name (
 {
     return exr_get_attribute_by_name(ctxt, part_index, name, outattr);
 }
+
+exr_result_t nanoexr_get_attribute_by_index(
+    exr_const_context_t     ctxt,
+    int                     part_index,
+    int                     i,
+    const exr_attribute_t** outattr)
+{
+    return exr_get_attribute_by_index(ctxt, part_index, EXR_ATTR_LIST_SORTED_ORDER, i, outattr);
+}
+
+int nanoexr_get_attribute_count(exr_const_context_t ctxt, int part_index) {
+    int count = 0;
+    exr_get_attribute_count(ctxt, part_index, &count);
+    return count;
+}
+
 
 const char* nanoexr_get_error_code_as_string (exr_result_t code)
 {
@@ -147,6 +163,7 @@ void nanoexr_new(const char* filename, nanoexr_Reader_t* reader) {
                              &reader->exrSDKVersionPatch,
                              &reader->exrSDKExtraInfo);
 
+    reader->exr = NULL;
     reader->filename = strdup(filename);
     reader->width = 0;
     reader->height = 0;
@@ -164,12 +181,6 @@ void nanoexr_new(const char* filename, nanoexr_Reader_t* reader) {
 void nanoexr_delete(nanoexr_Reader_t* reader) {
     if (!reader)
         return;
-
-    for (int i = 0; i < reader->exrMetaDataCount; ++i) {
-        free(reader->exrMetaData[i].name);
-        if (reader->exrMetaData[i].type == EXR_ATTR_STRING)
-            free(reader->exrMetaData[i].value.s);
-    }
     free(reader->filename);
     free(reader->tileLevelInfo);
     free(reader);
@@ -179,18 +190,17 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex) {
     if (!reader)
         return EXR_ERR_INVALID_ARGUMENT;
     
-    exr_context_t exr;
     exr_context_initializer_t init = EXR_DEFAULT_CONTEXT_INITIALIZER;
-    int rv = exr_start_read(&exr, reader->filename, &init);
+    int rv = exr_start_read(&reader->exr, reader->filename, &init);
     if (rv != EXR_ERR_SUCCESS) {
-        exr_finish(&exr);
+        exr_finish(&reader->exr);
         return rv;
     }
 
     exr_attr_box2i_t datawin;
-    rv = exr_get_data_window(exr, partIndex, &datawin);
+    rv = exr_get_data_window(reader->exr, partIndex, &datawin);
     if (rv != EXR_ERR_SUCCESS) {
-        exr_finish(&exr);
+        exr_finish(&reader->exr);
         return rv;
     }
     reader->partIndex = partIndex;
@@ -198,9 +208,9 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex) {
     reader->height = datawin.max.y - datawin.min.y + 1;
 
     exr_storage_t storage;
-    rv = exr_get_storage(exr, partIndex, &storage);
+    rv = exr_get_storage(reader->exr, partIndex, &storage);
     if (rv != EXR_ERR_SUCCESS) {
-        exr_finish(&exr);
+        exr_finish(&reader->exr);
         return rv;
     }
     reader->isScanline = (storage == EXR_STORAGE_SCANLINE);
@@ -210,9 +220,9 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex) {
         numMipLevelsX = 1;
         numMipLevelsY = 1;
     } else {
-        rv = exr_get_tile_levels(exr, partIndex, &numMipLevelsX, &numMipLevelsY);
+        rv = exr_get_tile_levels(reader->exr, partIndex, &numMipLevelsX, &numMipLevelsY);
         if (rv != EXR_ERR_SUCCESS) {
-            exr_finish(&exr);
+            exr_finish(&reader->exr);
             return rv;
         }
     }
@@ -229,14 +239,14 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex) {
         reader->tileLevelInfo = (nanoexr_TileMipInfo_t*) calloc(sizeof(nanoexr_TileMipInfo_t), numMipLevelsX);
         for (int i = 0; i < numMipLevelsX; i++) {
             int tileWidth, tileHeight, levelWidth, levelHeight;
-            rv = exr_get_tile_sizes(exr, partIndex, i, i, &tileWidth, &tileHeight);
+            rv = exr_get_tile_sizes(reader->exr, partIndex, i, i, &tileWidth, &tileHeight);
             if (rv != EXR_ERR_SUCCESS) {
-                exr_finish(&exr);
+                exr_finish(&reader->exr);
                 return rv;
             }
-            rv = exr_get_level_sizes(exr, partIndex, i, i, &levelWidth, &levelHeight);
+            rv = exr_get_level_sizes(reader->exr, partIndex, i, i, &levelWidth, &levelHeight);
             if (rv != EXR_ERR_SUCCESS) {
-                exr_finish(&exr);
+                exr_finish(&reader->exr);
                 return rv;
             }
             reader->tileLevelInfo[i].tileWidth = tileWidth;
@@ -247,16 +257,16 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex) {
     }
 
     const exr_attr_chlist_t* chlist = NULL;
-    rv = exr_get_channels(exr, partIndex, &chlist);
+    rv = exr_get_channels(reader->exr, partIndex, &chlist);
     if (rv != EXR_ERR_SUCCESS) {
-        exr_finish(&exr);
+        exr_finish(&reader->exr);
         return rv;
     }
     reader->channelCount = chlist->num_channels;
     reader->pixelType = chlist->entries[0].pixel_type;
 
     const exr_attribute_t* attr;
-    exr_result_t wrap_rv = nanoexr_get_attribute_by_name(exr, partIndex, "wrapmodes", &attr);
+    exr_result_t wrap_rv = nanoexr_get_attribute_by_name(reader->exr, partIndex, "wrapmodes", &attr);
     if (wrap_rv == EXR_ERR_SUCCESS) {
         if (!strncmp("black", attr->string->str, 5))
             reader->wrapMode = nanoexr_WrapModeClampToBorderColor;
@@ -268,161 +278,7 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex) {
             reader->wrapMode = nanoexr_WrapModeMirrorRepeat;
     }
 
-    rv = exr_get_attribute_count(exr, partIndex, &reader->exrMetaDataCount);
-    if (rv != EXR_ERR_SUCCESS) {
-        exr_finish(&exr);
-        return rv;
-    }
-
-    if (reader->exrMetaDataCount > 0) {
-        int i = 0;
-        reader->exrMetaData = (nanoexr_metadata_t*) calloc(sizeof(nanoexr_metadata_t), reader->exrMetaDataCount);
-        for (int attrIndex = 0; attrIndex < reader->exrMetaDataCount; attrIndex++) {
-            exr_attribute_t* attr;
-            rv = exr_get_attribute_by_index(exr, partIndex, EXR_ATTR_LIST_SORTED_ORDER, i, &attr);
-            if (rv != EXR_ERR_SUCCESS) {
-                exr_finish(&exr);
-                return rv;
-            }
-
-            switch (attr->type) {
-                case EXR_ATTR_UNKNOWN:       // nothing to do
-                case EXR_ATTR_CHLIST:        // handled above
-                case EXR_ATTR_COMPRESSION:   // handled above
-                case EXR_ATTR_LINEORDER:     // handled above
-                case EXR_ATTR_TILEDESC:      // handled above
-                case EXR_ATTR_FLOAT_VECTOR:  // future?
-                case EXR_ATTR_PREVIEW:       // future? x,y, then 8 bit rgba per pixel
-                case EXR_ATTR_STRING_VECTOR: // future? entire files, such as Academy FDL files may be stored here
-                case EXR_ATTR_OPAQUE:        // future? opaque data
-                    continue;
-
-                case EXR_ATTR_BOX2I:
-                    reader->exrMetaData[i].value.i[0] = attr->box2i->min.x;
-                    reader->exrMetaData[i].value.i[1] = attr->box2i->min.y;
-                    reader->exrMetaData[i].value.i[2] = attr->box2i->max.x;
-                    reader->exrMetaData[i].value.i[3] = attr->box2i->max.y;
-                    break;
-
-                case EXR_ATTR_BOX2F:
-                    reader->exrMetaData[i].value.f[0] = attr->box2f->min.x;
-                    reader->exrMetaData[i].value.f[1] = attr->box2f->min.y;
-                    reader->exrMetaData[i].value.f[2] = attr->box2f->max.x;
-                    reader->exrMetaData[i].value.f[3] = attr->box2f->max.y;
-                    break;
-
-                case EXR_ATTR_CHROMATICITIES:
-                    reader->exrMetaData[i].value.f[0] = attr->chromaticities->red_x;
-                    reader->exrMetaData[i].value.f[1] = attr->chromaticities->red_y;
-                    reader->exrMetaData[i].value.f[2] = attr->chromaticities->green_x;
-                    reader->exrMetaData[i].value.f[3] = attr->chromaticities->green_y;
-                    reader->exrMetaData[i].value.f[4] = attr->chromaticities->blue_x;
-                    reader->exrMetaData[i].value.f[5] = attr->chromaticities->blue_y;
-                    reader->exrMetaData[i].value.f[6] = attr->chromaticities->white_x;
-                    reader->exrMetaData[i].value.f[7] = attr->chromaticities->white_y;
-                    break;
-
-                case EXR_ATTR_DOUBLE:
-                    reader->exrMetaData[i].value.d[0] = attr->d;
-                    break;
-
-                case EXR_ATTR_ENVMAP:
-                    reader->exrMetaData[i].value.i[0] = attr->uc;
-                    break;
-
-                case EXR_ATTR_FLOAT:
-                    reader->exrMetaData[i].value.f[0] = attr->f;
-                    break;
-
-                case EXR_ATTR_INT:
-                    reader->exrMetaData[i].value.i[0] = attr->i;
-                    break;
-
-                case EXR_ATTR_KEYCODE:
-                    reader->exrMetaData[i].value.i[0] = attr->keycode->film_mfc_code;
-                    reader->exrMetaData[i].value.i[1] = attr->keycode->film_type;
-                    reader->exrMetaData[i].value.i[2] = attr->keycode->prefix;
-                    reader->exrMetaData[i].value.i[3] = attr->keycode->count;
-                    reader->exrMetaData[i].value.i[4] = attr->keycode->perf_offset;
-                    reader->exrMetaData[i].value.i[5] = attr->keycode->perfs_per_frame;
-                    reader->exrMetaData[i].value.i[6] = attr->keycode->perfs_per_count;
-                    break;
-
-                case EXR_ATTR_M33F:
-                    memcpy(reader->exrMetaData[i].value.m44f, attr->m33f->m, sizeof(float) * 9);
-                    break;
-
-                case EXR_ATTR_M33D:
-                    memcpy(reader->exrMetaData[i].value.m44d, attr->m33d->m, sizeof(double) * 9);
-                    break;
-
-                case EXR_ATTR_M44F:
-                    memcpy(reader->exrMetaData[i].value.m44f, attr->m44f->m, sizeof(float) * 16);
-                    break;
-
-                case EXR_ATTR_M44D:
-                    memcpy(reader->exrMetaData[i].value.m44d, attr->m44d->m, sizeof(double) * 16);
-                    break;
-
-                case EXR_ATTR_RATIONAL:
-                    reader->exrMetaData[i].value.i[0] = attr->rational->num;
-                    reader->exrMetaData[i].value.i[1] = attr->rational->denom;
-                    break;
-
-                case EXR_ATTR_STRING:
-                    reader->exrMetaData[i].value.s = (char*) malloc(sizeof(char) * (attr->string->length + 1));
-                    memcpy(reader->exrMetaData[i].value.s, attr->string->str, sizeof(char) * attr->string->length);
-                    reader->exrMetaData[i].value.s[attr->string->length] = '\0';
-                    break;
-
-                case EXR_ATTR_TIMECODE:
-                    reader->exrMetaData[i].value.i[0] = attr->timecode->time_and_flags;
-                    reader->exrMetaData[i].value.i[1] = attr->timecode->user_data;
-                    break;
-
-                case EXR_ATTR_V2I:
-                    reader->exrMetaData[i].value.i[0] = attr->v2i->x;
-                    reader->exrMetaData[i].value.i[1] = attr->v2i->y;
-                    break;
-
-                case EXR_ATTR_V2F:
-                    reader->exrMetaData[i].value.f[0] = attr->v2f->x;
-                    reader->exrMetaData[i].value.f[1] = attr->v2f->y;
-                    break;
-
-                case EXR_ATTR_V2D:
-                    reader->exrMetaData[i].value.d[0] = attr->v2d->x;
-                    reader->exrMetaData[i].value.d[1] = attr->v2d->y;
-                    break;
-
-                case EXR_ATTR_V3I:
-                    reader->exrMetaData[i].value.i[0] = attr->v3i->x;
-                    reader->exrMetaData[i].value.i[1] = attr->v3i->y;
-                    reader->exrMetaData[i].value.i[2] = attr->v3i->z;
-                    break;
-
-                case EXR_ATTR_V3F:
-                    reader->exrMetaData[i].value.f[0] = attr->v3f->x;
-                    reader->exrMetaData[i].value.f[1] = attr->v3f->y;
-                    reader->exrMetaData[i].value.f[2] = attr->v3f->z;
-                    break;
-
-                case EXR_ATTR_V3D:
-                    reader->exrMetaData[i].value.d[0] = attr->v3d->x;
-                    reader->exrMetaData[i].value.d[1] = attr->v3d->y;
-                    reader->exrMetaData[i].value.d[2] = attr->v3d->z;
-                    break;
-            }
-
-            reader->exrMetaData[i].name = strdup(attr->name);
-            reader->exrMetaData[i].type = attr->type;
-            ++i;
-        }
-        // rewrite the count to the number of attributes actually stashed.
-        // it's fine that we allocated extra memory, it'll just be unused.
-        reader->exrMetaDataCount = i;
-    }
-    exr_finish(&exr);
+    exr_finish(&reader->exr);
     return rv;
 }
 
@@ -431,8 +287,7 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     int width, int height,
     uint8_t* red,   int32_t redPixelStride,   int32_t redLineStride,
     uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
-    uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride,
-    nanoexr_metadata_t* metadata, int metadataCount)
+    uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride)
 {
     int partidx = 0;
     exr_context_t exr;
@@ -441,21 +296,21 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     // switch to write mode after everything is set up
     /// @TODO use EXR_INTERMEDIATE_TEMP_FILE after this code works
     exr_result_t result = exr_start_write(
-                                &exr, nexr->filename, EXR_WRITE_FILE_DIRECTLY, &init);
+                                &nexr->exr, nexr->filename, EXR_WRITE_FILE_DIRECTLY, &init);
     if (result != EXR_ERR_SUCCESS) {
         return result;
     }
 
-    result = exr_add_part(exr, "beauty", EXR_STORAGE_SCANLINE, &partidx);
+    result = exr_add_part(nexr->exr, "beauty", EXR_STORAGE_SCANLINE, &partidx);
     if (result != EXR_ERR_SUCCESS) {
         return result;
     }
 
     // modern exr should support long names
-    exr_set_longname_support(exr, 1);
+    exr_set_longname_support(nexr->exr, 1);
 
     /// @TODO allow other compression levels
-    result = exr_set_zip_compression_level(exr, 0, 4);
+    result = exr_set_zip_compression_level(nexr->exr, 0, 4);
     if (result != EXR_ERR_SUCCESS) {
         return result;
     }
@@ -464,7 +319,7 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     exr_attr_box2i_t dispw = dataw;
     exr_attr_v2f_t   swc   = {0.5f, 0.5f}; // center of the screen window
     result = exr_initialize_required_attr (
-        exr,
+        nexr->exr,
         partidx,
         &dataw,
         &dispw,
@@ -478,7 +333,7 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     }
 
     result = exr_add_channel(
-        exr,
+        nexr->exr,
         partidx,
         "R",
         EXR_PIXEL_HALF,
@@ -489,7 +344,7 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     }
     
     result = exr_add_channel(
-        exr,
+        nexr->exr,
         partidx,
         "G",
         EXR_PIXEL_HALF,
@@ -500,7 +355,7 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     }
     
     result = exr_add_channel(
-        exr,
+        nexr->exr,
         partidx,
         "B",
         EXR_PIXEL_HALF,
@@ -510,7 +365,7 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
         return result;
     }
 
-    result = exr_set_version(exr, partidx, 1); // 1 is the latest version
+    result = exr_set_version(nexr->exr, partidx, 1); // 1 is the latest version
 
     // set chromaticities to Rec. ITU-R BT.709-3
     exr_attr_chromaticities_t chroma = {
@@ -518,38 +373,40 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
         0.3000f, 0.6000f, // green
         0.1500f, 0.0600f, // blue
         0.3127f, 0.3290f};  // white
-    result = exr_attr_set_chromaticities(exr, partidx, "chromaticities", &chroma);
+    result = exr_attr_set_chromaticities(nexr->exr, partidx, "chromaticities", &chroma);
     if (result != EXR_ERR_SUCCESS) {
         return result;
     }
 
-    result = exr_write_header(exr);
+    result = exr_write_header(nexr->exr);
     if (result != EXR_ERR_SUCCESS) {
         return result;
     }
 
+#if 0
     for (int i = 0; i < metadataCount; ++i) {
         switch (metadata[i].type) {
             case EXR_ATTR_INT:
-                result = exr_attr_set_int(exr, partidx, metadata[i].name, metadata[i].value.i[0]);
+                result = exr_attr_set_int(nexr->exr, partidx, metadata[i].name, metadata[i].value.i[0]);
                 break;
             case EXR_ATTR_FLOAT:
-                result = exr_attr_set_float(exr, partidx, metadata[i].name, metadata[i].value.f[0]);
+                result = exr_attr_set_float(nexr->exr, partidx, metadata[i].name, metadata[i].value.f[0]);
                 break;
             case EXR_ATTR_STRING:
-                result = exr_attr_set_string(exr, partidx, metadata[i].name, metadata[i].value.s);
+                result = exr_attr_set_string(nexr->exr, partidx, metadata[i].name, metadata[i].value.s);
                 break;
             case EXR_ATTR_M44F:
-                result = exr_attr_set_m44f(exr, partidx, metadata[i].name, (exr_attr_m44f_t*) metadata[i].value.m44f);
+                result = exr_attr_set_m44f(nexr->exr, partidx, metadata[i].name, (exr_attr_m44f_t*) metadata[i].value.m44f);
                 break;
             case EXR_ATTR_M44D:
-                result = exr_attr_set_m44d(exr, partidx, metadata[i].name, (exr_attr_m44d_t*) metadata[i].value.m44d);
+                result = exr_attr_set_m44d(nexr->exr, partidx, metadata[i].name, (exr_attr_m44d_t*) metadata[i].value.m44d);
                 break;
             default:
                 break;
         }
     }
-
+#endif
+    
     exr_encode_pipeline_t encoder;
     exr_chunk_info_t cinfo;
     int32_t               scansperchunk = 0;
@@ -562,21 +419,21 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     
     int chunkInfoIndex = 0;
     for (int y = dataw.min.y; y <= dataw.max.y; y += scansperchunk, ++chunkInfoIndex) {
-        result = exr_write_scanline_chunk_info(exr, partidx, y, &cinfo);
+        result = exr_write_scanline_chunk_info(nexr->exr, partidx, y, &cinfo);
         if (result != EXR_ERR_SUCCESS) {
             return result;
         }
 
         if (first)
         {
-            result = exr_encoding_initialize(exr, partidx, &cinfo, &encoder);
+            result = exr_encoding_initialize(nexr->exr, partidx, &cinfo, &encoder);
             if (result != EXR_ERR_SUCCESS) {
                 return result;
             }
         }
         else
         {
-            result = exr_encoding_update(exr, partidx, &cinfo, &encoder);
+            result = exr_encoding_update(nexr->exr, partidx, &cinfo, &encoder);
         }
         
         encoder.channel_count = 3;
@@ -597,13 +454,13 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
         encoder.channels[2].encode_from_ptr   = pBlue;
 
         if (first) {
-            result = exr_encoding_choose_default_routines(exr, partidx, &encoder);
+            result = exr_encoding_choose_default_routines(nexr->exr, partidx, &encoder);
             if (result != EXR_ERR_SUCCESS) {
                 return result;
             }
         }
 
-        result = exr_encoding_run(exr, partidx, &encoder);
+        result = exr_encoding_run(nexr->exr, partidx, &encoder);
         if (result != EXR_ERR_SUCCESS) {
             return result;
         }
@@ -614,12 +471,12 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
         pBlue -= blueLineStride;
     }
 
-    result = exr_encoding_destroy(exr, &encoder);
+    result = exr_encoding_destroy(nexr->exr, &encoder);
     if (result != EXR_ERR_SUCCESS) {
         return result;
     }
 
-    result = exr_finish(&exr);
+    result = exr_finish(&nexr->exr);
     return result;
 }
 
