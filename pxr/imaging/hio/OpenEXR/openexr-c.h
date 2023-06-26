@@ -24,12 +24,6 @@
 extern "C" {
 #endif
 
-exr_result_t nanoexr_get_attribute_by_name(
-    exr_const_context_t     ctxt,
-    int                     part_index,
-    const char*             name,
-    const exr_attribute_t** outattr);
-
 exr_result_t nanoexr_get_attribute_by_index(
     exr_const_context_t     ctxt,
     int                     part_index,

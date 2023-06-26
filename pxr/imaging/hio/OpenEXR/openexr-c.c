@@ -21,14 +21,6 @@
 // re-export the statically hidden exr_ functions as required
 // for visibility from C++
 
-exr_result_t nanoexr_get_attribute_by_name(
-    exr_const_context_t     ctxt,
-    int                     part_index,
-    const char*             name,
-    const exr_attribute_t** outattr)
-{
-    return exr_get_attribute_by_name(ctxt, part_index, name, outattr);
-}
 
 exr_result_t nanoexr_get_attribute_by_index(
     exr_const_context_t     ctxt,
@@ -265,7 +257,7 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex) {
     reader->pixelType = chlist->entries[0].pixel_type;
 
     const exr_attribute_t* attr;
-    exr_result_t wrap_rv = nanoexr_get_attribute_by_name(reader->exr, partIndex, "wrapmodes", &attr);
+    exr_result_t wrap_rv = exr_get_attribute_by_name(reader->exr, partIndex, "wrapmodes", &attr);
     if (wrap_rv == EXR_ERR_SUCCESS) {
         if (!strncmp("black", attr->string->str, 5))
             reader->wrapMode = nanoexr_WrapModeClampToBorderColor;
