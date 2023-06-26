@@ -147,7 +147,7 @@ err_cb (exr_const_context_t f, int code, const char* msg)
     fprintf(stderr, "err_cb ERROR %d: %s\n", code, msg);
 }
 
-void nanoexr_new(const char* filename, nanoexr_Reader_t* reader) {
+void nanoexr_set_defaults(const char* filename, nanoexr_Reader_t* reader) {
     exr_get_library_version (&reader->exrSDKVersionMajor,
                              &reader->exrSDKVersionMinor,
                              &reader->exrSDKVersionPatch,
@@ -167,7 +167,7 @@ void nanoexr_new(const char* filename, nanoexr_Reader_t* reader) {
 }
 
 
-void nanoexr_delete(nanoexr_Reader_t* reader) {
+void nanoexr_free_storage(nanoexr_Reader_t* reader) {
     if (!reader)
         return;
     free(reader->filename);
@@ -175,7 +175,7 @@ void nanoexr_delete(nanoexr_Reader_t* reader) {
     free(reader);
 }
 
-int nanoexr_open(nanoexr_Reader_t* reader, int partIndex, 
+int nanoexr_read_header(nanoexr_Reader_t* reader, int partIndex, 
                  nanoexr_attrRead attrRead, void* attrRead_userData) {
     if (!reader)
         return EXR_ERR_INVALID_ARGUMENT;
@@ -484,9 +484,6 @@ int nanoexr_getPixelTypeSize(exr_pixel_type_t t)
         default: return 0;
     }
 }
-
-
-
 
 static bool strIsRed(const char* layerName, const char* str) {
     if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
@@ -877,7 +874,7 @@ exr_result_t nanoexr_read_exr(const char* filename,
         return rv;
     }
 
-    //img->channelCount = 3; externally supplied
+    img->channelCount = chlist->num_channels;
     img->width = width;
     img->height = height;
     img->dataSize = width * height * img->channelCount * bytesPerChannel;
@@ -904,6 +901,17 @@ exr_result_t nanoexr_read_exr(const char* filename,
     uint16_t oneValue = float_to_half(1.0f);
     uint16_t zeroValue = float_to_half(0.0f);
 
+    /*
+     The "fill in" algorithm should be:
+     if output type is RGBA:
+        If one channel was found, and it was A, create 000A
+            else, XXX1
+        If two channels were found, X and A, create XXXA
+            else XXX1
+        If three channels were found, and one was A, create XYYA
+            else XYZ1
+     */
+    
     // fill in data for missing channels
     int pixelStride = img->channelCount * bytesPerChannel;
     int lineStride = img->width * pixelStride;

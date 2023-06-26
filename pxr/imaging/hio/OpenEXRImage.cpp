@@ -57,42 +57,11 @@
  
  TODO:
  
- - remove exr context from nanoexr reader struct
- - pass mip through to reader, if mip doesn't exist fail to read
- - 
-
-Open Questions:
-- Hydra may ask for downsampled images (constructing mips)
-- Hydra won't ask for upsampled images (I supplied a simple Gaussian upsample anyway)
-- What role does cropping play? (maybe there's a crop node in shadegraphs?)
-
-Answered Questions:
-
-- 4:2:0 chroma support needed? How about YUV? (No to both)
-- Hydra will never ask Hio for float to int8 tonemapping, right? (never)
-- Hydra will never ask Hio for exr files expecting gamma pixels back? (because exr are linear only) (never)
-- how are int32 textures used? Are they in named layers? (id pixels, single layer exr files only)
-- where are the extended tests for Hio? (not explicitly tested)
-- is there test data to check the permutations of Hydra with MaterialX, UDIMs, and MatX with UDIMs? (no)
-- how are layers piped from MaterialX to Hio? (Hio doesn't know about layers)
-
- Remaining:
-
- - cropped reading
- - populate attributes dictionary
- - test writing via UsdRecord
- - final code clean up and checkin
- - test int32 textures
-
- Maybe:
- - should be able to do "stapled AOVs" from usd record unless usd record is too inflexible (USD-7846)
- - can't find extant usages of tiled images, is it a requirement?
- - implement concurrent reads since EXR allows it (is there a demonstrable performance benefit?)
-
- Future:
- - ArWriteableAsset
- - SdfFileFormat plugin
- - Image Plane implementation that can leverage the SdfFileFormat plugin
+ - from review: pass mip through to reader, if mip doesn't exist fail to read
+ - from review: revise the "fill in" algorithm for missing channels
+ - from review: read and write int32 images
+ - test: ArAsset based reading
+ - check: are "subimages" the same as EXR "parts"?
  
  */
 
@@ -110,7 +79,6 @@ class Hio_OpenEXRImage final : public HioImage
     SourceColorSpace         _sourceColorSpace = SourceColorSpace::Raw;
     int                      _subimage = 0;
     int                      _mip = 0;
-    bool                     _suppressErrors = false;
     
     // mutable because GetMetadata is const, yet it doesn't make sense
     // to cache the dictionary unless metadata is requested.
@@ -118,11 +86,13 @@ class Hio_OpenEXRImage final : public HioImage
 
 public:
     Hio_OpenEXRImage() = default;
-    virtual ~Hio_OpenEXRImage() override = default;
+    virtual ~Hio_OpenEXRImage() override {
+        nanoexr_free_storage(&_exrReader);
+    }
 
     using Base = HioImage;
     bool      Read(StorageSpec const &storage) override {
-                  return ReadCropped(0, 0, 0, 0, storage); }
+                                            return ReadCropped(0, 0, 0, 0, storage); }
     bool      ReadCropped(int const cropTop, int const cropBottom, int const cropLeft,
                           int const cropRight, StorageSpec const &storage) override;
     bool      Write(StorageSpec const &storage, VtDictionary const &metadata) override;
@@ -187,6 +157,26 @@ HioFormat HioFormatFromExrPixelType(exr_pixel_type_t pixelType, int numChannels)
     default:
         return HioFormatInvalid;
     }
+}
+
+
+// XXX for consistency with other plugins, there is currently no ArAsset write function.
+int64_t exr_AssetRead_Func(
+    exr_const_context_t         ctxt,
+    void*                       userdata,
+    void*                       buffer,
+    uint64_t                    sz,
+    uint64_t                    offset,
+    exr_stream_error_func_ptr_t error_cb)
+{
+    ArAsset* asset = (ArAsset*)userdata;
+    if (!asset || !buffer || !sz) {
+        if (error_cb)
+            error_cb(ctxt, EXR_ERR_INVALID_ARGUMENT,
+                           "%s", "Invalid arguments to read callback");
+        return -1;
+    }
+    return asset->Read(buffer, sz, offset);
 }
 
 template<typename T>
@@ -300,7 +290,6 @@ bool Hio_OpenEXRImage::ReadCropped(
 
     {
         nanoexr_ImageData_t img;
-        img.channelCount = outChannelCount;
         exr_result_t rv = nanoexr_read_exr(_exrReader.filename, &img, nullptr, 0, 0);
         if (rv != EXR_ERR_SUCCESS) {
             return false;
@@ -312,17 +301,21 @@ bool Hio_OpenEXRImage::ReadCropped(
         else {
             memcpy(&floatInputBuffer[0], img.data, img.dataSize);
         }
+        
+        nanoexr_release_image_data(&img);
 
         // flip and crop the image in place
         if (inputIsHalf) {
-                       ImageProcessor<GfHalf>::FlipImage(&halfInputBuffer[0], fileWidth, fileHeight, img.channelCount);
+            ImageProcessor<GfHalf>::FlipImage(&halfInputBuffer[0],
+                                              fileWidth, fileHeight, img.channelCount);
             ImageProcessor<GfHalf>::CropImage(&halfInputBuffer[0],
                                               fileWidth, fileHeight, img.channelCount,
                                               cropTop, cropBottom, cropLeft, cropRight);
         }
         else {
-            ImageProcessor<float>::FlipImage(&floatInputBuffer[0], fileWidth, fileHeight, fileChannelCount);
-            ImageProcessor<float>::CropImage(&floatInputBuffer[0], 
+            ImageProcessor<float>::FlipImage(&floatInputBuffer[0],
+                                             fileWidth, fileHeight, fileChannelCount);
+            ImageProcessor<float>::CropImage(&floatInputBuffer[0],
                                             fileWidth, fileHeight, fileChannelCount,
                                             cropTop, cropBottom, cropLeft, cropRight);
         }
@@ -391,41 +384,6 @@ bool Hio_OpenEXRImage::ReadCropped(
     return true;
 }
 
-// XXX for consistency with other plugins, there is currently no ArAsset write function.
-int64_t exr_AssetRead_Func(
-    exr_const_context_t         ctxt,
-    void*                       userdata,
-    void*                       buffer,
-    uint64_t                    sz,
-    uint64_t                    offset,
-    exr_stream_error_func_ptr_t error_cb)
-{
-    ArAsset* asset = (ArAsset*)userdata;
-    if (!asset || !buffer || !sz) {
-        if (error_cb)
-            error_cb(ctxt, EXR_ERR_INVALID_ARGUMENT,
-                           "%s", "Invalid arguments to read callback");
-        return -1;
-    }
-    return asset->Read(buffer, sz, offset);
-}
-
-// For compatability with Ice/Imr we transmogrify some matrix metadata
-/// XXX is this historical or is it still necessary?
-static std::string
-_TranslateMetadataKey(std::string const & metadataKey, bool *convertMatrixTypes)
-{
-    if (metadataKey == "NP") {
-        *convertMatrixTypes = true;
-        return "worldtoscreen";
-    } else
-    if (metadataKey == "Nl") {
-        *convertMatrixTypes = true;
-        return "worldtocamera";
-    } else {
-        return metadataKey;
-    }
-}
 
 bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &metadata)
 {
@@ -445,11 +403,6 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &met
         TF_CODING_ERROR("Unsupported pixel format %d", storage.format);
         return false;
     }
-
-    //exr_context_initializer_t exrInit = EXR_DEFAULT_CONTEXT_INITIALIZER;
-    //exrInit.read_fn = NULL;
-    //exrInit.write_fn = NULL;
-    //exrInit.user_data = (void*) _asset.get(); // Hio_OpenEXRImage will outlast the reader.
 
     if (storage.format == HioFormatFloat16Vec3 || storage.format == HioFormatFloat16Vec4) {
         int32_t size = 2;
@@ -508,7 +461,7 @@ bool Hio_OpenEXRImage::IsColorSpaceSRGB() const
 {
     // the function asks if the color space is SRGB, but fundamentally
     // what Hydra reall wants to know is whether the pixels are gamma pixels.
-    // OpenEXR images are always linear, so we can just return false.
+    // OpenEXR images are always linear, so just return false.
     return false;
 }
 
@@ -589,8 +542,7 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
     if (!self->_metadata.empty())
         return;
     
-    // at the moment, Hio doesn't know about parts.
-    const int partIndex = 0;
+    const int partIndex = self->_subimage;
     int attrCount = 0;
     nanoexr_get_attribute_count(exr, partIndex);
     for (int i = 0; i < attrCount; ++i) {
@@ -757,12 +709,17 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
 bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
                                        int subimage, int mip,
                                        SourceColorSpace sourceColorSpace,
-                                       bool suppressErrors)
+                                       bool /*suppressErrors*/)
 {
     _asset = ArGetResolver().OpenAsset(ArResolvedPath(filename));
     if (!_asset) {
         return false;
     }
+
+    _filename = filename;
+    _subimage = subimage;
+    _mip = mip;
+    _sourceColorSpace = sourceColorSpace;
 
 /*    exr_context_initializer_t exrInit = EXR_DEFAULT_CONTEXT_INITIALIZER;
     exrInit.read_fn = exr_AssetRead_Func;
@@ -772,21 +729,15 @@ bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
                              // The reason is that none of the existing Hio write
                              // routines use ArAsset.
     exrInit.user_data = (void*) _asset.get(); // Hio_OpenEXRImage will outlast the reader. */
-    nanoexr_new(filename.c_str(), &_exrReader);
+    nanoexr_set_defaults(_filename.c_str(), &_exrReader);
 
-    int partIndex = 0;
-    int rv = nanoexr_open(&_exrReader, partIndex, _AttributeReadCallback, this);
+    int rv = nanoexr_read_header(&_exrReader, _subimage, _AttributeReadCallback, this);
     if (rv != 0) {
         TF_CODING_ERROR("Cannot open image \"%s\" for reading, %s",
                         filename.c_str(), nanoexr_get_error_code_as_string(rv));
         return false;
     }
     
-    _filename = filename;
-    _subimage = subimage;
-    _mip = mip;
-    _sourceColorSpace = sourceColorSpace;
-    _suppressErrors = suppressErrors;
     return true;
 }
 
