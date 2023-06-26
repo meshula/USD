@@ -754,7 +754,6 @@ bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
     _mip = mip;
     _sourceColorSpace = sourceColorSpace;
     _suppressErrors = suppressErrors;
-
     return true;
 }
 

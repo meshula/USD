@@ -6,12 +6,20 @@
                     "Hio_StbImage" : {
                         "bases": ["HioImage"],
                         "imageTypes": ["bmp", "jpg", "jpeg", "png", "tga", "hdr"],
+<<<<<<< HEAD
                         "precedence": 30
+=======
+                        "precedence": 2
+>>>>>>> d48c85ad7043e2bef0cfe56faa6ed0ace83c1bb9
                     },
                     "Hio_OpenEXRImage" : {
                         "bases": ["HioImage"],
                         "imageTypes": ["exr"],
+<<<<<<< HEAD
                         "precedence": 30
+=======
+                        "precedence": 2
+>>>>>>> d48c85ad7043e2bef0cfe56faa6ed0ace83c1bb9
                     }
                 }
             },

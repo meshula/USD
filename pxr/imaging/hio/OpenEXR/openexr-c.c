@@ -45,7 +45,6 @@ int nanoexr_get_attribute_count(exr_const_context_t ctxt, int part_index) {
     return count;
 }
 
-
 const char* nanoexr_get_error_code_as_string (exr_result_t code)
 {
     return exr_get_error_code_as_string(code);
