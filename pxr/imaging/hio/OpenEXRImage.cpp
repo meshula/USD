@@ -54,6 +54,12 @@
 #endif
 
 /*
+ 
+ TODO:
+ 
+ - remove exr context from nanoexr reader struct
+ - pass mip through to reader, if mip doesn't exist fail to read
+ - 
 
 Open Questions:
 - Hydra may ask for downsampled images (constructing mips)
@@ -137,7 +143,7 @@ protected:
                          SourceColorSpace sourceColorSpace,
                          bool suppressErrors) override;
     bool _OpenForWriting(std::string const &filename) override;
-    static void _AttributeReadCallback(void* self_);
+    static void _AttributeReadCallback(void* self_, exr_context_t exr);
 };
 
 TF_REGISTRY_FUNCTION(TfType)
@@ -444,8 +450,6 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &met
     //exrInit.read_fn = NULL;
     //exrInit.write_fn = NULL;
     //exrInit.user_data = (void*) _asset.get(); // Hio_OpenEXRImage will outlast the reader.
-    nanoexr_Reader_t exrWriter = { 0 };
-    nanoexr_new(_filename.c_str(), &exrWriter);
 
     if (storage.format == HioFormatFloat16Vec3 || storage.format == HioFormatFloat16Vec4) {
         int32_t size = 2;
@@ -453,8 +457,8 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &met
         uint8_t* pixels = reinterpret_cast<uint8_t*>(storage.data);
         int32_t lineStride = storage.width * size * ch;
         int32_t pixelStride = size * ch;
-        exr_result_t rv = nanoexr_open_for_writing_fp16(
-                                &exrWriter,
+        exr_result_t rv = nanoexr_write_exr(
+                                _filename.c_str(),
                                 storage.width, storage.height,
                                 pixels + (size * 2), pixelStride, lineStride, // red
                                 pixels +  size,      pixelStride, lineStride, // green
@@ -580,7 +584,7 @@ bool Hio_OpenEXRImage::GetSamplerMetadata(HioAddressDimension dim,
 }
 
 //static
-void Hio_OpenEXRImage::_AttributeReadCallback(void* self_) {
+void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
     Hio_OpenEXRImage* self = reinterpret_cast<Hio_OpenEXRImage*>(self_);
     if (!self->_metadata.empty())
         return;
@@ -588,10 +592,10 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_) {
     // at the moment, Hio doesn't know about parts.
     const int partIndex = 0;
     int attrCount = 0;
-    nanoexr_get_attribute_count(self->_exrReader.exr, partIndex);
+    nanoexr_get_attribute_count(exr, partIndex);
     for (int i = 0; i < attrCount; ++i) {
         const exr_attribute_t* attr;
-        nanoexr_get_attribute_by_index(self->_exrReader.exr, partIndex, i, &attr);
+        nanoexr_get_attribute_by_index(exr, partIndex, i, &attr);
         if (!attr)
             continue;
 

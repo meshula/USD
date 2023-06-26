@@ -153,7 +153,6 @@ void nanoexr_new(const char* filename, nanoexr_Reader_t* reader) {
                              &reader->exrSDKVersionPatch,
                              &reader->exrSDKExtraInfo);
 
-    reader->exr = NULL;
     reader->filename = strdup(filename);
     reader->width = 0;
     reader->height = 0;
@@ -181,17 +180,18 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex,
     if (!reader)
         return EXR_ERR_INVALID_ARGUMENT;
     
+    exr_context_t exr;
     exr_context_initializer_t init = EXR_DEFAULT_CONTEXT_INITIALIZER;
-    int rv = exr_start_read(&reader->exr, reader->filename, &init);
+    int rv = exr_start_read(&exr, reader->filename, &init);
     if (rv != EXR_ERR_SUCCESS) {
-        exr_finish(&reader->exr);
+        exr_finish(&exr);
         return rv;
     }
 
     exr_attr_box2i_t datawin;
-    rv = exr_get_data_window(reader->exr, partIndex, &datawin);
+    rv = exr_get_data_window(exr, partIndex, &datawin);
     if (rv != EXR_ERR_SUCCESS) {
-        exr_finish(&reader->exr);
+        exr_finish(&exr);
         return rv;
     }
     reader->partIndex = partIndex;
@@ -199,9 +199,9 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex,
     reader->height = datawin.max.y - datawin.min.y + 1;
 
     exr_storage_t storage;
-    rv = exr_get_storage(reader->exr, partIndex, &storage);
+    rv = exr_get_storage(exr, partIndex, &storage);
     if (rv != EXR_ERR_SUCCESS) {
-        exr_finish(&reader->exr);
+        exr_finish(&exr);
         return rv;
     }
     reader->isScanline = (storage == EXR_STORAGE_SCANLINE);
@@ -211,9 +211,9 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex,
         numMipLevelsX = 1;
         numMipLevelsY = 1;
     } else {
-        rv = exr_get_tile_levels(reader->exr, partIndex, &numMipLevelsX, &numMipLevelsY);
+        rv = exr_get_tile_levels(exr, partIndex, &numMipLevelsX, &numMipLevelsY);
         if (rv != EXR_ERR_SUCCESS) {
-            exr_finish(&reader->exr);
+            exr_finish(&exr);
             return rv;
         }
     }
@@ -230,14 +230,14 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex,
         reader->tileLevelInfo = (nanoexr_TileMipInfo_t*) calloc(sizeof(nanoexr_TileMipInfo_t), numMipLevelsX);
         for (int i = 0; i < numMipLevelsX; i++) {
             int tileWidth, tileHeight, levelWidth, levelHeight;
-            rv = exr_get_tile_sizes(reader->exr, partIndex, i, i, &tileWidth, &tileHeight);
+            rv = exr_get_tile_sizes(exr, partIndex, i, i, &tileWidth, &tileHeight);
             if (rv != EXR_ERR_SUCCESS) {
-                exr_finish(&reader->exr);
+                exr_finish(&exr);
                 return rv;
             }
-            rv = exr_get_level_sizes(reader->exr, partIndex, i, i, &levelWidth, &levelHeight);
+            rv = exr_get_level_sizes(exr, partIndex, i, i, &levelWidth, &levelHeight);
             if (rv != EXR_ERR_SUCCESS) {
-                exr_finish(&reader->exr);
+                exr_finish(&exr);
                 return rv;
             }
             reader->tileLevelInfo[i].tileWidth = tileWidth;
@@ -248,16 +248,16 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex,
     }
 
     const exr_attr_chlist_t* chlist = NULL;
-    rv = exr_get_channels(reader->exr, partIndex, &chlist);
+    rv = exr_get_channels(exr, partIndex, &chlist);
     if (rv != EXR_ERR_SUCCESS) {
-        exr_finish(&reader->exr);
+        exr_finish(&exr);
         return rv;
     }
     reader->channelCount = chlist->num_channels;
     reader->pixelType = chlist->entries[0].pixel_type;
 
     const exr_attribute_t* attr;
-    exr_result_t wrap_rv = exr_get_attribute_by_name(reader->exr, partIndex, "wrapmodes", &attr);
+    exr_result_t wrap_rv = exr_get_attribute_by_name(exr, partIndex, "wrapmodes", &attr);
     if (wrap_rv == EXR_ERR_SUCCESS) {
         if (!strncmp("black", attr->string->str, 5))
             reader->wrapMode = nanoexr_WrapModeClampToBorderColor;
@@ -270,14 +270,15 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex,
     }
 
     if (attrRead)
-        attrRead(attrRead_userData);
+        attrRead(attrRead_userData, exr);
 
-    exr_finish(&reader->exr);
+    exr_finish(&exr);
     return rv;
 }
 
 /// @TODO Pass in the part name
-exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
+exr_result_t nanoexr_write_exr(
+    const char* filename,
     int width, int height,
     uint8_t* red,   int32_t redPixelStride,   int32_t redLineStride,
     uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
@@ -290,21 +291,21 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     // switch to write mode after everything is set up
     /// @TODO use EXR_INTERMEDIATE_TEMP_FILE after this code works
     exr_result_t result = exr_start_write(
-                                &nexr->exr, nexr->filename, EXR_WRITE_FILE_DIRECTLY, &init);
+                                &exr, filename, EXR_WRITE_FILE_DIRECTLY, &init);
     if (result != EXR_ERR_SUCCESS) {
         return result;
     }
 
-    result = exr_add_part(nexr->exr, "beauty", EXR_STORAGE_SCANLINE, &partidx);
+    result = exr_add_part(exr, "beauty", EXR_STORAGE_SCANLINE, &partidx);
     if (result != EXR_ERR_SUCCESS) {
         return result;
     }
 
     // modern exr should support long names
-    exr_set_longname_support(nexr->exr, 1);
+    exr_set_longname_support(exr, 1);
 
     /// @TODO allow other compression levels
-    result = exr_set_zip_compression_level(nexr->exr, 0, 4);
+    result = exr_set_zip_compression_level(exr, 0, 4);
     if (result != EXR_ERR_SUCCESS) {
         return result;
     }
@@ -313,7 +314,7 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     exr_attr_box2i_t dispw = dataw;
     exr_attr_v2f_t   swc   = {0.5f, 0.5f}; // center of the screen window
     result = exr_initialize_required_attr (
-        nexr->exr,
+        exr,
         partidx,
         &dataw,
         &dispw,
@@ -327,7 +328,7 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     }
 
     result = exr_add_channel(
-        nexr->exr,
+        exr,
         partidx,
         "R",
         EXR_PIXEL_HALF,
@@ -338,7 +339,7 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     }
     
     result = exr_add_channel(
-        nexr->exr,
+        exr,
         partidx,
         "G",
         EXR_PIXEL_HALF,
@@ -349,7 +350,7 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     }
     
     result = exr_add_channel(
-        nexr->exr,
+        exr,
         partidx,
         "B",
         EXR_PIXEL_HALF,
@@ -359,7 +360,7 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
         return result;
     }
 
-    result = exr_set_version(nexr->exr, partidx, 1); // 1 is the latest version
+    result = exr_set_version(exr, partidx, 1); // 1 is the latest version
 
     // set chromaticities to Rec. ITU-R BT.709-3
     exr_attr_chromaticities_t chroma = {
@@ -367,12 +368,12 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
         0.3000f, 0.6000f, // green
         0.1500f, 0.0600f, // blue
         0.3127f, 0.3290f};  // white
-    result = exr_attr_set_chromaticities(nexr->exr, partidx, "chromaticities", &chroma);
+    result = exr_attr_set_chromaticities(exr, partidx, "chromaticities", &chroma);
     if (result != EXR_ERR_SUCCESS) {
         return result;
     }
 
-    result = exr_write_header(nexr->exr);
+    result = exr_write_header(exr);
     if (result != EXR_ERR_SUCCESS) {
         return result;
     }
@@ -381,19 +382,19 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     for (int i = 0; i < metadataCount; ++i) {
         switch (metadata[i].type) {
             case EXR_ATTR_INT:
-                result = exr_attr_set_int(nexr->exr, partidx, metadata[i].name, metadata[i].value.i[0]);
+                result = exr_attr_set_int(exr, partidx, metadata[i].name, metadata[i].value.i[0]);
                 break;
             case EXR_ATTR_FLOAT:
-                result = exr_attr_set_float(nexr->exr, partidx, metadata[i].name, metadata[i].value.f[0]);
+                result = exr_attr_set_float(exr, partidx, metadata[i].name, metadata[i].value.f[0]);
                 break;
             case EXR_ATTR_STRING:
-                result = exr_attr_set_string(nexr->exr, partidx, metadata[i].name, metadata[i].value.s);
+                result = exr_attr_set_string(exr, partidx, metadata[i].name, metadata[i].value.s);
                 break;
             case EXR_ATTR_M44F:
-                result = exr_attr_set_m44f(nexr->exr, partidx, metadata[i].name, (exr_attr_m44f_t*) metadata[i].value.m44f);
+                result = exr_attr_set_m44f(exr, partidx, metadata[i].name, (exr_attr_m44f_t*) metadata[i].value.m44f);
                 break;
             case EXR_ATTR_M44D:
-                result = exr_attr_set_m44d(nexr->exr, partidx, metadata[i].name, (exr_attr_m44d_t*) metadata[i].value.m44d);
+                result = exr_attr_set_m44d(exr, partidx, metadata[i].name, (exr_attr_m44d_t*) metadata[i].value.m44d);
                 break;
             default:
                 break;
@@ -413,21 +414,21 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     
     int chunkInfoIndex = 0;
     for (int y = dataw.min.y; y <= dataw.max.y; y += scansperchunk, ++chunkInfoIndex) {
-        result = exr_write_scanline_chunk_info(nexr->exr, partidx, y, &cinfo);
+        result = exr_write_scanline_chunk_info(exr, partidx, y, &cinfo);
         if (result != EXR_ERR_SUCCESS) {
             return result;
         }
 
         if (first)
         {
-            result = exr_encoding_initialize(nexr->exr, partidx, &cinfo, &encoder);
+            result = exr_encoding_initialize(exr, partidx, &cinfo, &encoder);
             if (result != EXR_ERR_SUCCESS) {
                 return result;
             }
         }
         else
         {
-            result = exr_encoding_update(nexr->exr, partidx, &cinfo, &encoder);
+            result = exr_encoding_update(exr, partidx, &cinfo, &encoder);
         }
         
         encoder.channel_count = 3;
@@ -448,13 +449,13 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
         encoder.channels[2].encode_from_ptr   = pBlue;
 
         if (first) {
-            result = exr_encoding_choose_default_routines(nexr->exr, partidx, &encoder);
+            result = exr_encoding_choose_default_routines(exr, partidx, &encoder);
             if (result != EXR_ERR_SUCCESS) {
                 return result;
             }
         }
 
-        result = exr_encoding_run(nexr->exr, partidx, &encoder);
+        result = exr_encoding_run(exr, partidx, &encoder);
         if (result != EXR_ERR_SUCCESS) {
             return result;
         }
@@ -465,12 +466,12 @@ exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
         pBlue -= blueLineStride;
     }
 
-    result = exr_encoding_destroy(nexr->exr, &encoder);
+    result = exr_encoding_destroy(exr, &encoder);
     if (result != EXR_ERR_SUCCESS) {
         return result;
     }
 
-    result = exr_finish(&nexr->exr);
+    result = exr_finish(&exr);
     return result;
 }
 

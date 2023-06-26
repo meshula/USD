@@ -62,7 +62,6 @@ typedef enum {
 } nanoexr_WrapMode;
 
 typedef struct {
-    exr_context_t exr;
     char* filename;
     bool isScanline;
     int partIndex;
@@ -96,15 +95,16 @@ int         nanoexr_getPixelTypeSize(exr_pixel_type_t t);
 // freeing the data pointer when it is no longer needed.
 
 // function pointer to a void function
-typedef void (*nanoexr_attrRead)(void*);
+typedef void (*nanoexr_attrRead)(void*, exr_context_t);
 
 exr_result_t nanoexr_open(nanoexr_Reader_t* reader, int partIndex,
                           nanoexr_attrRead, void* attrRead_userData);
-exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
-    int width, int height,
-    uint8_t* red, int32_t redPixelStride, int32_t redLineStride,
-    uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
-    uint8_t* blue, int32_t bluePixelStride, int32_t blueLineStride);
+
+exr_result_t nanoexr_write_exr(const char* filename,
+                               int width, int height,
+                               uint8_t* red, int32_t redPixelStride, int32_t redLineStride,
+                               uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
+                               uint8_t* blue, int32_t bluePixelStride, int32_t blueLineStride);
 
 exr_result_t nanoexr_read_exr(const char* filename,
                               nanoexr_ImageData_t* img,
