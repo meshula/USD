@@ -21,7 +21,6 @@
 // re-export the statically hidden exr_ functions as required
 // for visibility from C++
 
-
 exr_result_t nanoexr_get_attribute_by_index(
     exr_const_context_t     ctxt,
     int                     part_index,
@@ -177,7 +176,8 @@ void nanoexr_delete(nanoexr_Reader_t* reader) {
     free(reader);
 }
 
-int nanoexr_open(nanoexr_Reader_t* reader, int partIndex) {
+int nanoexr_open(nanoexr_Reader_t* reader, int partIndex, 
+                 nanoexr_attrRead attrRead, void* attrRead_userData) {
     if (!reader)
         return EXR_ERR_INVALID_ARGUMENT;
     
@@ -268,6 +268,9 @@ int nanoexr_open(nanoexr_Reader_t* reader, int partIndex) {
         else if (!strncmp("mirror", attr->string->str, 6))
             reader->wrapMode = nanoexr_WrapModeMirrorRepeat;
     }
+
+    if (attrRead)
+        attrRead(attrRead_userData);
 
     exr_finish(&reader->exr);
     return rv;

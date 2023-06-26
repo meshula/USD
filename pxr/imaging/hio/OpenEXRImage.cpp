@@ -137,6 +137,7 @@ protected:
                          SourceColorSpace sourceColorSpace,
                          bool suppressErrors) override;
     bool _OpenForWriting(std::string const &filename) override;
+    static void _AttributeReadCallback(void* self_);
 };
 
 TF_REGISTRY_FUNCTION(TfType)
@@ -513,196 +514,57 @@ bool Hio_OpenEXRImage::GetMetadata(TfToken const &key, VtValue *value) const
         TF_CODING_ERROR("Invalid value pointer");
         return false;
     }
-    if (_metadata.empty()) {
-        // at the moment, Hio doesn't know about parts.
-        const int partIndex = 0;
-        int attrCount = 0;
-        nanoexr_get_attribute_count(_exrReader.exr, partIndex);
-        for (int i = 0; i < attrCount; ++i) {
-            const exr_attribute_t* attr;
-            nanoexr_get_attribute_by_index(_exrReader.exr, partIndex, i, &attr);
-            if (!attr)
-                continue;
 
-            // this switch is an exhaustive alphabetical treatment of all the
-            // possible attribute types.
-            switch(attr->type) {
-                case EXR_ATTR_UNKNOWN:
-                    continue;
-                case EXR_ATTR_BOX2I: {
-                    // no GfVec2i, convert to float
-                    GfVec2f box_min, box_max;
-                    box_min.Set((float) attr->box2i->min.x, (float) attr->box2i->min.y);
-                    box_max.Set((float) attr->box2i->max.x, (float) attr->box2i->max.x);
-                    _metadata[TfToken(attr->name)] = VtValue(GfRange2f(box_min, box_max));
-                    break;
-                }
-                case EXR_ATTR_BOX2F: {
-                    GfVec2f box_min, box_max;
-                    box_min.Set(attr->box2f->min.x, attr->box2f->min.y);
-                    box_max.Set(attr->box2f->max.x, attr->box2f->max.y);
-                    _metadata[TfToken(attr->name)] = VtValue(GfRange2f(box_min, box_max));
-                    break;
-                }
-                case EXR_ATTR_CHLIST:
-                case EXR_ATTR_CHROMATICITIES:
-                case EXR_ATTR_COMPRESSION:
-                    // these are explicitly handled elsewhere, they aren't
-                    // metadata attributes for Hio's purposes.
-                    continue;
-                case EXR_ATTR_DOUBLE:
-                    _metadata[TfToken(attr->name)] = VtValue(attr->d);
-                    break;
-                case EXR_ATTR_ENVMAP:
-                    // Hio doesn't specifically treat cube and lot-lang maps.
-                    // If it did, this case would be handled elsewhere.
-                    break;
-                case EXR_ATTR_FLOAT:
-                    _metadata[TfToken(attr->name)] = VtValue(attr->f);
-                    break;
-                case EXR_ATTR_FLOAT_VECTOR: {
-                    std::vector<float> v;
-                    v.resize(attr->floatvector->length);
-                    memcpy(v.data(), attr->floatvector->arr, v.size() * sizeof(float));
-                    _metadata[TfToken(attr->name)] = VtValue(v);
-                }
-                case EXR_ATTR_INT:
-                    _metadata[TfToken(attr->name)] = VtValue(attr->i);
-                    break;
-                case EXR_ATTR_KEYCODE:
-                case EXR_ATTR_LINEORDER:
-                    // these are explicitly handled elsewhere, they aren't
-                    // metadata attributes for Hio's purposes.
-                    continue;
-                case EXR_ATTR_M33F: {
-                    GfMatrix3f m;
-                    memcpy(m.GetArray(), attr->m33f, 9 * sizeof(float));
-                    _metadata[TfToken(attr->name)] = VtValue(m);
-                    break;
-                }
-                case EXR_ATTR_M33D: {
-                    GfMatrix3d m;
-                    memcpy(m.GetArray(), attr->m33d, 9 * sizeof(double));
-                    _metadata[TfToken(attr->name)] = VtValue(m);
-                    break;
-                }
-                case EXR_ATTR_M44F: {
-                    GfMatrix4f m;
-                    memcpy(m.GetArray(), attr->m44f, 16 * sizeof(float));
-                    _metadata[TfToken(attr->name)] = VtValue(m);
-                    break;
-                }
-                case EXR_ATTR_M44D: {
-                    GfMatrix4d m;
-                    memcpy(m.GetArray(), attr->m44d, 16 * sizeof(double));
-                    _metadata[TfToken(attr->name)] = VtValue(m);
-                    break;
-                }
-                case EXR_ATTR_PREVIEW:
-                    // EXR images may have a poster image, but Hio doesn't
-                    continue;
-                case EXR_ATTR_RATIONAL: {
-                    // Gf doesn't have rational numbers, so degrade to a float.
-                    float f = (float) attr->rational->num / (float) attr->rational->denom;
-                    _metadata[TfToken(attr->name)] = VtValue(f);
-                    break;
-                }
-                case EXR_ATTR_STRING:
-                    _metadata[TfToken(attr->name)] = VtValue(attr->string);
-                    break;
-                case EXR_ATTR_STRING_VECTOR: {
-                    std::vector<std::string> v;
-                    v.resize(attr->stringvector->n_strings);
-                    for (size_t i = 0; i < v.size(); ++i) {
-                        v[i] = attr->stringvector->strings[i].str;
-                    }
-                    _metadata[TfToken(attr->name)] = VtValue(v);
-                    break;
-                }
-                case EXR_ATTR_TILEDESC:
-                    // this is explicitly handled elsewhere, it isn't
-                    // metadata attributes for Hio's purposes.
-                    continue;
-                case EXR_ATTR_TIMECODE:
-                    // Is there a VtValue that can represent this?
-                    continue;
-                case EXR_ATTR_V2I: {
-                    // there's no GfVec2i, convert to double
-                    GfVec2d v;
-                    v.Set((double) attr->v2i->x, (double) attr->v2i->y);
-                    _metadata[TfToken(attr->name)] = VtValue(v);
-                    break;
-                }
-                case EXR_ATTR_V2F: {
-                    GfVec2f v;
-                    v.Set(attr->v2f->x, attr->v2f->y);
-                    _metadata[TfToken(attr->name)] = VtValue(v);
-                    break;
-                }
-                case EXR_ATTR_V2D: {
-                    GfVec2d v;
-                    v.Set(attr->v2d->x, attr->v2d->y);
-                    _metadata[TfToken(attr->name)] = VtValue(v);
-                    break;
-                }
-                case EXR_ATTR_V3I: {
-                    // there's no GfVec3i, convert to double
-                    GfVec3d v;
-                    v.Set((double) attr->v3i->x, (double) attr->v3i->y, (double) attr->v3i->z);
-                    _metadata[TfToken(attr->name)] = VtValue(v);
-                    break;
-                }
-                case EXR_ATTR_V3F: {
-                    GfVec3f v;
-                    v.Set(attr->v3f->x, attr->v3f->y, attr->v3f->z);
-                    _metadata[TfToken(attr->name)] = VtValue(v);
-                    break;
-                }
-                case EXR_ATTR_V3D: {
-                    GfVec3d v;
-                    v.Set(attr->v3d->x, attr->v3d->y, attr->v3d->z);
-                    _metadata[TfToken(attr->name)] = VtValue(v);
-                    break;
-                }
-                case EXR_ATTR_LAST_KNOWN_TYPE:
-                case EXR_ATTR_OPAQUE:
-                    // Should an arbitrary block of binary data be put into a VtValue?
-                    continue;
+    auto convertM4dIfNecessary = [](const VtValue& v) -> VtValue {
+        if (v.CanCastToTypeid(typeid(GfMatrix4d))) {
+            return v.CastToTypeid(v, typeid(GfMatrix4d()));
+        }
+        return v;
+    };
+    
+    // if any of the "world to" attributes exist, cast them to M4d.
+    const char* forceM4d[] = {
+        "NP", "worldtoscreen", "worldToScreen", "worldToNDC",
+        "Nl", "worldtocamera", "worldToCamera"
+    };
+    for (int i = 0; i < 7; ++i) {
+        if (key == forceM4d[i]) {
+            auto candidate = _metadata.find(forceM4d[i]);
+            if (candidate != _metadata.end()) {
+                *value = convertM4dIfNecessary(candidate->second);
+                return true;
             }
         }
-        if (_metadata.empty()) {
-            _metadata[TfToken("placehodler")] = VtValue(true);
+    }
+    
+    // try translating common alternatives to a standard attribute
+    if (key == "NP" || key == "worldtoscreen") {
+        auto candidate = _metadata.find("worldToNDC");
+        if (candidate != _metadata.end()) {
+            *value = convertM4dIfNecessary(candidate->second);
+            return true;
+        }
+    }
+    if (key == "Nl" || key == "worldtocamera") {
+        auto candidate = _metadata.find("worldToCamera");
+        if (candidate != _metadata.end()) {
+            *value = convertM4dIfNecessary(candidate->second);
+            return true;
         }
     }
 
-    // first attempt to find the requested key
+    // any other key is returned as it's found
     auto candidate = _metadata.find(key);
     if (candidate != _metadata.end()) {
         *value = candidate->second;
         return true;
     }
 
-    // try translating common alternatives to a standard attribute
-    if (key == "NP" || key == "worldtoscreen") {
-        candidate = _metadata.find("worldToNDC");
-        if (candidate != _metadata.end()) {
-            *value = candidate->second;
-            return true;
-        }
-    }
-    if (key == "Nl" || key == "worldtocamera") {
-        candidate = _metadata.find("worldToCamera");
-        if (candidate != _metadata.end()) {
-            *value = candidate->second;
-            return true;
-        }
-    }
-
     return false;
 }
 
 bool Hio_OpenEXRImage::GetSamplerMetadata(HioAddressDimension dim,
-                        HioAddressMode *param) const
+                                          HioAddressMode *param) const
 {
     if (!param)
         return false;
@@ -715,6 +577,173 @@ bool Hio_OpenEXRImage::GetSamplerMetadata(HioAddressDimension dim,
         case nanoexr_WrapModeClampToBorderColor: *param = HioAddressModeClampToBorderColor;
     }
     return true;
+}
+
+//static
+void Hio_OpenEXRImage::_AttributeReadCallback(void* self_) {
+    Hio_OpenEXRImage* self = reinterpret_cast<Hio_OpenEXRImage*>(self_);
+    if (!self->_metadata.empty())
+        return;
+    
+    // at the moment, Hio doesn't know about parts.
+    const int partIndex = 0;
+    int attrCount = 0;
+    nanoexr_get_attribute_count(self->_exrReader.exr, partIndex);
+    for (int i = 0; i < attrCount; ++i) {
+        const exr_attribute_t* attr;
+        nanoexr_get_attribute_by_index(self->_exrReader.exr, partIndex, i, &attr);
+        if (!attr)
+            continue;
+
+        // this switch is an exhaustive alphabetical treatment of all the
+        // possible attribute types.
+        switch(attr->type) {
+            case EXR_ATTR_UNKNOWN:
+                continue;
+            case EXR_ATTR_BOX2I: {
+                // no GfVec2i, convert to float
+                GfVec2f box_min, box_max;
+                box_min.Set((float) attr->box2i->min.x, (float) attr->box2i->min.y);
+                box_max.Set((float) attr->box2i->max.x, (float) attr->box2i->max.x);
+                self->_metadata[TfToken(attr->name)] = VtValue(GfRange2f(box_min, box_max));
+                break;
+            }
+            case EXR_ATTR_BOX2F: {
+                GfVec2f box_min, box_max;
+                box_min.Set(attr->box2f->min.x, attr->box2f->min.y);
+                box_max.Set(attr->box2f->max.x, attr->box2f->max.y);
+                self->_metadata[TfToken(attr->name)] = VtValue(GfRange2f(box_min, box_max));
+                break;
+            }
+            case EXR_ATTR_CHLIST:
+            case EXR_ATTR_CHROMATICITIES:
+            case EXR_ATTR_COMPRESSION:
+                // these are explicitly handled elsewhere, they aren't
+                // metadata attributes for Hio's purposes.
+                continue;
+            case EXR_ATTR_DOUBLE:
+                self->_metadata[TfToken(attr->name)] = VtValue(attr->d);
+                break;
+            case EXR_ATTR_ENVMAP:
+                // Hio doesn't specifically treat cube and lot-lang maps.
+                // If it did, this case would be handled elsewhere.
+                break;
+            case EXR_ATTR_FLOAT:
+                self->_metadata[TfToken(attr->name)] = VtValue(attr->f);
+                break;
+            case EXR_ATTR_FLOAT_VECTOR: {
+                std::vector<float> v;
+                v.resize(attr->floatvector->length);
+                memcpy(v.data(), attr->floatvector->arr, v.size() * sizeof(float));
+                self->_metadata[TfToken(attr->name)] = VtValue(v);
+            }
+            case EXR_ATTR_INT:
+                self->_metadata[TfToken(attr->name)] = VtValue(attr->i);
+                break;
+            case EXR_ATTR_KEYCODE:
+            case EXR_ATTR_LINEORDER:
+                // these are explicitly handled elsewhere, they aren't
+                // metadata attributes for Hio's purposes.
+                continue;
+            case EXR_ATTR_M33F: {
+                GfMatrix3f m;
+                memcpy(m.GetArray(), attr->m33f, 9 * sizeof(float));
+                self->_metadata[TfToken(attr->name)] = VtValue(m);
+                break;
+            }
+            case EXR_ATTR_M33D: {
+                GfMatrix3d m;
+                memcpy(m.GetArray(), attr->m33d, 9 * sizeof(double));
+                self->_metadata[TfToken(attr->name)] = VtValue(m);
+                break;
+            }
+            case EXR_ATTR_M44F: {
+                GfMatrix4f m;
+                memcpy(m.GetArray(), attr->m44f, 16 * sizeof(float));
+                self->_metadata[TfToken(attr->name)] = VtValue(m);
+                break;
+            }
+            case EXR_ATTR_M44D: {
+                GfMatrix4d m;
+                memcpy(m.GetArray(), attr->m44d, 16 * sizeof(double));
+                self->_metadata[TfToken(attr->name)] = VtValue(m);
+                break;
+            }
+            case EXR_ATTR_PREVIEW:
+                // EXR images may have a poster image, but Hio doesn't
+                continue;
+            case EXR_ATTR_RATIONAL: {
+                // Gf doesn't have rational numbers, so degrade to a float.
+                float f = (float) attr->rational->num / (float) attr->rational->denom;
+                self->_metadata[TfToken(attr->name)] = VtValue(f);
+                break;
+            }
+            case EXR_ATTR_STRING:
+                self->_metadata[TfToken(attr->name)] = VtValue(attr->string);
+                break;
+            case EXR_ATTR_STRING_VECTOR: {
+                std::vector<std::string> v;
+                v.resize(attr->stringvector->n_strings);
+                for (size_t i = 0; i < v.size(); ++i) {
+                    v[i] = attr->stringvector->strings[i].str;
+                }
+                self->_metadata[TfToken(attr->name)] = VtValue(v);
+                break;
+            }
+            case EXR_ATTR_TILEDESC:
+                // this is explicitly handled elsewhere, it isn't
+                // metadata attributes for Hio's purposes.
+                continue;
+            case EXR_ATTR_TIMECODE:
+                // Is there a VtValue that can represent this?
+                continue;
+            case EXR_ATTR_V2I: {
+                // there's no GfVec2i, convert to double
+                GfVec2d v;
+                v.Set((double) attr->v2i->x, (double) attr->v2i->y);
+                self->_metadata[TfToken(attr->name)] = VtValue(v);
+                break;
+            }
+            case EXR_ATTR_V2F: {
+                GfVec2f v;
+                v.Set(attr->v2f->x, attr->v2f->y);
+                self->_metadata[TfToken(attr->name)] = VtValue(v);
+                break;
+            }
+            case EXR_ATTR_V2D: {
+                GfVec2d v;
+                v.Set(attr->v2d->x, attr->v2d->y);
+                self->_metadata[TfToken(attr->name)] = VtValue(v);
+                break;
+            }
+            case EXR_ATTR_V3I: {
+                // there's no GfVec3i, convert to double
+                GfVec3d v;
+                v.Set((double) attr->v3i->x, (double) attr->v3i->y, (double) attr->v3i->z);
+                self->_metadata[TfToken(attr->name)] = VtValue(v);
+                break;
+            }
+            case EXR_ATTR_V3F: {
+                GfVec3f v;
+                v.Set(attr->v3f->x, attr->v3f->y, attr->v3f->z);
+                self->_metadata[TfToken(attr->name)] = VtValue(v);
+                break;
+            }
+            case EXR_ATTR_V3D: {
+                GfVec3d v;
+                v.Set(attr->v3d->x, attr->v3d->y, attr->v3d->z);
+                self->_metadata[TfToken(attr->name)] = VtValue(v);
+                break;
+            }
+            case EXR_ATTR_LAST_KNOWN_TYPE:
+            case EXR_ATTR_OPAQUE:
+                // Should an arbitrary block of binary data be put into a VtValue?
+                continue;
+        }
+    }
+    if (self->_metadata.empty()) {
+        self->_metadata[TfToken("placehodler")] = VtValue(true);
+    }
 }
 
 // set inits.read_fn to exr_AssetRead_Func
@@ -742,7 +771,7 @@ bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
     nanoexr_new(filename.c_str(), &_exrReader);
 
     int partIndex = 0;
-    int rv = nanoexr_open(&_exrReader, partIndex);
+    int rv = nanoexr_open(&_exrReader, partIndex, _AttributeReadCallback, this);
     if (rv != 0) {
         TF_CODING_ERROR("Cannot open image \"%s\" for reading, %s",
                         filename.c_str(), nanoexr_get_error_code_as_string(rv));

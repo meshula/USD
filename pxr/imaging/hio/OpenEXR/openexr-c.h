@@ -24,19 +24,21 @@
 extern "C" {
 #endif
 
+int nanoexr_get_attribute_count(exr_const_context_t, int part_index);
+
 exr_result_t nanoexr_get_attribute_by_index(
     exr_const_context_t     ctxt,
     int                     part_index,
     int                     i,
     const exr_attribute_t** outattr);
 
-int nanoexr_get_attribute_count(exr_const_context_t, int part_index);
-
+// structure to cache tile map info.
 typedef struct {
     int tileWidth,  tileHeight;
     int levelWidth, levelHeight;
 } nanoexr_TileMipInfo_t;
 
+// structure to hold image data that is read from an EXR file
 typedef struct {
     uint8_t* data;
     size_t dataSize;
@@ -46,7 +48,7 @@ typedef struct {
     int dataWindowMinY, dataWindowMaxY;
 } nanoexr_ImageData_t;
 
-// simple struct to force type safety on interface
+// struct to force type safety on interface
 typedef struct {
     int level;
 } nanoexr_MipLevel_t;
@@ -78,8 +80,10 @@ typedef struct {
 } nanoexr_Reader_t;
 
 void nanoexr_new(const char* filename, nanoexr_Reader_t* reader);
+void nanoexr_delete(nanoexr_Reader_t* reader);
 
-const char* nanoexr_get_error_code_as_string (exr_result_t code);
+const char* nanoexr_get_error_code_as_string(exr_result_t code);
+int         nanoexr_getPixelTypeSize(exr_pixel_type_t t);
 
 // reads an entire tiled image into memory
 // returns any exr_result_t error code encountered upon reading
@@ -91,25 +95,27 @@ const char* nanoexr_get_error_code_as_string (exr_result_t code);
 // the size of the data in bytes.  The caller is responsible for
 // freeing the data pointer when it is no longer needed.
 
-void nanoexr_release_image_data(nanoexr_ImageData_t* imageData);
+// function pointer to a void function
+typedef void (*nanoexr_attrRead)(void*);
 
-exr_result_t nanoexr_open(nanoexr_Reader_t* reader, int partIndex);
+exr_result_t nanoexr_open(nanoexr_Reader_t* reader, int partIndex,
+                          nanoexr_attrRead, void* attrRead_userData);
 exr_result_t nanoexr_open_for_writing_fp16(nanoexr_Reader_t* nexr,
     int width, int height,
     uint8_t* red, int32_t redPixelStride, int32_t redLineStride,
     uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
     uint8_t* blue, int32_t bluePixelStride, int32_t blueLineStride);
-void         nanoexr_delete(nanoexr_Reader_t* reader);
-int          nanoexr_getPixelTypeSize(exr_pixel_type_t t);
-
-bool nanoexr_Gaussian_resample(const nanoexr_ImageData_t* src,
-                               nanoexr_ImageData_t* dst);
 
 exr_result_t nanoexr_read_exr(const char* filename,
                               nanoexr_ImageData_t* img,
                               const char* layerName,
                               int partIndex,
                               int level);
+
+void nanoexr_release_image_data(nanoexr_ImageData_t* imageData);
+
+bool nanoexr_Gaussian_resample(const nanoexr_ImageData_t* src,
+                               nanoexr_ImageData_t* dst);
 
 #ifdef __cplusplus
 }
