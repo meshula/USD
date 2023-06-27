@@ -647,7 +647,7 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
         }
     }
     if (self->_metadata.empty()) {
-        self->_metadata[TfToken("placehodler")] = VtValue(true);
+        self->_metadata[TfToken("placeholder")] = VtValue(true);
     }
 }
 
@@ -724,7 +724,14 @@ void Hio_OpenEXRImage::_AttributeWriteCallback(void* self_, exr_context_t exr) {
             pxr_attr_set_m44f(exr, self->_subimage, key.c_str(), value.Get<GfMatrix4f>().GetArray());
         }
         else if (value.IsHolding<GfMatrix4d>()) {
-            pxr_attr_set_m44d(exr, self->_subimage, key.c_str(), value.Get<GfMatrix4d>().GetArray());
+            if (isWorldToNDC(key) || isWorldToCamera(key)) {
+                // for Ice/Imr, convert to m44f.
+                GfMatrix4f m = value.Get<GfMatrix4d>();
+                pxr_attr_set_m44f(exr, self->_subimage, key.c_str(), m.GetArray());
+            }
+            else {
+                pxr_attr_set_m44d(exr, self->_subimage, key.c_str(), value.Get<GfMatrix4d>().GetArray());
+            }
         }
     }
 }
