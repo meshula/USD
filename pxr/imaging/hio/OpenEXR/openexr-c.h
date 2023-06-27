@@ -33,18 +33,16 @@ void pxr_attr_set_float(
     exr_context_t ctxt, int part_index, const char* name, float v);
 void pxr_attr_set_double(
     exr_context_t ctxt, int part_index, const char* name, double v);
+void pxr_attr_set_m44f(
+    exr_context_t ctxt, int part_index, const char* name, const float* v);
+void pxr_attr_set_m44d(
+    exr_context_t ctxt, int part_index, const char* name, const double* v);
 
 exr_result_t nanoexr_get_attribute_by_index(
     exr_const_context_t     ctxt,
     int                     part_index,
     int                     i,
     const exr_attribute_t** outattr);
-
-// structure to cache tile map info.
-typedef struct {
-    int tileWidth,  tileHeight;
-    int levelWidth, levelHeight;
-} nanoexr_TileMipInfo_t;
 
 // structure to hold image data that is read from an EXR file
 typedef struct {
@@ -55,11 +53,6 @@ typedef struct {
     int width, height;
     int dataWindowMinY, dataWindowMaxY;
 } nanoexr_ImageData_t;
-
-// struct to force type safety on interface
-typedef struct {
-    int level;
-} nanoexr_MipLevel_t;
 
 typedef enum {
     nanoexr_WrapModeClampToEdge = 0,
@@ -78,8 +71,7 @@ typedef struct {
     int width, height;
     int tileLevelCount;
     nanoexr_WrapMode wrapMode;
-    nanoexr_MipLevel_t mipLevels;
-    nanoexr_TileMipInfo_t* tileLevelInfo;
+    int numMipLevels;
     int exrSDKVersionMajor;
     int exrSDKVersionMinor;
     int exrSDKVersionPatch;

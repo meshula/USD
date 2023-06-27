@@ -168,7 +168,7 @@ int Hio_OpenEXRImage::GetBytesPerPixel() const
 
 int Hio_OpenEXRImage::GetNumMipLevels() const
 {
-    return _exrReader.mipLevels.level;
+    return _exrReader.numMipLevels;
 }
 
 bool Hio_OpenEXRImage::IsColorSpaceSRGB() const
@@ -720,18 +720,12 @@ void Hio_OpenEXRImage::_AttributeWriteCallback(void* self_, exr_context_t exr) {
         else if (value.IsHolding<double>()) {
             pxr_attr_set_float(exr, self->_subimage, key.c_str(), value.Get<double>());
         }
-
-        /*
-        if (value.IsHolding<float>()) {
-            spec->attribute(key, TypeDesc(TypeDesc::FLOAT,
-                                          TypeDesc::SCALAR),
-                                          &value.Get<float>());
-        } else
-        if (value.IsHolding<double>()) {
-            spec->attribute(key, TypeDesc(TypeDesc::DOUBLE,
-                                          TypeDesc::SCALAR),
-                                          &value.Get<double>());
-        }*/
+        else if (value.IsHolding<GfMatrix4f>()) {
+            pxr_attr_set_m44f(exr, self->_subimage, key.c_str(), value.Get<GfMatrix4f>().GetArray());
+        }
+        else if (value.IsHolding<GfMatrix4d>()) {
+            pxr_attr_set_m44d(exr, self->_subimage, key.c_str(), value.Get<GfMatrix4d>().GetArray());
+        }
     }
 }
 

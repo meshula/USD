@@ -52,6 +52,14 @@ void pxr_attr_set_double(exr_context_t ctxt, int part_index, const char* name, d
     exr_attr_set_double(ctxt, part_index, name, v);
 }
 
+void pxr_attr_set_m44f(exr_context_t ctxt, int part_index, const char* name, const float* v) {
+    exr_attr_set_m44f(ctxt, part_index, name, (exr_attr_m44f_t*) v);
+}
+
+void pxr_attr_set_m44d(exr_context_t ctxt, int part_index, const char* name, const double* v) {
+    exr_attr_set_m44d(ctxt, part_index, name, (exr_attr_m44d_t*) v);
+}
+
 const char* nanoexr_get_error_code_as_string (exr_result_t code)
 {
     return exr_get_error_code_as_string(code);
@@ -175,10 +183,9 @@ void nanoexr_set_defaults(const char* filename, nanoexr_Reader_t* reader) {
     reader->channelCount = 0;
     reader->pixelType = EXR_PIXEL_LAST_TYPE;
     reader->partIndex = 0;
-    reader->mipLevels.level = 0;
+    reader->numMipLevels = 0;
     reader->isScanline = false;
     reader->tileLevelCount = 0;
-    reader->tileLevelInfo = NULL;
     reader->wrapMode = nanoexr_WrapModeClampToEdge;
 }
 
@@ -187,7 +194,6 @@ void nanoexr_free_storage(nanoexr_Reader_t* reader) {
     if (!reader)
         return;
     free(reader->filename);
-    free(reader->tileLevelInfo);
 }
 
 int nanoexr_read_header(nanoexr_Reader_t* reader, int partIndex, 
@@ -233,34 +239,11 @@ int nanoexr_read_header(nanoexr_Reader_t* reader, int partIndex,
         }
     }
     if (numMipLevelsX != numMipLevelsY) {
-        // current assumption is that mips are only supproted for square images
-        // should this be flagged?
+        // current assumption is that mips are only supported uniformally in both directions
         numMipLevelsX = 1;
         numMipLevelsY = 1;
     }
-    reader->mipLevels.level = numMipLevelsX;
-
-    if (!reader->isScanline) {
-        reader->tileLevelCount = numMipLevelsX;
-        reader->tileLevelInfo = (nanoexr_TileMipInfo_t*) calloc(sizeof(nanoexr_TileMipInfo_t), numMipLevelsX);
-        for (int i = 0; i < numMipLevelsX; i++) {
-            int tileWidth, tileHeight, levelWidth, levelHeight;
-            rv = exr_get_tile_sizes(exr, partIndex, i, i, &tileWidth, &tileHeight);
-            if (rv != EXR_ERR_SUCCESS) {
-                exr_finish(&exr);
-                return rv;
-            }
-            rv = exr_get_level_sizes(exr, partIndex, i, i, &levelWidth, &levelHeight);
-            if (rv != EXR_ERR_SUCCESS) {
-                exr_finish(&exr);
-                return rv;
-            }
-            reader->tileLevelInfo[i].tileWidth = tileWidth;
-            reader->tileLevelInfo[i].tileHeight = tileHeight;
-            reader->tileLevelInfo[i].levelWidth = levelWidth;
-            reader->tileLevelInfo[i].levelHeight = levelHeight;
-        }
-    }
+    reader->numMipLevels = numMipLevelsX;
 
     const exr_attr_chlist_t* chlist = NULL;
     rv = exr_get_channels(exr, partIndex, &chlist);
