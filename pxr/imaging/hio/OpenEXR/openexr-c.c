@@ -36,6 +36,22 @@ int nanoexr_get_attribute_count(exr_const_context_t ctxt, int part_index) {
     return count;
 }
 
+void pxr_attr_set_string(exr_context_t ctxt, int part_index, const char* name, const char* s) {
+    exr_attr_set_string(ctxt, part_index, name, s);
+}
+
+void pxr_attr_set_int(exr_context_t ctxt, int part_index, const char* name, int v) {
+    exr_attr_set_int(ctxt, part_index, name, v);
+}
+
+void pxr_attr_set_float(exr_context_t ctxt, int part_index, const char* name, float v) {
+    exr_attr_set_float(ctxt, part_index, name, v);
+}
+
+void pxr_attr_set_double(exr_context_t ctxt, int part_index, const char* name, double v) {
+    exr_attr_set_double(ctxt, part_index, name, v);
+}
+
 const char* nanoexr_get_error_code_as_string (exr_result_t code)
 {
     return exr_get_error_code_as_string(code);
@@ -172,7 +188,6 @@ void nanoexr_free_storage(nanoexr_Reader_t* reader) {
         return;
     free(reader->filename);
     free(reader->tileLevelInfo);
-    free(reader);
 }
 
 int nanoexr_read_header(nanoexr_Reader_t* reader, int partIndex, 
@@ -282,7 +297,8 @@ exr_result_t nanoexr_write_exr(
     int width, int height,
     uint8_t* red,   int32_t redPixelStride,   int32_t redLineStride,
     uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
-    uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride)
+    uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride,
+    nanoexr_attrsAdd attrsAdd, void* attrsAdd_userData)
 {
     int partidx = 0;
     exr_context_t exr;
@@ -373,34 +389,14 @@ exr_result_t nanoexr_write_exr(
         return result;
     }
 
+    if (attrsAdd) {
+        attrsAdd(attrsAdd_userData, exr);
+    }
+
     result = exr_write_header(exr);
     if (result != EXR_ERR_SUCCESS) {
         return result;
     }
-
-#if 0
-    for (int i = 0; i < metadataCount; ++i) {
-        switch (metadata[i].type) {
-            case EXR_ATTR_INT:
-                result = exr_attr_set_int(exr, partidx, metadata[i].name, metadata[i].value.i[0]);
-                break;
-            case EXR_ATTR_FLOAT:
-                result = exr_attr_set_float(exr, partidx, metadata[i].name, metadata[i].value.f[0]);
-                break;
-            case EXR_ATTR_STRING:
-                result = exr_attr_set_string(exr, partidx, metadata[i].name, metadata[i].value.s);
-                break;
-            case EXR_ATTR_M44F:
-                result = exr_attr_set_m44f(exr, partidx, metadata[i].name, (exr_attr_m44f_t*) metadata[i].value.m44f);
-                break;
-            case EXR_ATTR_M44D:
-                result = exr_attr_set_m44d(exr, partidx, metadata[i].name, (exr_attr_m44d_t*) metadata[i].value.m44d);
-                break;
-            default:
-                break;
-        }
-    }
-#endif
     
     exr_encode_pipeline_t encoder;
     exr_chunk_info_t cinfo;
@@ -874,7 +870,7 @@ exr_result_t nanoexr_read_exr(const char* filename,
         return rv;
     }
 
-    img->channelCount = chlist->num_channels;
+    img->channelCount = 4;//chlist->num_channels;
     img->width = width;
     img->height = height;
     img->dataSize = width * height * img->channelCount * bytesPerChannel;
@@ -895,6 +891,11 @@ exr_result_t nanoexr_read_exr(const char* filename,
     }
     else {
         rv = nanoexr_read_scanline_exr(exr, img, layerName, partIndex, rgbaIndex);
+    }
+    
+    if (rv != EXR_ERR_SUCCESS) {
+        fprintf(stderr, "nanoexr: failed to read image\n");
+        return rv;
     }
 
     // xxx specialize for float, uint16 and half.

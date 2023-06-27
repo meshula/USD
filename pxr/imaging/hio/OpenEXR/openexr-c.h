@@ -25,6 +25,14 @@ extern "C" {
 #endif
 
 int nanoexr_get_attribute_count(exr_const_context_t, int part_index);
+void pxr_attr_set_string(
+    exr_context_t ctxt, int part_index, const char* name, const char* s);
+void pxr_attr_set_int(
+    exr_context_t ctxt, int part_index, const char* name, int v);
+void pxr_attr_set_float(
+    exr_context_t ctxt, int part_index, const char* name, float v);
+void pxr_attr_set_double(
+    exr_context_t ctxt, int part_index, const char* name, double v);
 
 exr_result_t nanoexr_get_attribute_by_index(
     exr_const_context_t     ctxt,
@@ -97,7 +105,8 @@ int         nanoexr_getPixelTypeSize(exr_pixel_type_t t);
 // the size of the data in bytes.  The caller is responsible for
 // freeing the data pointer when it is no longer needed.
 
-// function pointer to a void function
+// callback to allow a user to process attributes as desired at a
+// point when the context is available during header reading
 typedef void (*nanoexr_attrRead)(void*, exr_context_t);
 
 exr_result_t nanoexr_read_header(nanoexr_Reader_t* reader, int partIndex,
@@ -109,11 +118,17 @@ exr_result_t nanoexr_read_exr(const char* filename,
                               int partIndex,
                               int level);
 
+// callback to allow a user to add attributes to a context as desired
+typedef void (*nanoexr_attrsAdd)(void*, exr_context_t);
+
+// simplified write for the most basic case of a single part file containing
+// rgb data.
 exr_result_t nanoexr_write_exr(const char* filename,
                                int width, int height,
                                uint8_t* red,   int32_t redPixelStride,   int32_t redLineStride,
                                uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
-                               uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride);
+                               uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride,
+                               nanoexr_attrsAdd, void* attrsAdd_userData);
 
 void nanoexr_release_image_data(nanoexr_ImageData_t* imageData);
 

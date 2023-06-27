@@ -83,6 +83,7 @@ class Hio_OpenEXRImage final : public HioImage
     // mutable because GetMetadata is const, yet it doesn't make sense
     // to cache the dictionary unless metadata is requested.
     mutable VtDictionary     _metadata;
+    VtDictionary const*      _callbackDict = nullptr;
 
 public:
     Hio_OpenEXRImage() = default;
@@ -97,8 +98,8 @@ public:
                           int const cropRight, StorageSpec const &storage) override;
     bool      Write(StorageSpec const &storage, VtDictionary const &metadata) override;
     
-    int       GetWidth() const override;
-    int       GetHeight() const override;
+    int       GetWidth() const override { return _exrReader.width; }
+    int       GetHeight() const override { return _exrReader.height; }
     HioFormat GetFormat() const override;
     int       GetBytesPerPixel() const override;
     int       GetNumMipLevels() const override;
@@ -106,7 +107,7 @@ public:
     bool      GetMetadata(TfToken const &key, VtValue *value) const override;
     bool      GetSamplerMetadata(HioAddressDimension dim,
                                  HioAddressMode *param) const override;
-    std::string const &GetFilename() const override;
+    std::string const &GetFilename() const override { return _filename; }
 
 protected:
     bool _OpenForReading(std::string const &filename, int subimage, int mip,
@@ -114,6 +115,7 @@ protected:
                          bool suppressErrors) override;
     bool _OpenForWriting(std::string const &filename) override;
     static void _AttributeReadCallback(void* self_, exr_context_t exr);
+    static void _AttributeWriteCallback(void* self_, exr_context_t exr);
 };
 
 TF_REGISTRY_FUNCTION(TfType)
@@ -123,12 +125,12 @@ TF_REGISTRY_FUNCTION(TfType)
     t.SetFactory<HioImageFactory<Image>>();
 }
 
-HioFormat HioFormatFromExrPixelType(exr_pixel_type_t pixelType, int numChannels)
+HioFormat Hio_OpenEXRImage::GetFormat() const
 {
-    switch (pixelType)
+    switch (_exrReader.pixelType)
     {
     case EXR_PIXEL_UINT:
-        switch (numChannels)
+        switch (_exrReader.channelCount)
         {
         case 1: return HioFormatInt32;
         case 2: return HioFormatInt32Vec2;
@@ -137,7 +139,7 @@ HioFormat HioFormatFromExrPixelType(exr_pixel_type_t pixelType, int numChannels)
         }
 
     case EXR_PIXEL_HALF:
-        switch (numChannels)
+        switch (_exrReader.channelCount)
         {
         case 1: return HioFormatFloat16;
         case 2: return HioFormatFloat16Vec2;
@@ -146,7 +148,7 @@ HioFormat HioFormatFromExrPixelType(exr_pixel_type_t pixelType, int numChannels)
         }
 
     case EXR_PIXEL_FLOAT:
-        switch (numChannels)
+        switch (_exrReader.channelCount)
         {
         case 1: return HioFormatFloat32;
         case 2: return HioFormatFloat32Vec2;
@@ -157,6 +159,24 @@ HioFormat HioFormatFromExrPixelType(exr_pixel_type_t pixelType, int numChannels)
     default:
         return HioFormatInvalid;
     }
+}
+
+int Hio_OpenEXRImage::GetBytesPerPixel() const
+{
+    return _exrReader.channelCount * nanoexr_getPixelTypeSize(_exrReader.pixelType);
+}
+
+int Hio_OpenEXRImage::GetNumMipLevels() const
+{
+    return _exrReader.mipLevels.level;
+}
+
+bool Hio_OpenEXRImage::IsColorSpaceSRGB() const
+{
+    // the function asks if the color space is SRGB, but fundamentally
+    // what Hydra reall wants to know is whether the pixels are gamma pixels.
+    // OpenEXR images are always linear, so just return false.
+    return false;
 }
 
 
@@ -384,86 +404,19 @@ bool Hio_OpenEXRImage::ReadCropped(
     return true;
 }
 
-
-bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &metadata)
-{
-    const HioType type = HioGetHioType(storage.format);
-    if (type != HioTypeFloat && type != HioTypeHalfFloat) {
-        TF_CODING_ERROR("Unsupported pixel type %d", type);
-        return false;
-    }
-    if (storage.format != HioFormatFloat16 &&
-        storage.format != HioFormatFloat16Vec2 &&
-        storage.format != HioFormatFloat16Vec3 &&
-        storage.format != HioFormatFloat16Vec4 &&
-        storage.format != HioFormatFloat32 &&
-        storage.format != HioFormatFloat32Vec2 &&
-        storage.format != HioFormatFloat32Vec3 &&
-        storage.format != HioFormatFloat32Vec4) {
-        TF_CODING_ERROR("Unsupported pixel format %d", storage.format);
-        return false;
+namespace {
+    bool isWorldToNDC(const std::string& name)
+    {
+        return name == "NP" || name == "worldtoscreen" || name == "worldToScreen" ||
+            name == "worldToNDC";
     }
 
-    if (storage.format == HioFormatFloat16Vec3 || storage.format == HioFormatFloat16Vec4) {
-        int32_t size = 2;
-        int32_t ch = storage.format == HioFormatFloat16Vec3 ? 3 : 4;
-        uint8_t* pixels = reinterpret_cast<uint8_t*>(storage.data);
-        int32_t lineStride = storage.width * size * ch;
-        int32_t pixelStride = size * ch;
-        exr_result_t rv = nanoexr_write_exr(
-                                _filename.c_str(),
-                                storage.width, storage.height,
-                                pixels + (size * 2), pixelStride, lineStride, // red
-                                pixels +  size,      pixelStride, lineStride, // green
-                                pixels,              pixelStride, lineStride  // blue
-                                );
-        
-        if (rv != EXR_ERR_SUCCESS) {
-            TF_CODING_ERROR("Cannot open image \"%s\" for writing, %s",
-                            _filename.c_str(), nanoexr_get_error_code_as_string(rv));
-            return false;
-        }
+    bool isWorldToCamera(const std::string& name)
+    {
+        return name == "Nl" || name == "worldtocamera" || name == "worldToCamera";
     }
-
-    return true;
 }
 
-std::string const& Hio_OpenEXRImage::GetFilename() const
-{
-    return _filename;
-}
-
-int Hio_OpenEXRImage::GetWidth() const
-{
-    return _exrReader.width;
-}
-int Hio_OpenEXRImage::GetHeight() const
-{
-    return _exrReader.height;
-}
-
-HioFormat Hio_OpenEXRImage::GetFormat() const
-{
-    return HioFormatFromExrPixelType(_exrReader.pixelType, _exrReader.channelCount);
-}
-
-int Hio_OpenEXRImage::GetBytesPerPixel() const
-{
-    return _exrReader.channelCount * nanoexr_getPixelTypeSize(_exrReader.pixelType);
-}
-
-int Hio_OpenEXRImage::GetNumMipLevels() const
-{
-    return _exrReader.mipLevels.level;
-}
-
-bool Hio_OpenEXRImage::IsColorSpaceSRGB() const
-{
-    // the function asks if the color space is SRGB, but fundamentally
-    // what Hydra reall wants to know is whether the pixels are gamma pixels.
-    // OpenEXR images are always linear, so just return false.
-    return false;
-}
 
 bool Hio_OpenEXRImage::GetMetadata(TfToken const &key, VtValue *value) const
 {
@@ -479,30 +432,26 @@ bool Hio_OpenEXRImage::GetMetadata(TfToken const &key, VtValue *value) const
         return v;
     };
     
-    // if any of the "world to" attributes exist, cast them to M4d.
-    const char* forceM4d[] = {
-        "NP", "worldtoscreen", "worldToScreen", "worldToNDC",
-        "Nl", "worldtocamera", "worldToCamera"
-    };
-    for (int i = 0; i < 7; ++i) {
-        if (key == forceM4d[i]) {
-            auto candidate = _metadata.find(forceM4d[i]);
-            if (candidate != _metadata.end()) {
-                *value = convertM4dIfNecessary(candidate->second);
-                return true;
-            }
+    bool isW2N = isWorldToNDC(key);
+    bool isW2C = isWorldToCamera(key);
+    if (isW2N || isW2C) {
+        auto candidate = _metadata.find(key);
+        if (candidate != _metadata.end()) {
+            *value = convertM4dIfNecessary(candidate->second);
+            return true;
         }
     }
     
     // try translating common alternatives to a standard attribute
-    if (key == "NP" || key == "worldtoscreen") {
+
+    if (isW2N) {
         auto candidate = _metadata.find("worldToNDC");
         if (candidate != _metadata.end()) {
             *value = convertM4dIfNecessary(candidate->second);
             return true;
         }
     }
-    if (key == "Nl" || key == "worldtocamera") {
+    if (isW2C) {
         auto candidate = _metadata.find("worldToCamera");
         if (candidate != _metadata.end()) {
             *value = convertM4dIfNecessary(candidate->second);
@@ -739,6 +688,87 @@ bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
     }
     
     return true;
+}
+
+
+void Hio_OpenEXRImage::_AttributeWriteCallback(void* self_, exr_context_t exr) {
+    Hio_OpenEXRImage* self = reinterpret_cast<Hio_OpenEXRImage*>(self_);
+    for (const std::pair<std::string, VtValue> m : *self->_callbackDict) {
+        const std::string& key = m.first;
+        const VtValue& value = m.second;
+        // note: OpenEXR can represent most values that can be found in a
+        // VtValue, however, for the moment, this code is matching the behavior
+        // of the OpenImageIO plugin.
+        if (value.IsHolding<std::string>()) {
+            pxr_attr_set_string(exr, self->_subimage, key.c_str(), value.Get<std::string>().c_str());
+        }
+        else if (value.IsHolding<char>()) {
+            pxr_attr_set_int(exr, self->_subimage, key.c_str(), value.Get<char>());
+        }
+        else if (value.IsHolding<unsigned char>()) {
+            pxr_attr_set_int(exr, self->_subimage, key.c_str(), value.Get<unsigned char>());
+        }
+        else if (value.IsHolding<int>()) {
+            pxr_attr_set_int(exr, self->_subimage, key.c_str(), value.Get<int>());
+        }
+        else if (value.IsHolding<unsigned int>()) {
+            pxr_attr_set_int(exr, self->_subimage, key.c_str(), value.Get<unsigned int>());
+        }
+        else if (value.IsHolding<float>()) {
+            pxr_attr_set_float(exr, self->_subimage, key.c_str(), value.Get<float>());
+        }
+        else if (value.IsHolding<double>()) {
+            pxr_attr_set_float(exr, self->_subimage, key.c_str(), value.Get<double>());
+        }
+
+        /*
+        if (value.IsHolding<float>()) {
+            spec->attribute(key, TypeDesc(TypeDesc::FLOAT,
+                                          TypeDesc::SCALAR),
+                                          &value.Get<float>());
+        } else
+        if (value.IsHolding<double>()) {
+            spec->attribute(key, TypeDesc(TypeDesc::DOUBLE,
+                                          TypeDesc::SCALAR),
+                                          &value.Get<double>());
+        }*/
+    }
+}
+
+bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &metadata)
+{
+    const HioType type = HioGetHioType(storage.format);
+    if (type != HioTypeFloat && type != HioTypeHalfFloat) {
+        TF_CODING_ERROR("Unsupported pixel type %d", type);
+        return false;
+    }
+    switch (storage.format) {
+        case HioFormatFloat16:
+        case HioFormatFloat16Vec2:
+        case HioFormatFloat16Vec3:
+        case HioFormatFloat16Vec4:
+            break;
+        default:
+            TF_CODING_ERROR("Unsupported pixel format %d", storage.format);
+            return false;
+    }
+
+    _callbackDict = &metadata;
+
+    int32_t pxsize = type == HioTypeFloat ? sizeof(float) : sizeof(GfHalf);
+    int32_t ch = HioGetComponentCount(storage.format);
+    uint8_t* pixels = reinterpret_cast<uint8_t*>(storage.data);
+    int32_t lineStride = storage.width * pxsize * ch;
+    int32_t pixelStride = pxsize * ch;
+    exr_result_t rv = nanoexr_write_exr(
+                            _filename.c_str(),
+                            storage.width, storage.height,
+                            pixels + (pxsize * 2), pixelStride, lineStride, // red
+                            pixels +  pxsize,      pixelStride, lineStride, // green
+                            pixels,                pixelStride, lineStride, // blue
+                            _AttributeWriteCallback, this);
+
+    return rv == EXR_ERR_SUCCESS;
 }
 
 bool Hio_OpenEXRImage::_OpenForWriting(std::string const &filename)
