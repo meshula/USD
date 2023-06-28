@@ -90,6 +90,8 @@ public:
     virtual ~Hio_OpenEXRImage() override {
         nanoexr_free_storage(&_exrReader);
     }
+    
+    std::shared_ptr<ArAsset> Asset() const { return _asset; }
 
     using Base = HioImage;
     bool      Read(StorageSpec const &storage) override {
@@ -189,14 +191,14 @@ int64_t exr_AssetRead_Func(
     uint64_t                    offset,
     exr_stream_error_func_ptr_t error_cb)
 {
-    ArAsset* asset = (ArAsset*)userdata;
-    if (!asset || !buffer || !sz) {
+    Hio_OpenEXRImage* self = (Hio_OpenEXRImage*) userdata;
+    if (!self || !self->Asset() || !buffer || !sz) {
         if (error_cb)
             error_cb(ctxt, EXR_ERR_INVALID_ARGUMENT,
                            "%s", "Invalid arguments to read callback");
         return -1;
     }
-    return asset->Read(buffer, sz, offset);
+    return self->Asset()->Read(buffer, sz, offset);
 }
 
 template<typename T>
@@ -263,6 +265,10 @@ bool Hio_OpenEXRImage::ReadCropped(
                 int const cropLeft, int const cropRight, 
                 StorageSpec const &storage)
 {
+    // not opened for read prior to calling ReadCropped.
+    if (!_asset)
+        return false;
+
     if (cropTop < 0 || cropBottom < 0 || cropLeft < 0 || cropRight < 0)
         return false;
 
@@ -310,7 +316,7 @@ bool Hio_OpenEXRImage::ReadCropped(
 
     {
         nanoexr_ImageData_t img;
-        exr_result_t rv = nanoexr_read_exr(_exrReader.filename, &img, nullptr, 0, 0);
+        exr_result_t rv = nanoexr_read_exr(_exrReader.filename, exr_AssetRead_Func, this, &img, nullptr, 0, 0);
         if (rv != EXR_ERR_SUCCESS) {
             return false;
         }
@@ -651,10 +657,6 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
     }
 }
 
-// set inits.read_fn to exr_AssetRead_Func
-// called by HioImage::OpenForReading
-//
-// subimage will be interpreted as a "part" in OpenEXR parlance.
 bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
                                        int subimage, int mip,
                                        SourceColorSpace sourceColorSpace,
@@ -670,17 +672,9 @@ bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
     _mip = mip;
     _sourceColorSpace = sourceColorSpace;
 
-/*    exr_context_initializer_t exrInit = EXR_DEFAULT_CONTEXT_INITIALIZER;
-    exrInit.read_fn = exr_AssetRead_Func;
-    exrInit.write_fn = NULL;
-    exrInit.write_fn = NULL; // Use the default file system write, not ArAsset
-                             // at the moment.
-                             // The reason is that none of the existing Hio write
-                             // routines use ArAsset.
-    exrInit.user_data = (void*) _asset.get(); // Hio_OpenEXRImage will outlast the reader. */
     nanoexr_set_defaults(_filename.c_str(), &_exrReader);
 
-    int rv = nanoexr_read_header(&_exrReader, _subimage, _AttributeReadCallback, this);
+    int rv = nanoexr_read_header(&_exrReader, exr_AssetRead_Func, _subimage, _AttributeReadCallback, this);
     if (rv != 0) {
         TF_CODING_ERROR("Cannot open image \"%s\" for reading, %s",
                         filename.c_str(), nanoexr_get_error_code_as_string(rv));
@@ -689,7 +683,6 @@ bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
     
     return true;
 }
-
 
 void Hio_OpenEXRImage::_AttributeWriteCallback(void* self_, exr_context_t exr) {
     Hio_OpenEXRImage* self = reinterpret_cast<Hio_OpenEXRImage*>(self_);
@@ -726,8 +719,8 @@ void Hio_OpenEXRImage::_AttributeWriteCallback(void* self_, exr_context_t exr) {
         else if (value.IsHolding<GfMatrix4d>()) {
             if (isWorldToNDC(key) || isWorldToCamera(key)) {
                 // for Ice/Imr, convert to m44f.
-                GfMatrix4f m = value.Get<GfMatrix4d>();
-                pxr_attr_set_m44f(exr, self->_subimage, key.c_str(), m.GetArray());
+                GfMatrix4f mf(value.Get<GfMatrix4d>());
+                pxr_attr_set_m44f(exr, self->_subimage, key.c_str(), mf.GetArray());
             }
             else {
                 pxr_attr_set_m44d(exr, self->_subimage, key.c_str(), value.Get<GfMatrix4d>().GetArray());

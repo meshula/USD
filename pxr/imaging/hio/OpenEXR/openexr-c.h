@@ -101,10 +101,14 @@ int         nanoexr_getPixelTypeSize(exr_pixel_type_t t);
 // point when the context is available during header reading
 typedef void (*nanoexr_attrRead)(void*, exr_context_t);
 
-exr_result_t nanoexr_read_header(nanoexr_Reader_t* reader, int partIndex,
-                                 nanoexr_attrRead, void* attrRead_userData);
+exr_result_t nanoexr_read_header(nanoexr_Reader_t* reader, 
+                                 exr_read_func_ptr_t,
+                                 int partIndex,
+                                 nanoexr_attrRead, void* callback_userData);
 
 exr_result_t nanoexr_read_exr(const char* filename,
+                              exr_read_func_ptr_t readfn,
+                              void* callback_userData,
                               nanoexr_ImageData_t* img,
                               const char* layerName,
                               int partIndex,

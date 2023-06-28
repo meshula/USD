@@ -196,13 +196,16 @@ void nanoexr_free_storage(nanoexr_Reader_t* reader) {
     free(reader->filename);
 }
 
-int nanoexr_read_header(nanoexr_Reader_t* reader, int partIndex, 
-                 nanoexr_attrRead attrRead, void* attrRead_userData) {
+int nanoexr_read_header(nanoexr_Reader_t* reader, exr_read_func_ptr_t readFn,
+                        int partIndex,
+                        nanoexr_attrRead attrRead, void* callback_userData) {
     if (!reader)
         return EXR_ERR_INVALID_ARGUMENT;
     
     exr_context_t exr;
     exr_context_initializer_t init = EXR_DEFAULT_CONTEXT_INITIALIZER;
+    init.read_fn = readFn;
+    init.user_data = callback_userData;
     int rv = exr_start_read(&exr, reader->filename, &init);
     if (rv != EXR_ERR_SUCCESS) {
         exr_finish(&exr);
@@ -268,7 +271,7 @@ int nanoexr_read_header(nanoexr_Reader_t* reader, int partIndex,
     }
 
     if (attrRead)
-        attrRead(attrRead_userData, exr);
+        attrRead(callback_userData, exr);
 
     exr_finish(&exr);
     return rv;
@@ -771,6 +774,8 @@ exr_result_t nanoexr_read_scanline_exr(exr_context_t exr,
 }
 
 exr_result_t nanoexr_read_exr(const char* filename, 
+                              exr_read_func_ptr_t readfn,
+                              void* callback_userData,
                               nanoexr_ImageData_t* img,
                               const char* layerName,
                               int partIndex,
@@ -779,9 +784,8 @@ exr_result_t nanoexr_read_exr(const char* filename,
     exr_result_t rv = EXR_ERR_SUCCESS;
     exr_context_initializer_t cinit = EXR_DEFAULT_CONTEXT_INITIALIZER;
     cinit.error_handler_fn = tiled_exr_err_cb;
-    cinit.read_fn = NULL;    // nanoexr_read_func;
-    cinit.size_fn = NULL;    // nanoexr_query_size_func;
-    cinit.user_data = NULL;  // data for read and size functions
+    cinit.read_fn = readfn;
+    cinit.user_data = callback_userData;
     rv = exr_test_file_header(filename, &cinit);
     if (rv != EXR_ERR_SUCCESS) {
         fprintf(stderr, "nanoexr header error: %s\n", exr_get_default_error_message(rv));

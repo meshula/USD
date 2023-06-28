@@ -185,11 +185,12 @@ int main(int argc, char *argv[])
      */
     if (canReadExr) {
         _image = HioImage::OpenForReading(stillLife,
-                                              0, // int subimage,
-                                              0, // int mip,
-                                              HioImage::SourceColorSpace::Auto,
-                                              false); //bool suppressErrors)
-        
+                                          0, // int subimage,
+                                          0, // int mip,
+                                          HioImage::SourceColorSpace::Auto,
+                                          false); //bool suppressErrors)
+    }
+    if (_image) {
         std::cout << "filename: " << _image->GetFilename() << "\n";
         std::cout << " dimensions: " << _image->GetWidth() << ", " << _image->GetHeight() << "\n";
         switch (_image->GetFormat()) {
