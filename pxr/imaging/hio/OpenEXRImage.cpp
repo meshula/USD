@@ -56,10 +56,10 @@
  
  TODO:
  
- - from review: pass mip through to reader, if mip doesn't exist fail to read
- - from review: revise the "fill in" algorithm for missing channels
- - from review: read and write int32 images
- - check: are "subimages" the same as EXR "parts"?
+ - from matthias review: pass mip through to reader, if mip doesn't exist fail to read
+ - from matthias review: revise the "fill in" algorithm for missing channels
+ - from matthias review: read and write int32 images
+ - ask matthias: are "subimages" the same as EXR "parts"?
  
  */
 
@@ -716,46 +716,46 @@ void Hio_OpenEXRImage::_AttributeWriteCallback(void* self_, exr_context_t exr) {
         // VtValue, however, for the moment, this code is matching the behavior
         // of the OpenImageIO plugin.
         if (value.IsHolding<std::string>()) {
-            pxr_attr_set_string(exr, self->_subimage, key.c_str(),
+            nanoexr_attr_set_string(exr, self->_subimage, key.c_str(),
                                 value.Get<std::string>().c_str());
         }
         else if (value.IsHolding<char>()) {
-            pxr_attr_set_int(exr, self->_subimage, key.c_str(),
+            nanoexr_attr_set_int(exr, self->_subimage, key.c_str(),
                              value.Get<char>());
         }
         else if (value.IsHolding<unsigned char>()) {
-            pxr_attr_set_int(exr, self->_subimage, key.c_str(),
+            nanoexr_attr_set_int(exr, self->_subimage, key.c_str(),
                              value.Get<unsigned char>());
         }
         else if (value.IsHolding<int>()) {
-            pxr_attr_set_int(exr, self->_subimage, key.c_str(),
+            nanoexr_attr_set_int(exr, self->_subimage, key.c_str(),
                              value.Get<int>());
         }
         else if (value.IsHolding<unsigned int>()) {
-            pxr_attr_set_int(exr, self->_subimage, key.c_str(),
+            nanoexr_attr_set_int(exr, self->_subimage, key.c_str(),
                              value.Get<unsigned int>());
         }
         else if (value.IsHolding<float>()) {
-            pxr_attr_set_float(exr, self->_subimage, key.c_str(),
+            nanoexr_attr_set_float(exr, self->_subimage, key.c_str(),
                                value.Get<float>());
         }
         else if (value.IsHolding<double>()) {
-            pxr_attr_set_float(exr, self->_subimage, key.c_str(),
+            nanoexr_attr_set_double(exr, self->_subimage, key.c_str(),
                                value.Get<double>());
         }
         else if (value.IsHolding<GfMatrix4f>()) {
-            pxr_attr_set_m44f(exr, self->_subimage, key.c_str(),
+            nanoexr_attr_set_m44f(exr, self->_subimage, key.c_str(),
                               value.Get<GfMatrix4f>().GetArray());
         }
         else if (value.IsHolding<GfMatrix4d>()) {
             if (isWorldToNDC(key) || isWorldToCamera(key)) {
                 // for Ice/Imr, convert to m44f.
                 GfMatrix4f mf(value.Get<GfMatrix4d>());
-                pxr_attr_set_m44f(exr, self->_subimage, key.c_str(),
+                nanoexr_attr_set_m44f(exr, self->_subimage, key.c_str(),
                                   mf.GetArray());
             }
             else {
-                pxr_attr_set_m44d(exr, self->_subimage, key.c_str(),
+                nanoexr_attr_set_m44d(exr, self->_subimage, key.c_str(),
                                   value.Get<GfMatrix4d>().GetArray());
             }
         }

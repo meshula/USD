@@ -4,6 +4,7 @@
 // It's not part of the regular OpenEXR build. These two files are meant
 // to be added to your project, either as a library with just the single
 // standalone files, or added directly to your project.
+// note that the prefix "nanoexr" is a proposal and subject to change
 
 #ifndef openexr_c_h
 #define openexr_c_h
@@ -25,17 +26,17 @@ extern "C" {
 #endif
 
 int nanoexr_get_attribute_count(exr_const_context_t, int part_index);
-void pxr_attr_set_string(
+void nanoexr_attr_set_string(
     exr_context_t ctxt, int part_index, const char* name, const char* s);
-void pxr_attr_set_int(
+void nanoexr_attr_set_int(
     exr_context_t ctxt, int part_index, const char* name, int v);
-void pxr_attr_set_float(
+void nanoexr_attr_set_float(
     exr_context_t ctxt, int part_index, const char* name, float v);
-void pxr_attr_set_double(
+void nanoexr_attr_set_double(
     exr_context_t ctxt, int part_index, const char* name, double v);
-void pxr_attr_set_m44f(
+void nanoexr_attr_set_m44f(
     exr_context_t ctxt, int part_index, const char* name, const float* v);
-void pxr_attr_set_m44d(
+void nanoexr_attr_set_m44d(
     exr_context_t ctxt, int part_index, const char* name, const double* v);
 
 exr_result_t nanoexr_get_attribute_by_index(
@@ -119,12 +120,13 @@ typedef void (*nanoexr_attrsAdd)(void*, exr_context_t);
 
 // simplified write for the most basic case of a single part file containing
 // rgb data.
-exr_result_t nanoexr_write_exr(const char* filename,
-                               int width, int height,
-                               uint8_t* red,   int32_t redPixelStride,   int32_t redLineStride,
-                               uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
-                               uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride,
-                               nanoexr_attrsAdd, void* attrsAdd_userData);
+exr_result_t nanoexr_write_exr(
+               const char* filename,
+               int width, int height,
+               uint8_t* red,   int32_t redPixelStride,   int32_t redLineStride,
+               uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
+               uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride,
+               nanoexr_attrsAdd, void* attrsAdd_userData);
 
 void nanoexr_release_image_data(nanoexr_ImageData_t* imageData);
 

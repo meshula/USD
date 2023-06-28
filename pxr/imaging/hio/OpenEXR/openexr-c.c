@@ -36,27 +36,27 @@ int nanoexr_get_attribute_count(exr_const_context_t ctxt, int part_index) {
     return count;
 }
 
-void pxr_attr_set_string(exr_context_t ctxt, int part_index, const char* name, const char* s) {
+void nanoexr_attr_set_string(exr_context_t ctxt, int part_index, const char* name, const char* s) {
     exr_attr_set_string(ctxt, part_index, name, s);
 }
 
-void pxr_attr_set_int(exr_context_t ctxt, int part_index, const char* name, int v) {
+void nanoexr_attr_set_int(exr_context_t ctxt, int part_index, const char* name, int v) {
     exr_attr_set_int(ctxt, part_index, name, v);
 }
 
-void pxr_attr_set_float(exr_context_t ctxt, int part_index, const char* name, float v) {
+void nanoexr_attr_set_float(exr_context_t ctxt, int part_index, const char* name, float v) {
     exr_attr_set_float(ctxt, part_index, name, v);
 }
 
-void pxr_attr_set_double(exr_context_t ctxt, int part_index, const char* name, double v) {
+void nanoexr_attr_set_double(exr_context_t ctxt, int part_index, const char* name, double v) {
     exr_attr_set_double(ctxt, part_index, name, v);
 }
 
-void pxr_attr_set_m44f(exr_context_t ctxt, int part_index, const char* name, const float* v) {
+void nanoexr_attr_set_m44f(exr_context_t ctxt, int part_index, const char* name, const float* v) {
     exr_attr_set_m44f(ctxt, part_index, name, (exr_attr_m44f_t*) v);
 }
 
-void pxr_attr_set_m44d(exr_context_t ctxt, int part_index, const char* name, const double* v) {
+void nanoexr_attr_set_m44d(exr_context_t ctxt, int part_index, const char* name, const double* v) {
     exr_attr_set_m44d(ctxt, part_index, name, (exr_attr_m44d_t*) v);
 }
 
