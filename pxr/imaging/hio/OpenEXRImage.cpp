@@ -34,7 +34,6 @@
 #include "pxr/usd/ar/resolver.h"
 #include "pxr/usd/ar/writableAsset.h"
 
-// use gf types to read and write metadata
 #include "pxr/base/gf/matrix3d.h"
 #include "pxr/base/gf/matrix3f.h"
 #include "pxr/base/gf/matrix4d.h"
@@ -60,16 +59,11 @@
  - from review: pass mip through to reader, if mip doesn't exist fail to read
  - from review: revise the "fill in" algorithm for missing channels
  - from review: read and write int32 images
- - test: ArAsset based reading
  - check: are "subimages" the same as EXR "parts"?
  
  */
 
 PXR_NAMESPACE_OPEN_SCOPE
-
-#ifdef OPENEXR_USE_NAMESPACES
-using namespace OPENEXR_INTERNAL_NS;
-#endif
 
 class Hio_OpenEXRImage final : public HioImage
 {
@@ -94,20 +88,25 @@ public:
     std::shared_ptr<ArAsset> Asset() const { return _asset; }
 
     using Base = HioImage;
-    bool      Read(StorageSpec const &storage) override {
-                                            return ReadCropped(0, 0, 0, 0, storage); }
-    bool      ReadCropped(int const cropTop, int const cropBottom, int const cropLeft,
-                          int const cropRight, StorageSpec const &storage) override;
-    bool      Write(StorageSpec const &storage, VtDictionary const &metadata) override;
-    
-    int       GetWidth() const override { return _exrReader.width; }
-    int       GetHeight() const override { return _exrReader.height; }
+    bool Read(StorageSpec const &storage) override {
+            return ReadCropped(0, 0, 0, 0, storage); }
+    bool ReadCropped(int const cropTop,  int const cropBottom,
+                     int const cropLeft, int const cropRight,
+                     StorageSpec const &storage) override;
+    bool Write(StorageSpec const &storage,
+               VtDictionary const &metadata) override;
+
+    // IsColorSpaceSRGB asks if the color space is SRGB, but
+    // what Hydra really wants to know is whether the pixels are gamma pixels.
+    // OpenEXR images are always linear, so just return false.
+    bool IsColorSpaceSRGB() const override { return false; }
     HioFormat GetFormat() const override;
-    int       GetBytesPerPixel() const override;
-    int       GetNumMipLevels() const override;
-    bool      IsColorSpaceSRGB() const override;
-    bool      GetMetadata(TfToken const &key, VtValue *value) const override;
-    bool      GetSamplerMetadata(HioAddressDimension dim,
+    int  GetWidth() const override { return _exrReader.width; }
+    int  GetHeight() const override { return _exrReader.height; }
+    int  GetBytesPerPixel() const override;
+    int  GetNumMipLevels() const override;
+    bool GetMetadata(TfToken const &key, VtValue *value) const override;
+    bool GetSamplerMetadata(HioAddressDimension dim,
                                  HioAddressMode *param) const override;
     std::string const &GetFilename() const override { return _filename; }
 
@@ -136,17 +135,20 @@ HioFormat Hio_OpenEXRImage::GetFormat() const
         {
         case 1: return HioFormatInt32;
         case 2: return HioFormatInt32Vec2;
-        case 3: //return HioFormatInt32Vec3;
-        default: return HioFormatInt32Vec4;  // 3 will be promoted to 4 during the read
+        case 3: return HioFormatInt32Vec3;
+        default: return HioFormatInt32Vec4;
         }
 
+    // float pixel formats promote 3 channel reads to 4, because general gpu
+    // support for three component floating point textures is not always
+    // supported, but 1, 2, and 4 components are.
     case EXR_PIXEL_HALF:
         switch (_exrReader.channelCount)
         {
         case 1: return HioFormatFloat16;
         case 2: return HioFormatFloat16Vec2;
-        case 3: //return HioFormatFloat16Vec3;
-        default: return HioFormatFloat16Vec4;  // 3 will be promoted to 4 during the read
+        case 3:
+        default: return HioFormatFloat16Vec4;
         }
 
     case EXR_PIXEL_FLOAT:
@@ -154,8 +156,8 @@ HioFormat Hio_OpenEXRImage::GetFormat() const
         {
         case 1: return HioFormatFloat32;
         case 2: return HioFormatFloat32Vec2;
-        case 3: //return HioFormatFloat32Vec3;
-        default: return HioFormatFloat32Vec4;  // 3 will be promoted to 4 during the read
+        case 3:
+        default: return HioFormatFloat32Vec4;
         }
 
     default:
@@ -165,7 +167,8 @@ HioFormat Hio_OpenEXRImage::GetFormat() const
 
 int Hio_OpenEXRImage::GetBytesPerPixel() const
 {
-    return _exrReader.channelCount * nanoexr_getPixelTypeSize(_exrReader.pixelType);
+    return _exrReader.channelCount
+                * nanoexr_getPixelTypeSize(_exrReader.pixelType);
 }
 
 int Hio_OpenEXRImage::GetNumMipLevels() const
@@ -173,16 +176,8 @@ int Hio_OpenEXRImage::GetNumMipLevels() const
     return _exrReader.numMipLevels;
 }
 
-bool Hio_OpenEXRImage::IsColorSpaceSRGB() const
-{
-    // the function asks if the color space is SRGB, but fundamentally
-    // what Hydra reall wants to know is whether the pixels are gamma pixels.
-    // OpenEXR images are always linear, so just return false.
-    return false;
-}
-
-
-// XXX for consistency with other plugins, there is currently no ArAsset write function.
+// For consistency with other Hio plugins, reading is done through ArAsset,
+// but writing is not.
 int64_t exr_AssetRead_Func(
     exr_const_context_t         ctxt,
     void*                       userdata,
@@ -211,8 +206,9 @@ public:
         for (int y = 0; y < height / 2; ++y) {
             for (int x = 0; x < width; ++x) {
                 for (int c = 0; c < channelCount; ++c) {
-                    std::swap(buffer[(y * width + x) * channelCount + c],
-                              buffer[((height - y - 1) * width + x) * channelCount + c]);
+                    std::swap(
+                        buffer[(y * width + x) * channelCount + c],
+                        buffer[((height - y - 1) * width + x) * channelCount + c]);
                 }
             }
         }
@@ -221,25 +217,29 @@ public:
     // Crop the image in-place.
     static void CropImage(T* buffer, 
                           int width, int height, int channelCount,
-                          int cropTop, int cropBottom, int cropLeft, int cropRight)
+                          int cropTop, int cropBottom,
+                          int cropLeft, int cropRight)
     {
         int newWidth = width - cropLeft - cropRight;
         int newHeight = height - cropTop - cropBottom;
 
-        if (newWidth <= 0 || newHeight <= 0 || (newWidth == width && newHeight == height))
+        if (newWidth <= 0 || newHeight <= 0
+            || (newWidth == width && newHeight == height))
             return;
 
         for (int y = 0; y < newHeight; ++y) {
             for (int x = 0; x < newWidth; ++x) {
                 for (int c = 0; c < channelCount; ++c) {
                     buffer[(y * newWidth + x) * channelCount + c] =
-                        buffer[((y + cropTop) * width + x + cropLeft) * channelCount + c];
+                        buffer[((y + cropTop) * width + x + cropLeft)
+                        * channelCount + c];
                 }
             }
         }
     }
 
-    static void HalfToFloat(GfHalf* buffer, float* outBuffer, int width, int height, int channelCount)
+    static void HalfToFloat(GfHalf* buffer, float* outBuffer,
+                            int width, int height, int channelCount)
     {
         if (!buffer || !outBuffer)
             return;
@@ -249,7 +249,8 @@ public:
         }
     }
 
-    static void FloatToHalf(float* buffer, GfHalf* outBuffer, int width, int height, int channelCount)
+    static void FloatToHalf(float* buffer, GfHalf* outBuffer,
+                            int width, int height, int channelCount)
     {
         if (!buffer || !outBuffer)
             return;
@@ -292,7 +293,8 @@ bool Hio_OpenEXRImage::ReadCropped(
     if (!outputIsFloat && !outputIsHalf)
         return false;
 
-    int outputBytesPerPixel = (outputIsFloat ? sizeof(float) : sizeof(GfHalf)) * outChannelCount;
+    int outputBytesPerPixel = (outputIsFloat ? sizeof(float)
+                                             : sizeof(GfHalf)) * outChannelCount;
 
     int readWidth = fileWidth - cropLeft - cropRight;
     int readHeight = fileHeight - cropTop - cropBottom;
@@ -302,8 +304,8 @@ bool Hio_OpenEXRImage::ReadCropped(
     }
     bool resizing = (readWidth != outWidth) || (readHeight != outHeight);
 
-    // ensure there's enough memory for the greater of input and output channel count, for
-    // in place conversions.
+    // ensure there's enough memory for the greater of input and output channel
+    // count, for in place conversions.
     int maxChannelCount = std::max(fileChannelCount, outChannelCount);
     std::vector<GfHalf> halfInputBuffer;
     if (inputIsHalf) {
@@ -316,7 +318,9 @@ bool Hio_OpenEXRImage::ReadCropped(
 
     {
         nanoexr_ImageData_t img;
-        exr_result_t rv = nanoexr_read_exr(_exrReader.filename, exr_AssetRead_Func, this, &img, nullptr, 0, 0);
+        exr_result_t rv = nanoexr_read_exr(_exrReader.filename,
+                                           exr_AssetRead_Func, this,
+                                           &img, nullptr, 0, 0);
         if (rv != EXR_ERR_SUCCESS) {
             return false;
         }
@@ -333,45 +337,55 @@ bool Hio_OpenEXRImage::ReadCropped(
         // flip and crop the image in place
         if (inputIsHalf) {
             ImageProcessor<GfHalf>::FlipImage(&halfInputBuffer[0],
-                                              fileWidth, fileHeight, img.channelCount);
+                                              fileWidth, fileHeight,
+                                              img.channelCount);
             ImageProcessor<GfHalf>::CropImage(&halfInputBuffer[0],
-                                              fileWidth, fileHeight, img.channelCount,
-                                              cropTop, cropBottom, cropLeft, cropRight);
+                                              fileWidth, fileHeight,
+                                              img.channelCount,
+                                              cropTop, cropBottom,
+                                              cropLeft, cropRight);
         }
         else {
             ImageProcessor<float>::FlipImage(&floatInputBuffer[0],
-                                             fileWidth, fileHeight, fileChannelCount);
+                                             fileWidth, fileHeight,
+                                             fileChannelCount);
             ImageProcessor<float>::CropImage(&floatInputBuffer[0],
-                                            fileWidth, fileHeight, fileChannelCount,
-                                            cropTop, cropBottom, cropLeft, cropRight);
+                                             fileWidth, fileHeight,
+                                             fileChannelCount,
+                                             cropTop, cropBottom,
+                                             cropLeft, cropRight);
         }
     }
 
     if (!resizing) {
         if (inputIsHalf && outputIsHalf) {
             memcpy(reinterpret_cast<void*>(storage.data),
-                   &halfInputBuffer[0], sizeof(uint16_t) * halfInputBuffer.size());
+               &halfInputBuffer[0], sizeof(uint16_t) * halfInputBuffer.size());
         }
         else if (inputIsFloat && outputIsFloat) {
             memcpy(reinterpret_cast<void*>(storage.data),
-                   &floatInputBuffer[0], sizeof(float) * floatInputBuffer.size());
+               &floatInputBuffer[0], sizeof(float) * floatInputBuffer.size());
         }
         else if (outputIsFloat) {
             for (size_t i = 0; i < halfInputBuffer.size(); ++i)
-                reinterpret_cast<float*>(storage.data)[i] = half_to_float(halfInputBuffer[i]);
+                reinterpret_cast<float*>(storage.data)[i]
+                    = half_to_float(halfInputBuffer[i]);
         }
         else {
             // output is half
             for (size_t i = 0; i < floatInputBuffer.size(); ++i)
-                reinterpret_cast<uint16_t*>(storage.data)[i] = float_to_half(floatInputBuffer[i]);
+                reinterpret_cast<uint16_t*>(storage.data)[i]
+                    = float_to_half(floatInputBuffer[i]);
         }
         return true;
     }
 
     // resize the image, so promote to float if necessary
     if (inputIsHalf) {
-        ImageProcessor<uint16_t>::HalfToFloat(&halfInputBuffer[0], &floatInputBuffer[0],
-                                              fileWidth, readHeight, fileChannelCount);
+        ImageProcessor<uint16_t>::HalfToFloat(&halfInputBuffer[0],
+                                              &floatInputBuffer[0],
+                                              fileWidth, readHeight,
+                                              fileChannelCount);
         inputIsFloat = true;
         inputIsHalf = false;
     }
@@ -413,16 +427,16 @@ bool Hio_OpenEXRImage::ReadCropped(
 namespace {
     bool isWorldToNDC(const std::string& name)
     {
-        return name == "NP" || name == "worldtoscreen" || name == "worldToScreen" ||
-            name == "worldToNDC";
+        return name == "NP" || name == "worldtoscreen"
+                || name == "worldToScreen" || name == "worldToNDC";
     }
 
     bool isWorldToCamera(const std::string& name)
     {
-        return name == "Nl" || name == "worldtocamera" || name == "worldToCamera";
+        return name == "Nl" || name == "worldtocamera"
+                || name == "worldToCamera";
     }
 }
-
 
 bool Hio_OpenEXRImage::GetMetadata(TfToken const &key, VtValue *value) const
 {
@@ -449,7 +463,6 @@ bool Hio_OpenEXRImage::GetMetadata(TfToken const &key, VtValue *value) const
     }
     
     // try translating common alternatives to a standard attribute
-
     if (isW2N) {
         auto candidate = _metadata.find("worldToNDC");
         if (candidate != _metadata.end()) {
@@ -482,11 +495,16 @@ bool Hio_OpenEXRImage::GetSamplerMetadata(HioAddressDimension dim,
         return false;
     
     switch (_exrReader.wrapMode) {
-        case nanoexr_WrapModeClampToEdge: *param = HioAddressModeClampToEdge; break;
-        case nanoexr_WrapModeMirrorClampToEdge: *param = HioAddressModeClampToEdge; break;
-        case nanoexr_WrapModeRepeat: *param = HioAddressModeRepeat; break;
-        case nanoexr_WrapModeMirrorRepeat: *param = HioAddressModeMirrorRepeat; break;
-        case nanoexr_WrapModeClampToBorderColor: *param = HioAddressModeClampToBorderColor;
+        case nanoexr_WrapModeClampToEdge:
+            *param = HioAddressModeClampToEdge; break;
+        case nanoexr_WrapModeMirrorClampToEdge:
+            *param = HioAddressModeClampToEdge; break;
+        case nanoexr_WrapModeRepeat:
+            *param = HioAddressModeRepeat; break;
+        case nanoexr_WrapModeMirrorRepeat:
+            *param = HioAddressModeMirrorRepeat; break;
+        case nanoexr_WrapModeClampToBorderColor:
+            *param = HioAddressModeClampToBorderColor;
     }
     return true;
 }
@@ -516,14 +534,16 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
                 GfVec2f box_min, box_max;
                 box_min.Set((float) attr->box2i->min.x, (float) attr->box2i->min.y);
                 box_max.Set((float) attr->box2i->max.x, (float) attr->box2i->max.x);
-                self->_metadata[TfToken(attr->name)] = VtValue(GfRange2f(box_min, box_max));
+                self->_metadata[TfToken(attr->name)]
+                        = VtValue(GfRange2f(box_min, box_max));
                 break;
             }
             case EXR_ATTR_BOX2F: {
                 GfVec2f box_min, box_max;
                 box_min.Set(attr->box2f->min.x, attr->box2f->min.y);
                 box_max.Set(attr->box2f->max.x, attr->box2f->max.y);
-                self->_metadata[TfToken(attr->name)] = VtValue(GfRange2f(box_min, box_max));
+                self->_metadata[TfToken(attr->name)]
+                        = VtValue(GfRange2f(box_min, box_max));
                 break;
             }
             case EXR_ATTR_CHLIST:
@@ -630,7 +650,9 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
             case EXR_ATTR_V3I: {
                 // there's no GfVec3i, convert to double
                 GfVec3d v;
-                v.Set((double) attr->v3i->x, (double) attr->v3i->y, (double) attr->v3i->z);
+                v.Set((double) attr->v3i->x,
+                      (double) attr->v3i->y,
+                      (double) attr->v3i->z);
                 self->_metadata[TfToken(attr->name)] = VtValue(v);
                 break;
             }
@@ -648,7 +670,7 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
             }
             case EXR_ATTR_LAST_KNOWN_TYPE:
             case EXR_ATTR_OPAQUE:
-                // Should an arbitrary block of binary data be put into a VtValue?
+                // Not caching opaque data
                 continue;
         }
     }
@@ -674,7 +696,8 @@ bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
 
     nanoexr_set_defaults(_filename.c_str(), &_exrReader);
 
-    int rv = nanoexr_read_header(&_exrReader, exr_AssetRead_Func, _subimage, _AttributeReadCallback, this);
+    int rv = nanoexr_read_header(&_exrReader, exr_AssetRead_Func,
+                                 _subimage, _AttributeReadCallback, this);
     if (rv != 0) {
         TF_CODING_ERROR("Cannot open image \"%s\" for reading, %s",
                         filename.c_str(), nanoexr_get_error_code_as_string(rv));
@@ -693,43 +716,54 @@ void Hio_OpenEXRImage::_AttributeWriteCallback(void* self_, exr_context_t exr) {
         // VtValue, however, for the moment, this code is matching the behavior
         // of the OpenImageIO plugin.
         if (value.IsHolding<std::string>()) {
-            pxr_attr_set_string(exr, self->_subimage, key.c_str(), value.Get<std::string>().c_str());
+            pxr_attr_set_string(exr, self->_subimage, key.c_str(),
+                                value.Get<std::string>().c_str());
         }
         else if (value.IsHolding<char>()) {
-            pxr_attr_set_int(exr, self->_subimage, key.c_str(), value.Get<char>());
+            pxr_attr_set_int(exr, self->_subimage, key.c_str(),
+                             value.Get<char>());
         }
         else if (value.IsHolding<unsigned char>()) {
-            pxr_attr_set_int(exr, self->_subimage, key.c_str(), value.Get<unsigned char>());
+            pxr_attr_set_int(exr, self->_subimage, key.c_str(),
+                             value.Get<unsigned char>());
         }
         else if (value.IsHolding<int>()) {
-            pxr_attr_set_int(exr, self->_subimage, key.c_str(), value.Get<int>());
+            pxr_attr_set_int(exr, self->_subimage, key.c_str(),
+                             value.Get<int>());
         }
         else if (value.IsHolding<unsigned int>()) {
-            pxr_attr_set_int(exr, self->_subimage, key.c_str(), value.Get<unsigned int>());
+            pxr_attr_set_int(exr, self->_subimage, key.c_str(),
+                             value.Get<unsigned int>());
         }
         else if (value.IsHolding<float>()) {
-            pxr_attr_set_float(exr, self->_subimage, key.c_str(), value.Get<float>());
+            pxr_attr_set_float(exr, self->_subimage, key.c_str(),
+                               value.Get<float>());
         }
         else if (value.IsHolding<double>()) {
-            pxr_attr_set_float(exr, self->_subimage, key.c_str(), value.Get<double>());
+            pxr_attr_set_float(exr, self->_subimage, key.c_str(),
+                               value.Get<double>());
         }
         else if (value.IsHolding<GfMatrix4f>()) {
-            pxr_attr_set_m44f(exr, self->_subimage, key.c_str(), value.Get<GfMatrix4f>().GetArray());
+            pxr_attr_set_m44f(exr, self->_subimage, key.c_str(),
+                              value.Get<GfMatrix4f>().GetArray());
         }
         else if (value.IsHolding<GfMatrix4d>()) {
             if (isWorldToNDC(key) || isWorldToCamera(key)) {
                 // for Ice/Imr, convert to m44f.
                 GfMatrix4f mf(value.Get<GfMatrix4d>());
-                pxr_attr_set_m44f(exr, self->_subimage, key.c_str(), mf.GetArray());
+                pxr_attr_set_m44f(exr, self->_subimage, key.c_str(),
+                                  mf.GetArray());
             }
             else {
-                pxr_attr_set_m44d(exr, self->_subimage, key.c_str(), value.Get<GfMatrix4d>().GetArray());
+                pxr_attr_set_m44d(exr, self->_subimage, key.c_str(),
+                                  value.Get<GfMatrix4d>().GetArray());
             }
         }
     }
 }
 
-bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &metadata)
+bool Hio_OpenEXRImage::Write(StorageSpec const &storage,
+                             VtDictionary const &metadata)
 {
     const HioType type = HioGetHioType(storage.format);
     if (type != HioTypeFloat && type != HioTypeHalfFloat) {
@@ -755,12 +789,12 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage, VtDictionary const &met
     int32_t lineStride = storage.width * pxsize * ch;
     int32_t pixelStride = pxsize * ch;
     exr_result_t rv = nanoexr_write_exr(
-                            _filename.c_str(),
-                            storage.width, storage.height,
-                            pixels + (pxsize * 2), pixelStride, lineStride, // red
-                            pixels +  pxsize,      pixelStride, lineStride, // green
-                            pixels,                pixelStride, lineStride, // blue
-                            _AttributeWriteCallback, this);
+                        _filename.c_str(),
+                        storage.width, storage.height,
+                        pixels + (pxsize * 2), pixelStride, lineStride, // red
+                        pixels +  pxsize,      pixelStride, lineStride, // green
+                        pixels,                pixelStride, lineStride, // blue
+                        _AttributeWriteCallback, this);
 
     return rv == EXR_ERR_SUCCESS;
 }
