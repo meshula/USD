@@ -1,5 +1,8 @@
 
-// configuration settings for building OpenEXRCore are in the CMakeLists.txt file
+/*
+** SPDX-License-Identifier: BSD-3-Clause
+** Copyright Contributors to the OpenEXR Project.
+*/
 
 #include "OpenEXRCore/openexr.h"
 
@@ -27,7 +30,8 @@ exr_result_t nanoexr_get_attribute_by_index(
     int                     i,
     const exr_attribute_t** outattr)
 {
-    return exr_get_attribute_by_index(ctxt, part_index, EXR_ATTR_LIST_SORTED_ORDER, i, outattr);
+    return exr_get_attribute_by_index(ctxt, part_index, 
+                                      EXR_ATTR_LIST_SORTED_ORDER, i, outattr);
 }
 
 int nanoexr_get_attribute_count(exr_const_context_t ctxt, int part_index) {
@@ -36,27 +40,33 @@ int nanoexr_get_attribute_count(exr_const_context_t ctxt, int part_index) {
     return count;
 }
 
-void nanoexr_attr_set_string(exr_context_t ctxt, int part_index, const char* name, const char* s) {
+void nanoexr_attr_set_string(exr_context_t ctxt, int part_index, 
+                             const char* name, const char* s) {
     exr_attr_set_string(ctxt, part_index, name, s);
 }
 
-void nanoexr_attr_set_int(exr_context_t ctxt, int part_index, const char* name, int v) {
+void nanoexr_attr_set_int(exr_context_t ctxt, int part_index, 
+                          const char* name, int v) {
     exr_attr_set_int(ctxt, part_index, name, v);
 }
 
-void nanoexr_attr_set_float(exr_context_t ctxt, int part_index, const char* name, float v) {
+void nanoexr_attr_set_float(exr_context_t ctxt, int part_index, 
+                            const char* name, float v) {
     exr_attr_set_float(ctxt, part_index, name, v);
 }
 
-void nanoexr_attr_set_double(exr_context_t ctxt, int part_index, const char* name, double v) {
+void nanoexr_attr_set_double(exr_context_t ctxt, int part_index, 
+                             const char* name, double v) {
     exr_attr_set_double(ctxt, part_index, name, v);
 }
 
-void nanoexr_attr_set_m44f(exr_context_t ctxt, int part_index, const char* name, const float* v) {
+void nanoexr_attr_set_m44f(exr_context_t ctxt, int part_index, 
+                           const char* name, const float* v) {
     exr_attr_set_m44f(ctxt, part_index, name, (exr_attr_m44f_t*) v);
 }
 
-void nanoexr_attr_set_m44d(exr_context_t ctxt, int part_index, const char* name, const double* v) {
+void nanoexr_attr_set_m44d(exr_context_t ctxt, int part_index, 
+                           const char* name, const double* v) {
     exr_attr_set_m44d(ctxt, part_index, name, (exr_attr_m44d_t*) v);
 }
 
@@ -85,18 +95,18 @@ bool nanoexr_Gaussian_resample(const nanoexr_ImageData_t* src,
     const int srcHeight = src->height;
     const int dstHeight = dst->height;
     if (srcWidth == dstWidth && srcHeight == dstHeight) {
-        memcpy(dst->data, src->data, src->channelCount * srcWidth * srcHeight * sizeof(float));
+        memcpy(dst->data, src->data, 
+               src->channelCount * srcWidth * srcHeight * sizeof(float));
         return true;
     }
     
     float* srcData = (float*)src->data;
     float* dstData = (float*)dst->data;
 
-    // two pass image resize
-
-    // Create a Gaussian filter, per:
+    // two pass image resize using a Gaussian filter per:
     // https://bartwronski.com/2021/10/31/practical-gaussian-filter-binomial-filter-and-small-sigma-gaussians
-    // chose sigma to suppress high frequencies that can't be represented in the downsampled image
+    // chose sigma to suppress high frequencies that can't be represented 
+    // in the downsampled image
     const float ratio = (float)dstWidth / (float)srcWidth;
     const float sigma = 1.f / 2.f * ratio;
     const float support = 0.995f;
@@ -197,8 +207,8 @@ void nanoexr_free_storage(nanoexr_Reader_t* reader) {
 }
 
 int nanoexr_read_header(nanoexr_Reader_t* reader, exr_read_func_ptr_t readFn,
-                        int partIndex,
-                        nanoexr_attrRead attrRead, void* callback_userData) {
+                        nanoexr_attrRead attrRead, void* callback_userData,
+                        int partIndex) {
     if (!reader)
         return EXR_ERR_INVALID_ARGUMENT;
     
@@ -242,7 +252,7 @@ int nanoexr_read_header(nanoexr_Reader_t* reader, exr_read_func_ptr_t readFn,
         }
     }
     if (numMipLevelsX != numMipLevelsY) {
-        // current assumption is that mips are only supported uniformally in both directions
+        // current only supporting mip levels uniformly in both directions
         numMipLevelsX = 1;
         numMipLevelsY = 1;
     }
@@ -258,7 +268,8 @@ int nanoexr_read_header(nanoexr_Reader_t* reader, exr_read_func_ptr_t readFn,
     reader->pixelType = chlist->entries[0].pixel_type;
 
     const exr_attribute_t* attr;
-    exr_result_t wrap_rv = exr_get_attribute_by_name(exr, partIndex, "wrapmodes", &attr);
+    exr_result_t wrap_rv = exr_get_attribute_by_name(exr, partIndex, 
+                                                     "wrapmodes", &attr);
     if (wrap_rv == EXR_ERR_SUCCESS) {
         if (!strncmp("black", attr->string->str, 5))
             reader->wrapMode = nanoexr_WrapModeClampToBorderColor;
@@ -280,11 +291,11 @@ int nanoexr_read_header(nanoexr_Reader_t* reader, exr_read_func_ptr_t readFn,
 /// @TODO Pass in the part name
 exr_result_t nanoexr_write_exr(
     const char* filename,
+    nanoexr_attrsAdd attrsAdd, void* attrsAdd_userData,
     int width, int height,
     uint8_t* red,   int32_t redPixelStride,   int32_t redLineStride,
     uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
-    uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride,
-    nanoexr_attrsAdd attrsAdd, void* attrsAdd_userData)
+    uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride)
 {
     int partidx = 0;
     exr_context_t exr;
@@ -334,7 +345,7 @@ exr_result_t nanoexr_write_exr(
         partidx,
         "R",
         EXR_PIXEL_HALF,
-        EXR_PERCEPTUALLY_LOGARITHMIC, // hint to compression that pixels are an image (as opposed to data of some sort)
+        EXR_PERCEPTUALLY_LOGARITHMIC, // hint to compressor data is an image
         1, 1); // x & y sampling rate
     if (result != EXR_ERR_SUCCESS) {
         return result;
@@ -345,7 +356,7 @@ exr_result_t nanoexr_write_exr(
         partidx,
         "G",
         EXR_PIXEL_HALF,
-        EXR_PERCEPTUALLY_LOGARITHMIC, // hint to compression that pixels are an image (as opposed to data of some sort)
+        EXR_PERCEPTUALLY_LOGARITHMIC,
         1, 1); // x & y sampling rate
     if (result != EXR_ERR_SUCCESS) {
         return result;
@@ -356,7 +367,7 @@ exr_result_t nanoexr_write_exr(
         partidx,
         "B",
         EXR_PIXEL_HALF,
-        EXR_PERCEPTUALLY_LOGARITHMIC, // hint to compression that pixels are an image (as opposed to data of some sort)
+        EXR_PERCEPTUALLY_LOGARITHMIC,
         1, 1); // x & y sampling rate
     if (result != EXR_ERR_SUCCESS) {
         return result;
@@ -471,7 +482,7 @@ static bool strIsRed(const char* layerName, const char* str) {
     if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
         return false;
 
-    // check if the case folded string is R or RED, or if it ends in .R or .RED
+    // check if the case folded string is R or RED, or ends in .R or .RED
     char* folded = strdup(str);
     for (int i = 0; folded[i]; ++i) {
         folded[i] = tolower(folded[i]);
@@ -490,7 +501,7 @@ static bool strIsGreen(const char* layerName, const char* str) {
     if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
         return false;
 
-    // check if the case folded string is G or GREEN, or if it ends in .G or .GREEN
+    // check if the case folded string is G or GREEN, or ends in .G or .GREEN
     char* folded = strdup(str);
     for (int i = 0; folded[i]; ++i) {
         folded[i] = tolower(folded[i]);
@@ -509,7 +520,7 @@ static bool strIsBlue(const char* layerName, const char* str) {
     if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
         return false;
 
-    // check if the case folded string is B or BLUE, or if it ends in .B or .BLUE
+    // check if the case folded string is B or BLUE, or ends in .B or .BLUE
     char* folded = strdup(str);
     for (int i = 0; folded[i]; ++i) {
         folded[i] = tolower(folded[i]);
@@ -528,7 +539,7 @@ static bool strIsAlpha(const char* layerName, const char* str) {
     if (layerName && (strncmp(layerName, str, strlen(layerName)) != 0))
         return false;
 
-    // check if the case folded string is A or ALPHA, or if it ends in .A or .ALPHA
+    // check if the case folded string is A or ALPHA, or ends in .A or .ALPHA
     char* folded = strdup(str);
     for (int i = 0; folded[i]; ++i) {
         folded[i] = tolower(folded[i]);
@@ -590,7 +601,8 @@ static exr_result_t _nanoexr_rgba_decoding_initialize(
     exr_result_t rv = EXR_ERR_SUCCESS;
     rv = exr_decoding_initialize(exr, partIndex, cinfo, decoder);
     if (rv != EXR_ERR_SUCCESS) {
-        fprintf(stderr, "exr_decoding_initialize failed: %s\n", exr_get_default_error_message(rv));
+        fprintf(stderr, "exr_decoding_initialize failed: %s\n", 
+                exr_get_default_error_message(rv));
         return rv;
     }
     int bytesPerChannel = nanoexr_getPixelTypeSize(img->pixelType);
@@ -676,10 +688,12 @@ exr_result_t nanoexr_read_tiled_exr(exr_context_t exr,
     for (int tileY = 0; tileY < yTiles; ++tileY) {
         for (int tileX = 0; tileX < xTiles; ++tileX) {
             exr_chunk_info_t cinfo;
-            rv = exr_read_tile_chunk_info(exr, partIndex, tileX, tileY, mipLevel, mipLevel, &cinfo);
+            rv = exr_read_tile_chunk_info(exr, partIndex, 
+                                          tileX, tileY, mipLevel, mipLevel, &cinfo);
             CHECK_RV(rv);
             if (decoder.channels == NULL) {
-                rv = _nanoexr_rgba_decoding_initialize(exr, img, layerName, partIndex, &cinfo, &decoder, rgbaIndex);
+                rv = _nanoexr_rgba_decoding_initialize(exr, img, 
+                                 layerName, partIndex, &cinfo, &decoder, rgbaIndex);
                 CHECK_RV(rv);
                 
                 rv = exr_decoding_choose_default_routines(exr, partIndex, &decoder);
@@ -738,7 +752,8 @@ exr_result_t nanoexr_read_scanline_exr(exr_context_t exr,
         rv = exr_read_scanline_chunk_info(exr, partIndex, chunky, &cinfo);
         CHECK_RV(rv);
         if (decoder.channels == NULL) {
-            rv = _nanoexr_rgba_decoding_initialize(exr, img, layerName, partIndex, &cinfo, &decoder, rgbaIndex);
+            rv = _nanoexr_rgba_decoding_initialize(exr, img, layerName, 
+                                        partIndex, &cinfo, &decoder, rgbaIndex);
             CHECK_RV(rv);
             if (decoder.channels == NULL) {
                 return EXR_ERR_INCORRECT_CHUNK;
@@ -788,20 +803,23 @@ exr_result_t nanoexr_read_exr(const char* filename,
     cinit.user_data = callback_userData;
     rv = exr_test_file_header(filename, &cinit);
     if (rv != EXR_ERR_SUCCESS) {
-        fprintf(stderr, "nanoexr header error: %s\n", exr_get_default_error_message(rv));
+        fprintf(stderr, "nanoexr header error: %s\n", 
+                exr_get_default_error_message(rv));
         return rv;
     }
 
     rv = exr_start_read(&exr, filename, &cinit);
     if (rv != EXR_ERR_SUCCESS) {
-        fprintf(stderr, "nanoexr start error: %s\n", exr_get_default_error_message(rv));
+        fprintf(stderr, "nanoexr start error: %s\n", 
+               exr_get_default_error_message(rv));
         exr_finish(&exr);
         return rv;
     }
     exr_storage_t storage;
     rv = exr_get_storage(exr, partIndex, &storage);
     if (rv != EXR_ERR_SUCCESS) {
-        fprintf(stderr, "nanoexr storage error: %s\n", exr_get_default_error_message(rv));
+        fprintf(stderr, "nanoexr storage error: %s\n", 
+                exr_get_default_error_message(rv));
         exr_finish(&exr);
         return rv;
     }
@@ -818,7 +836,8 @@ exr_result_t nanoexr_read_exr(const char* filename,
     exr_compression_t compression;
     rv = exr_get_compression(exr, partIndex, &compression);
     if (rv != EXR_ERR_SUCCESS) {
-        fprintf(stderr, "nanoexr compression error: %s\n", exr_get_default_error_message(rv));
+        fprintf(stderr, "nanoexr compression error: %s\n", 
+                exr_get_default_error_message(rv));
         exr_finish(&exr);
         return rv;
     }
@@ -827,13 +846,15 @@ exr_result_t nanoexr_read_exr(const char* filename,
     exr_attr_box2i_t displaywin;
     rv = exr_get_data_window(exr, partIndex, &datawin);
     if (rv != EXR_ERR_SUCCESS) {
-        fprintf(stderr, "nanoexr data window error: %s\n", exr_get_default_error_message(rv));
+        fprintf(stderr, "nanoexr data window error: %s\n", 
+                exr_get_default_error_message(rv));
         exr_finish(&exr);
         return rv;
     }
     rv = exr_get_display_window(exr, partIndex, &displaywin);
     if (rv != EXR_ERR_SUCCESS) {
-        fprintf(stderr, "nanoexr display window error: %s\n", exr_get_default_error_message(rv));
+        fprintf(stderr, "nanoexr display window error: %s\n",
+                exr_get_default_error_message(rv));
         exr_finish(&exr);
         return rv;
     }
@@ -844,7 +865,8 @@ exr_result_t nanoexr_read_exr(const char* filename,
     const exr_attr_chlist_t* chlist = NULL;
     rv = exr_get_channels(exr, partIndex, &chlist);
     if (rv != EXR_ERR_SUCCESS) {
-        fprintf(stderr, "nanoexr channels error: %s\n", exr_get_default_error_message(rv));
+        fprintf(stderr, "nanoexr channels error: %s\n", 
+                exr_get_default_error_message(rv));
         exr_finish(&exr);
         return rv;
     }
@@ -921,7 +943,8 @@ exr_result_t nanoexr_read_exr(const char* filename,
 
     rv = exr_finish(&exr);
     if (rv != EXR_ERR_SUCCESS) {
-        fprintf(stderr, "nanoexr finish error: %s\n", exr_get_default_error_message(rv));
+        fprintf(stderr, "nanoexr finish error: %s\n", 
+                exr_get_default_error_message(rv));
     }
     return rv;
 }

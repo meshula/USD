@@ -1,3 +1,7 @@
+/*
+** SPDX-License-Identifier: BSD-3-Clause
+** Copyright Contributors to the OpenEXR Project.
+*/
 
 // openexr_c.h and openexr_c.c
 // are a "single file" standalone version of the OpenEXRCore library.
@@ -104,8 +108,8 @@ typedef void (*nanoexr_attrRead)(void*, exr_context_t);
 
 exr_result_t nanoexr_read_header(nanoexr_Reader_t* reader, 
                                  exr_read_func_ptr_t,
-                                 int partIndex,
-                                 nanoexr_attrRead, void* callback_userData);
+                                 nanoexr_attrRead, void* callback_userData,
+                                 int partIndex);
 
 exr_result_t nanoexr_read_exr(const char* filename,
                               exr_read_func_ptr_t readfn,
@@ -122,11 +126,11 @@ typedef void (*nanoexr_attrsAdd)(void*, exr_context_t);
 // rgb data.
 exr_result_t nanoexr_write_exr(
                const char* filename,
+               nanoexr_attrsAdd, void* attrsAdd_userData,
                int width, int height,
                uint8_t* red,   int32_t redPixelStride,   int32_t redLineStride,
                uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
-               uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride,
-               nanoexr_attrsAdd, void* attrsAdd_userData);
+               uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride);
 
 void nanoexr_release_image_data(nanoexr_ImageData_t* imageData);
 

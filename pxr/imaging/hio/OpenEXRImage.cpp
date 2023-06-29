@@ -697,7 +697,8 @@ bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
     nanoexr_set_defaults(_filename.c_str(), &_exrReader);
 
     int rv = nanoexr_read_header(&_exrReader, exr_AssetRead_Func,
-                                 _subimage, _AttributeReadCallback, this);
+                                 _AttributeReadCallback, this,
+                                 _subimage);
     if (rv != 0) {
         TF_CODING_ERROR("Cannot open image \"%s\" for reading, %s",
                         filename.c_str(), nanoexr_get_error_code_as_string(rv));
@@ -790,11 +791,11 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage,
     int32_t pixelStride = pxsize * ch;
     exr_result_t rv = nanoexr_write_exr(
                         _filename.c_str(),
+                        _AttributeWriteCallback, this,
                         storage.width, storage.height,
-                        pixels + (pxsize * 2), pixelStride, lineStride, // red
-                        pixels +  pxsize,      pixelStride, lineStride, // green
-                        pixels,                pixelStride, lineStride, // blue
-                        _AttributeWriteCallback, this);
+                        pixels + (pxsize * 2), pixelStride, lineStride,  // red
+                        pixels +  pxsize,      pixelStride, lineStride,  // green
+                        pixels,                pixelStride, lineStride); //blue
 
     return rv == EXR_ERR_SUCCESS;
 }
