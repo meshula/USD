@@ -33,7 +33,6 @@ pxr_library(hio
     PRIVATE_HEADERS
         OpenEXR/openexr-c.h
         rankedTypeMap.h
-        textureUtils.h
         stb/stb_image.h
         stb/stb_image_resize.h
         stb/stb_image_write.h
@@ -42,7 +41,6 @@ pxr_library(hio
         OpenEXRImage.cpp
         stbImage.cpp
         OpenEXR/openexr-c.c
-        textureUtils.cpp
 
     RESOURCE_FILES
         plugInfo.json
