@@ -56,7 +56,6 @@
  
  TODO:
  
- - from matthias review: pass mip through to reader, if mip doesn't exist fail to read
  - from matthias review: revise the "fill in" algorithm for missing channels
  - from matthias review: read and write int32 images
  - ask matthias: are "subimages" the same as EXR "parts"?
@@ -318,9 +317,10 @@ bool Hio_OpenEXRImage::ReadCropped(
 
     {
         nanoexr_ImageData_t img;
+        const int partIndex = 0;
         exr_result_t rv = nanoexr_read_exr(_exrReader.filename,
                                            exr_AssetRead_Func, this,
-                                           &img, nullptr, 0, 0);
+                                           &img, nullptr, partIndex, _mip);
         if (rv != EXR_ERR_SUCCESS) {
             return false;
         }
@@ -700,8 +700,14 @@ bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
                                  _AttributeReadCallback, this,
                                  _subimage);
     if (rv != 0) {
-        TF_CODING_ERROR("Cannot open image \"%s\" for reading, %s",
+        TF_DIAGNOSTIC_WARNING("Cannot open image \"%s\" for reading, %s",
                         filename.c_str(), nanoexr_get_error_code_as_string(rv));
+        return false;
+    }
+
+    if (_exrReader.numMipLevels <= mip) {
+        TF_DIAGNOSTIC_WARNING("In image \"%s\" mip level %d does not exist",
+                        filename.c_str(), mip);
         return false;
     }
     
@@ -795,7 +801,7 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage,
                         storage.width, storage.height,
                         pixels + (pxsize * 2), pixelStride, lineStride,  // red
                         pixels +  pxsize,      pixelStride, lineStride,  // green
-                        pixels,                pixelStride, lineStride); //blue
+                        pixels,                pixelStride, lineStride); // blue
 
     return rv == EXR_ERR_SUCCESS;
 }

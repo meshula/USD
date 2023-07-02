@@ -288,7 +288,6 @@ int nanoexr_read_header(nanoexr_Reader_t* reader, exr_read_func_ptr_t readFn,
     return rv;
 }
 
-/// @TODO Pass in the part name
 exr_result_t nanoexr_write_exr(
     const char* filename,
     nanoexr_attrsAdd attrsAdd, void* attrsAdd_userData,
@@ -302,7 +301,7 @@ exr_result_t nanoexr_write_exr(
     exr_context_initializer_t init = EXR_DEFAULT_CONTEXT_INITIALIZER;
 
     // switch to write mode after everything is set up
-    /// @TODO use EXR_INTERMEDIATE_TEMP_FILE after this code works
+    /// XXX improvement: use EXR_INTERMEDIATE_TEMP_FILE
     exr_result_t result = exr_start_write(
                                 &exr, filename, EXR_WRITE_FILE_DIRECTLY, &init);
     if (result != EXR_ERR_SUCCESS) {
@@ -317,7 +316,7 @@ exr_result_t nanoexr_write_exr(
     // modern exr should support long names
     exr_set_longname_support(exr, 1);
 
-    /// @TODO allow other compression levels
+    /// XXX In the future Hio may be able to specify compression levels
     result = exr_set_zip_compression_level(exr, 0, 4);
     if (result != EXR_ERR_SUCCESS) {
         return result;
@@ -641,7 +640,7 @@ exr_result_t nanoexr_read_tiled_exr(exr_context_t exr,
                                     nanoexr_ImageData_t* img,
                                     const char* layerName,
                                     int partIndex,
-                                    int level,
+                                    int mipLevel,
                                     int* rgbaIndex)
 {
     exr_decode_pipeline_t decoder = EXR_DECODE_PIPELINE_INITIALIZER;
@@ -657,7 +656,6 @@ exr_result_t nanoexr_read_tiled_exr(exr_context_t exr,
     rv = exr_get_tile_levels(exr, partIndex, &mipLevelsX, &mipLvelsY);
     CHECK_RV(rv);
 
-    const int mipLevel = 0; // only reading mip level zero
     int levelWidth, levelHeight;
     rv = exr_get_level_sizes(exr, partIndex, mipLevel, mipLevel, &levelWidth, &levelHeight);
     CHECK_RV(rv);
@@ -666,23 +664,6 @@ exr_result_t nanoexr_read_tiled_exr(exr_context_t exr,
     int32_t yTiles = (img->height + tileh - 1) / tileh;
     int pixelStride = img->channelCount * bytesPerChannel;
     int imageYStride = img->width * pixelStride;
-
-    
-#if 0
-    // testing: fill with gradient
-    uint16_t* d = (uint16_t*) img->data;
-    uint16_t oneVal = float_to_half(1.0f);
-    int out = 0;
-    for (int y = 0; y < img->height; ++y) {
-        for (int x = 0; x < img->width; ++x) {
-            uint16_t val = float_to_half((float) x / (float) img->width);
-            for (int c = 0; c < img->channelCount; ++ c) {
-                d[out++] = c < 3 ? val : oneVal;
-            }
-        }
-    }
-    return rv;
-#endif
     
     memset(&decoder, 0, sizeof(decoder));
     for (int tileY = 0; tileY < yTiles; ++tileY) {
@@ -794,7 +775,7 @@ exr_result_t nanoexr_read_exr(const char* filename,
                               nanoexr_ImageData_t* img,
                               const char* layerName,
                               int partIndex,
-                              int level) {
+                              int mipLevel) {
     exr_context_t exr = NULL;
     exr_result_t rv = EXR_ERR_SUCCESS;
     exr_context_initializer_t cinit = EXR_DEFAULT_CONTEXT_INITIALIZER;
@@ -896,9 +877,10 @@ exr_result_t nanoexr_read_exr(const char* filename,
     int rgbaIndex[4] = {-1, -1, -1, -1};
 
     if (storage == EXR_STORAGE_TILED) {
-        rv = nanoexr_read_tiled_exr(exr, img, layerName, partIndex, level, rgbaIndex);
+        rv = nanoexr_read_tiled_exr(exr, img, layerName, partIndex, mipLevel, rgbaIndex);
     }
     else {
+        // n ote - scanline images do not support mip levels
         rv = nanoexr_read_scanline_exr(exr, img, layerName, partIndex, rgbaIndex);
     }
     
