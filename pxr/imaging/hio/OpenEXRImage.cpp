@@ -80,15 +80,16 @@ class Hio_OpenEXRImage final : public HioImage
 
 public:
     Hio_OpenEXRImage() = default;
-    virtual ~Hio_OpenEXRImage() override {
+    ~Hio_OpenEXRImage() override {
         nanoexr_free_storage(&_exrReader);
     }
     
-    std::shared_ptr<ArAsset> Asset() const { return _asset; }
+    const std::shared_ptr<ArAsset> Asset() const { return _asset; }
 
     using Base = HioImage;
     bool Read(StorageSpec const &storage) override {
-            return ReadCropped(0, 0, 0, 0, storage); }
+        return ReadCropped(0, 0, 0, 0, storage); 
+    }
     bool ReadCropped(int const cropTop,  int const cropBottom,
                      int const cropLeft, int const cropRight,
                      StorageSpec const &storage) override;
@@ -106,7 +107,7 @@ public:
     int  GetNumMipLevels() const override;
     bool GetMetadata(TfToken const &key, VtValue *value) const override;
     bool GetSamplerMetadata(HioAddressDimension dim,
-                                 HioAddressMode *param) const override;
+                            HioAddressMode *param) const override;
     std::string const &GetFilename() const override { return _filename; }
 
 protected:
@@ -125,6 +126,8 @@ TF_REGISTRY_FUNCTION(TfType)
     t.SetFactory<HioImageFactory<Image>>();
 }
 
+// There is a HioGetFormat function, but the twist here is that we are
+// forcing translation of 3 channel float images to 4 channel images.
 HioFormat Hio_OpenEXRImage::GetFormat() const
 {
     switch (_exrReader.pixelType)
@@ -132,10 +135,11 @@ HioFormat Hio_OpenEXRImage::GetFormat() const
     case EXR_PIXEL_UINT:
         switch (_exrReader.channelCount)
         {
-        case 1: return HioFormatInt32;
-        case 2: return HioFormatInt32Vec2;
-        case 3: return HioFormatInt32Vec3;
-        default: return HioFormatInt32Vec4;
+        case 1:  return HioFormatInt32;
+        case 2:  return HioFormatInt32Vec2;
+        case 3:  return HioFormatInt32Vec3;
+        case 4:  return HioFormatInt32Vec4;
+        default: return HioFormatInvalid;
         }
 
     // float pixel formats promote 3 channel reads to 4, because general gpu
@@ -144,19 +148,21 @@ HioFormat Hio_OpenEXRImage::GetFormat() const
     case EXR_PIXEL_HALF:
         switch (_exrReader.channelCount)
         {
-        case 1: return HioFormatFloat16;
-        case 2: return HioFormatFloat16Vec2;
-        case 3:
-        default: return HioFormatFloat16Vec4;
+        case 1:  return HioFormatFloat16;
+        case 2:  return HioFormatFloat16Vec2;
+        case 3:  return HioFormatFloat16Vec4; // promote to 4
+        case 4:  return HioFormatFloat16Vec4;
+        default: return HioFormatInvalid;
         }
 
     case EXR_PIXEL_FLOAT:
         switch (_exrReader.channelCount)
         {
-        case 1: return HioFormatFloat32;
-        case 2: return HioFormatFloat32Vec2;
-        case 3:
-        default: return HioFormatFloat32Vec4;
+        case 1:  return HioFormatFloat32;
+        case 2:  return HioFormatFloat32Vec2;
+        case 3:  return HioFormatFloat32Vec4; // promote to 4
+        case 4:  return HioFormatFloat32Vec4;
+        default: return HioFormatInvalid;
         }
 
     default:
@@ -166,8 +172,7 @@ HioFormat Hio_OpenEXRImage::GetFormat() const
 
 int Hio_OpenEXRImage::GetBytesPerPixel() const
 {
-    return _exrReader.channelCount
-                * nanoexr_getPixelTypeSize(_exrReader.pixelType);
+    return _exrReader.channelCount * HioGetDataSizeOfType(GetFormat());
 }
 
 int Hio_OpenEXRImage::GetNumMipLevels() const
@@ -202,6 +207,15 @@ public:
     // Flip the image in-place.
     static void FlipImage(T* buffer, int width, int height, int channelCount)
     {
+        // use std::swap_ranges to flip the image in-place
+        for (int y = 0; y < height / 2; ++y) {
+            std::swap_ranges(
+                buffer + y * width * channelCount,
+                buffer + (y + 1) * width * channelCount,
+                buffer + (height - y - 1) * width * channelCount);
+        }
+#if 0
+        // use std::swap to flip the image in-place
         for (int y = 0; y < height / 2; ++y) {
             for (int x = 0; x < width; ++x) {
                 for (int c = 0; c < channelCount; ++c) {
@@ -211,6 +225,7 @@ public:
                 }
             }
         }
+#endif
     }
 
     // Crop the image in-place.
