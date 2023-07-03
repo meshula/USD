@@ -76,6 +76,9 @@ if(PXR_ENABLE_PYTHON_SUPPORT)
             file(TO_CMAKE_PATH ${PYTHON_INCLUDE_DIRS} PYTHON_INCLUDE_DIRS)
         endif()
 
+        set(PXR_PY_UNDEFINED_DYNAMIC_LOOKUP ON)
+
+
         # PXR_PY_UNDEFINED_DYNAMIC_LOOKUP might be explicitly set when 
         # packaging wheels, or when cross compiling to a Python environment 
         # that is not the current interpreter environment.
