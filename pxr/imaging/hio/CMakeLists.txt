@@ -48,3 +48,8 @@ pxr_library(hio
     DOXYGEN_FILES
         overview.dox
 )
+
+target_compile_definitions(hio PRIVATE
+    ILMTHREAD_THREADING_ENABLED
+    OPENEXR_C_STANDALONE
+    OPENEXR_EXPORT=static)
