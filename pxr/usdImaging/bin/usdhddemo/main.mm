@@ -166,9 +166,9 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // Read a texture
     //-------------------------------------------------------------------------
-    //const std::string stillLife = "/Users/nporcino/dev/assets/textures/StillLife.exr";
+    const std::string stillLife = "/Users/nporcino/dev/assets/textures/StillLife.exr";
     //const std::string stillLife = "/Users/nporcino/dev/assets/textures/GoldenGate.exr";
-    const std::string stillLife = "/Users/nporcino/dev/assets/textures/out-dwaa.exr";
+    //const std::string stillLife = "/Users/nporcino/dev/assets/textures/out-dwaa.exr";
     HioImageSharedPtr _image;
     bool canReadExr = HioImage::IsSupportedImageFile(stillLife);
     std::unique_ptr<char[]> imageData;

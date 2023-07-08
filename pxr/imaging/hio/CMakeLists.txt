@@ -48,3 +48,9 @@ pxr_library(hio
     DOXYGEN_FILES
         overview.dox
 )
+
+# Not all functions compiled within the OpenEXR library are used, suppress
+# warnings about them, as the warnings are not informative.
+target_compile_options(hio PRIVATE
+     $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
+     -Wno-unused-function>)

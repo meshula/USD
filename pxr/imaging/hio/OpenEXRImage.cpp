@@ -47,11 +47,6 @@
 #include "pxr/base/tf/stringUtils.h"
 #include "pxr/base/tf/type.h"
 
-#ifdef _MSC_VER
-// suppress MSVC warning about preferring _strdup.
-#define _strdup strdup
-#endif
-
 /*
  
  TODO:
@@ -172,7 +167,8 @@ HioFormat Hio_OpenEXRImage::GetFormat() const
 
 int Hio_OpenEXRImage::GetBytesPerPixel() const
 {
-    return _exrReader.channelCount * HioGetDataSizeOfType(GetFormat());
+    return _exrReader.channelCount *
+                static_cast<int>(HioGetDataSizeOfType(GetFormat()));
 }
 
 int Hio_OpenEXRImage::GetNumMipLevels() const
@@ -180,100 +176,103 @@ int Hio_OpenEXRImage::GetNumMipLevels() const
     return _exrReader.numMipLevels;
 }
 
-// For consistency with other Hio plugins, reading is done through ArAsset,
-// but writing is not.
-int64_t exr_AssetRead_Func(
-    exr_const_context_t         ctxt,
-    void*                       userdata,
-    void*                       buffer,
-    uint64_t                    sz,
-    uint64_t                    offset,
-    exr_stream_error_func_ptr_t error_cb)
-{
-    Hio_OpenEXRImage* self = (Hio_OpenEXRImage*) userdata;
-    if (!self || !self->Asset() || !buffer || !sz) {
-        if (error_cb)
-            error_cb(ctxt, EXR_ERR_INVALID_ARGUMENT,
-                           "%s", "Invalid arguments to read callback");
-        return -1;
-    }
-    return self->Asset()->Read(buffer, sz, offset);
-}
-
-template<typename T>
-class ImageProcessor
-{
-public:
-    // Flip the image in-place.
-    static void FlipImage(T* buffer, int width, int height, int channelCount)
+namespace {
+    // For consistency with other Hio plugins, reading is done through ArAsset,
+    // but writing is not.
+    int64_t exr_AssetRead_Func(
+                               exr_const_context_t         ctxt,
+                               void*                       userdata,
+                               void*                       buffer,
+                               uint64_t                    sz,
+                               uint64_t                    offset,
+                               exr_stream_error_func_ptr_t error_cb)
     {
-        // use std::swap_ranges to flip the image in-place
-        for (int y = 0; y < height / 2; ++y) {
-            std::swap_ranges(
-                buffer + y * width * channelCount,
-                buffer + (y + 1) * width * channelCount,
-                buffer + (height - y - 1) * width * channelCount);
+        Hio_OpenEXRImage* self = (Hio_OpenEXRImage*) userdata;
+        if (!self || !self->Asset() || !buffer || !sz) {
+            if (error_cb)
+                error_cb(ctxt, EXR_ERR_INVALID_ARGUMENT,
+                         "%s", "Invalid arguments to read callback");
+            return -1;
         }
+        return self->Asset()->Read(buffer, sz, offset);
+    }
+    
+    template<typename T>
+    class ImageProcessor
+    {
+    public:
+        // Flip the image in-place.
+        static void FlipImage(T* buffer, int width, int height, int channelCount)
+        {
+            // use std::swap_ranges to flip the image in-place
+            for (int y = 0; y < height / 2; ++y) {
+                std::swap_ranges(
+                                 buffer + y * width * channelCount,
+                                 buffer + (y + 1) * width * channelCount,
+                                 buffer + (height - y - 1) * width * channelCount);
+            }
 #if 0
-        // use std::swap to flip the image in-place
-        for (int y = 0; y < height / 2; ++y) {
-            for (int x = 0; x < width; ++x) {
-                for (int c = 0; c < channelCount; ++c) {
-                    std::swap(
-                        buffer[(y * width + x) * channelCount + c],
-                        buffer[((height - y - 1) * width + x) * channelCount + c]);
+            // use std::swap to flip the image in-place
+            for (int y = 0; y < height / 2; ++y) {
+                for (int x = 0; x < width; ++x) {
+                    for (int c = 0; c < channelCount; ++c) {
+                        std::swap(
+                                  buffer[(y * width + x) * channelCount + c],
+                                  buffer[((height - y - 1) * width + x) * channelCount + c]);
+                    }
                 }
             }
-        }
 #endif
-    }
-
-    // Crop the image in-place.
-    static void CropImage(T* buffer, 
-                          int width, int height, int channelCount,
-                          int cropTop, int cropBottom,
-                          int cropLeft, int cropRight)
-    {
-        int newWidth = width - cropLeft - cropRight;
-        int newHeight = height - cropTop - cropBottom;
-
-        if (newWidth <= 0 || newHeight <= 0
-            || (newWidth == width && newHeight == height))
-            return;
-
-        for (int y = 0; y < newHeight; ++y) {
-            for (int x = 0; x < newWidth; ++x) {
-                for (int c = 0; c < channelCount; ++c) {
-                    buffer[(y * newWidth + x) * channelCount + c] =
+        }
+        
+        // Crop the image in-place.
+        static void CropImage(T* buffer, 
+                              int width, int height, int channelCount,
+                              int cropTop, int cropBottom,
+                              int cropLeft, int cropRight)
+        {
+            int newWidth = width - cropLeft - cropRight;
+            int newHeight = height - cropTop - cropBottom;
+            
+            if (newWidth <= 0 || newHeight <= 0
+                || (newWidth == width && newHeight == height))
+                return;
+            
+            for (int y = 0; y < newHeight; ++y) {
+                for (int x = 0; x < newWidth; ++x) {
+                    for (int c = 0; c < channelCount; ++c) {
+                        buffer[(y * newWidth + x) * channelCount + c] =
                         buffer[((y + cropTop) * width + x + cropLeft)
-                        * channelCount + c];
+                               * channelCount + c];
+                    }
                 }
             }
         }
-    }
-
-    static void HalfToFloat(GfHalf* buffer, float* outBuffer,
-                            int width, int height, int channelCount)
-    {
-        if (!buffer || !outBuffer)
-            return;
         
-        for (int i = 0; i < width * height * channelCount; ++i) {
-            outBuffer[i] = buffer[i];
+        static void HalfToFloat(GfHalf* buffer, float* outBuffer,
+                                int width, int height, int channelCount)
+        {
+            if (!buffer || !outBuffer)
+                return;
+            
+            for (int i = 0; i < width * height * channelCount; ++i) {
+                outBuffer[i] = buffer[i];
+            }
         }
-    }
-
-    static void FloatToHalf(float* buffer, GfHalf* outBuffer,
-                            int width, int height, int channelCount)
-    {
-        if (!buffer || !outBuffer)
-            return;
         
-        for (int i = 0; i < width * height * channelCount; ++i) {
-            outBuffer[i] = buffer[i];
+        static void FloatToHalf(float* buffer, GfHalf* outBuffer,
+                                int width, int height, int channelCount)
+        {
+            if (!buffer || !outBuffer)
+                return;
+            
+            for (int i = 0; i < width * height * channelCount; ++i) {
+                outBuffer[i] = buffer[i];
+            }
         }
-    }
-};
+    };
+    
+} // anon
 
 bool Hio_OpenEXRImage::ReadCropped(
                 int const cropTop,  int const cropBottom,
@@ -440,6 +439,9 @@ bool Hio_OpenEXRImage::ReadCropped(
 }
 
 namespace {
+    // Note that the alternative names and casing are for historical
+    // compatibility. The OpenEXR standard attribute names are worldToNDC and
+    // and worldToCamera.
     bool isWorldToNDC(const std::string& name)
     {
         return name == "NP" || name == "worldtoscreen"
@@ -549,16 +551,14 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
                 GfVec2f box_min, box_max;
                 box_min.Set((float) attr->box2i->min.x, (float) attr->box2i->min.y);
                 box_max.Set((float) attr->box2i->max.x, (float) attr->box2i->max.x);
-                self->_metadata[TfToken(attr->name)]
-                        = VtValue(GfRange2f(box_min, box_max));
+                self->_metadata[attr->name] = VtValue(GfRange2f(box_min, box_max));
                 break;
             }
             case EXR_ATTR_BOX2F: {
                 GfVec2f box_min, box_max;
                 box_min.Set(attr->box2f->min.x, attr->box2f->min.y);
                 box_max.Set(attr->box2f->max.x, attr->box2f->max.y);
-                self->_metadata[TfToken(attr->name)]
-                        = VtValue(GfRange2f(box_min, box_max));
+                self->_metadata[attr->name] = VtValue(GfRange2f(box_min, box_max));
                 break;
             }
             case EXR_ATTR_CHLIST:
@@ -568,20 +568,20 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
                 // metadata attributes for Hio's purposes.
                 continue;
             case EXR_ATTR_DOUBLE:
-                self->_metadata[TfToken(attr->name)] = VtValue(attr->d);
+                self->_metadata[attr->name] = VtValue(attr->d);
                 break;
             case EXR_ATTR_ENVMAP:
                 // Hio doesn't specifically treat cube and lot-lang maps.
                 // If it did, this case would be handled elsewhere.
                 break;
             case EXR_ATTR_FLOAT:
-                self->_metadata[TfToken(attr->name)] = VtValue(attr->f);
+                self->_metadata[attr->name] = VtValue(attr->f);
                 break;
             case EXR_ATTR_FLOAT_VECTOR: {
                 std::vector<float> v;
                 v.resize(attr->floatvector->length);
                 memcpy(v.data(), attr->floatvector->arr, v.size() * sizeof(float));
-                self->_metadata[TfToken(attr->name)] = VtValue(v);
+                self->_metadata[attr->name] = VtValue(v);
             }
             case EXR_ATTR_INT:
                 self->_metadata[TfToken(attr->name)] = VtValue(attr->i);
@@ -594,25 +594,25 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
             case EXR_ATTR_M33F: {
                 GfMatrix3f m;
                 memcpy(m.GetArray(), attr->m33f, 9 * sizeof(float));
-                self->_metadata[TfToken(attr->name)] = VtValue(m);
+                self->_metadata[attr->name] = VtValue(m);
                 break;
             }
             case EXR_ATTR_M33D: {
                 GfMatrix3d m;
                 memcpy(m.GetArray(), attr->m33d, 9 * sizeof(double));
-                self->_metadata[TfToken(attr->name)] = VtValue(m);
+                self->_metadata[attr->name] = VtValue(m);
                 break;
             }
             case EXR_ATTR_M44F: {
                 GfMatrix4f m;
                 memcpy(m.GetArray(), attr->m44f, 16 * sizeof(float));
-                self->_metadata[TfToken(attr->name)] = VtValue(m);
+                self->_metadata[attr->name] = VtValue(m);
                 break;
             }
             case EXR_ATTR_M44D: {
                 GfMatrix4d m;
                 memcpy(m.GetArray(), attr->m44d, 16 * sizeof(double));
-                self->_metadata[TfToken(attr->name)] = VtValue(m);
+                self->_metadata[attr->name] = VtValue(m);
                 break;
             }
             case EXR_ATTR_PREVIEW:
@@ -621,11 +621,11 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
             case EXR_ATTR_RATIONAL: {
                 // Gf doesn't have rational numbers, so degrade to a float.
                 float f = (float) attr->rational->num / (float) attr->rational->denom;
-                self->_metadata[TfToken(attr->name)] = VtValue(f);
+                self->_metadata[attr->name] = VtValue(f);
                 break;
             }
             case EXR_ATTR_STRING:
-                self->_metadata[TfToken(attr->name)] = VtValue(attr->string);
+                self->_metadata[attr->name] = VtValue(attr->string);
                 break;
             case EXR_ATTR_STRING_VECTOR: {
                 std::vector<std::string> v;
@@ -633,7 +633,7 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
                 for (size_t i = 0; i < v.size(); ++i) {
                     v[i] = attr->stringvector->strings[i].str;
                 }
-                self->_metadata[TfToken(attr->name)] = VtValue(v);
+                self->_metadata[attr->name] = VtValue(v);
                 break;
             }
             case EXR_ATTR_TILEDESC:
@@ -647,19 +647,19 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
                 // there's no GfVec2i, convert to double
                 GfVec2d v;
                 v.Set((double) attr->v2i->x, (double) attr->v2i->y);
-                self->_metadata[TfToken(attr->name)] = VtValue(v);
+                self->_metadata[attr->name] = VtValue(v);
                 break;
             }
             case EXR_ATTR_V2F: {
                 GfVec2f v;
                 v.Set(attr->v2f->x, attr->v2f->y);
-                self->_metadata[TfToken(attr->name)] = VtValue(v);
+                self->_metadata[attr->name] = VtValue(v);
                 break;
             }
             case EXR_ATTR_V2D: {
                 GfVec2d v;
                 v.Set(attr->v2d->x, attr->v2d->y);
-                self->_metadata[TfToken(attr->name)] = VtValue(v);
+                self->_metadata[attr->name] = VtValue(v);
                 break;
             }
             case EXR_ATTR_V3I: {
@@ -668,19 +668,19 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
                 v.Set((double) attr->v3i->x,
                       (double) attr->v3i->y,
                       (double) attr->v3i->z);
-                self->_metadata[TfToken(attr->name)] = VtValue(v);
+                self->_metadata[attr->name] = VtValue(v);
                 break;
             }
             case EXR_ATTR_V3F: {
                 GfVec3f v;
                 v.Set(attr->v3f->x, attr->v3f->y, attr->v3f->z);
-                self->_metadata[TfToken(attr->name)] = VtValue(v);
+                self->_metadata[attr->name] = VtValue(v);
                 break;
             }
             case EXR_ATTR_V3D: {
                 GfVec3d v;
                 v.Set(attr->v3d->x, attr->v3d->y, attr->v3d->z);
-                self->_metadata[TfToken(attr->name)] = VtValue(v);
+                self->_metadata[attr->name] = VtValue(v);
                 break;
             }
             case EXR_ATTR_LAST_KNOWN_TYPE:
@@ -690,7 +690,7 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
         }
     }
     if (self->_metadata.empty()) {
-        self->_metadata[TfToken("placeholder")] = VtValue(true);
+        self->_metadata["placeholder"] = VtValue(true);
     }
 }
 
@@ -770,6 +770,8 @@ void Hio_OpenEXRImage::_AttributeWriteCallback(void* self_, exr_context_t exr) {
                               value.Get<GfMatrix4f>().GetArray());
         }
         else if (value.IsHolding<GfMatrix4d>()) {
+            // historic compatibility, downgread m44d matrices for these two
+            // attributes to float.
             if (isWorldToNDC(key) || isWorldToCamera(key)) {
                 // for Ice/Imr, convert to m44f.
                 GfMatrix4f mf(value.Get<GfMatrix4d>());
