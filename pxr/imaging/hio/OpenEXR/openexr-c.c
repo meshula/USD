@@ -296,7 +296,7 @@ int nanoexr_read_header(nanoexr_Reader_t* reader, exr_read_func_ptr_t readFn,
     return rv;
 }
 
-exr_result_t nanoexr_write_exr(
+exr_result_t nanoexr_write_f16_exr(
     const char* filename,
     nanoexr_attrsAdd attrsAdd, void* attrsAdd_userData,
     int width, int height,
@@ -792,11 +792,87 @@ exr_result_t nanoexr_read_scanline_exr(exr_context_t exr,
     return rv;
 }
 
+void fill_channel_u16(nanoexr_ImageData_t* img, int channel, uint16_t value) {
+    for (int y = 0; y < img->height; ++y) {
+        for (int x = 0; x < img->width; ++x) {
+            uint8_t* curpixel = img->data + 
+                y * img->width * img->channelCount * 2 + 
+                x * img->channelCount * 2 + channel * 2;
+            *(uint16_t*) curpixel = value;
+        }
+    }
+}
+
+void fill_channel_u32(nanoexr_ImageData_t* img, int channel, uint32_t value) {
+    for (int y = 0; y < img->height; ++y) {
+        for (int x = 0; x < img->width; ++x) {
+            uint8_t* curpixel = img->data + 
+                y * img->width * img->channelCount * 4 + 
+                x * img->channelCount * 4 + channel * 4;
+            *(uint32_t*) curpixel = value;
+        }
+    }
+}
+
+void fill_channel_float(nanoexr_ImageData_t* img, int channel, float value) {
+    for (int y = 0; y < img->height; ++y) {
+        for (int x = 0; x < img->width; ++x) {
+            uint8_t* curpixel = img->data + 
+                y * img->width * img->channelCount * 4 + 
+                x * img->channelCount * 4 + channel * 4;
+            *(float*) curpixel = value;
+        }
+    }
+}
+
+void copy_channel_u16(nanoexr_ImageData_t* img, int from_channel, int to_channel) {
+    for (int y = 0; y < img->height; ++y) {
+        for (int x = 0; x < img->width; ++x) {
+            uint8_t* curpixel = img->data + 
+                y * img->width * img->channelCount * 2 + 
+                x * img->channelCount * 2 + from_channel * 2;
+            uint8_t* topixel = img->data + 
+                y * img->width * img->channelCount * 2 + 
+                x * img->channelCount * 2 + to_channel * 2;
+            *(uint16_t*) topixel = *(uint16_t*) curpixel;
+        }
+    }
+}
+
+void copy_channel_u32(nanoexr_ImageData_t* img, int from_channel, int to_channel) {
+    for (int y = 0; y < img->height; ++y) {
+        for (int x = 0; x < img->width; ++x) {
+            uint8_t* curpixel = img->data + 
+                y * img->width * img->channelCount * 4 + 
+                x * img->channelCount * 4 + from_channel * 4;
+            uint8_t* topixel = img->data + 
+                y * img->width * img->channelCount * 4 + 
+                x * img->channelCount * 4 + to_channel * 4;
+            *(uint32_t*) topixel = *(uint32_t*) curpixel;
+        }
+    }
+}
+
+void copy_channel_float(nanoexr_ImageData_t* img, int from_channel, int to_channel) {
+    for (int y = 0; y < img->height; ++y) {
+        for (int x = 0; x < img->width; ++x) {
+            uint8_t* curpixel = img->data + 
+                y * img->width * img->channelCount * 4 + 
+                x * img->channelCount * 4 + from_channel * 4;
+            uint8_t* topixel = img->data + 
+                y * img->width * img->channelCount * 4 + 
+                x * img->channelCount * 4 + to_channel * 4;
+            *(float*) topixel = *(float*) curpixel;
+        }
+    }
+}
+
 exr_result_t nanoexr_read_exr(const char* filename, 
                               exr_read_func_ptr_t readfn,
                               void* callback_userData,
                               nanoexr_ImageData_t* img,
                               const char* layerName,
+                              int numChannelsToRead,
                               int partIndex,
                               int mipLevel) {
     exr_context_t exr = NULL;
@@ -883,7 +959,7 @@ exr_result_t nanoexr_read_exr(const char* filename,
         return rv;
     }
 
-    img->channelCount = 4;//chlist->num_channels;
+    img->channelCount = numChannelsToRead;
     img->width = width;
     img->height = height;
     img->dataSize = width * height * img->channelCount * bytesPerChannel;
@@ -914,36 +990,88 @@ exr_result_t nanoexr_read_exr(const char* filename,
         return rv;
     }
 
-    // xxx specialize for float, uint16 and half.
     uint16_t oneValue = float_to_half(1.0f);
     uint16_t zeroValue = float_to_half(0.0f);
 
-    /*
-     The "fill in" algorithm should be:
-     if output type is RGBA:
-        If one channel was found, and it was A, create 000A
-            else, XXX1
-        If two channels were found, X and A, create XXXA
-            else XXX1
-        If three channels were found, and one was A, create XYYA
-            else XYZ1
-     */
-    
-    // fill in data for missing channels
-    int pixelStride = img->channelCount * bytesPerChannel;
-    int lineStride = img->width * pixelStride;
-    for (int c = 0; c < img->channelCount; c++) {
-        if (rgbaIndex[c] < 0) {
-            for (int y = 0; y < img->height; ++y) {
-                for (int x = 0; x < img->width; ++x) {
-                    uint8_t* curpixel = img->data + y * lineStride + x * pixelStride + c * bytesPerChannel;
-                    if (img->pixelType == EXR_PIXEL_HALF) {
-                        *((uint16_t*) curpixel) = c == 3 ? oneValue : zeroValue;
-                    }
-                    else {
-                        *((float*) curpixel) = c == 3 ? 1.f : 0.f;
-                    }
+    // if the image is rgba, and any of the channels are missing, fill them in
+    // by propagating the channel to the left if possible. If not, fill with
+    // zero or one. Alpha is always filled with one.
+    if (img->channelCount == 4) {
+        if (rgbaIndex[3] == -1) {
+            // fill the alpha channel with 1.0
+            if (img->pixelType == EXR_PIXEL_HALF) {
+                fill_channel_u16(img, 3, oneValue);
+            }
+            else if (img->pixelType == EXR_PIXEL_FLOAT) {
+                fill_channel_float(img, 3, 1.0f);
+            }
+            else if (img->pixelType == EXR_PIXEL_UINT) {
+                // We're treating uint data as data, not rgba, so fill with zero
+                fill_channel_u32(img, 3, 0);
+            }
+        }
+        if (rgbaIndex[2] == -1) {
+            // if G exists, propagate it, else if R exists, propagate it, else fill with zero
+            int srcChannel = rgbaIndex[1] >= 0 ? 1 : (rgbaIndex[0] >= 0 ? 0 : -1);
+            if (srcChannel >= 0) {
+                if (img->pixelType == EXR_PIXEL_HALF) {
+                    copy_channel_u16(img, srcChannel, 2);
                 }
+                else if (img->pixelType == EXR_PIXEL_FLOAT) {
+                    copy_channel_float(img, srcChannel, 2);
+                }
+                else if (img->pixelType == EXR_PIXEL_UINT) {
+                    copy_channel_u32(img, srcChannel, 2);
+                }
+            }
+            else {
+                if (img->pixelType == EXR_PIXEL_HALF) {
+                    fill_channel_u16(img, 2, zeroValue);
+                }
+                else if (img->pixelType == EXR_PIXEL_FLOAT) {
+                    fill_channel_float(img, 2, 0.0f);
+                }
+                else if (img->pixelType == EXR_PIXEL_UINT) {
+                    fill_channel_u32(img, 2, 0);
+                }
+            }
+        }
+        if (rgbaIndex[1] == -1) {
+            // if R exists, propagate it, else fill with zero
+            int srcChannel = rgbaIndex[0] >= 0 ? 0 : -1;
+            if (srcChannel >= 0) {
+                if (img->pixelType == EXR_PIXEL_HALF) {
+                    copy_channel_u16(img, srcChannel, 1);
+                }
+                else if (img->pixelType == EXR_PIXEL_FLOAT) {
+                    copy_channel_float(img, srcChannel, 1);
+                }
+                else if (img->pixelType == EXR_PIXEL_UINT) {
+                    copy_channel_u32(img, srcChannel, 1);
+                }
+            }
+            else {
+                if (img->pixelType == EXR_PIXEL_HALF) {
+                    fill_channel_u16(img, 1, zeroValue);
+                }
+                else if (img->pixelType == EXR_PIXEL_FLOAT) {
+                    fill_channel_float(img, 1, 0.0f);
+                }
+                else if (img->pixelType == EXR_PIXEL_UINT) {
+                    fill_channel_u32(img, 1, 0);
+                }
+            }
+        }
+        if (rgbaIndex[0] == -1) {
+            // fill with zero
+            if (img->pixelType == EXR_PIXEL_HALF) {
+                fill_channel_u16(img, 0, zeroValue);
+            }
+            else if (img->pixelType == EXR_PIXEL_FLOAT) {
+                fill_channel_float(img, 0, 0.0f);
+            }
+            else if (img->pixelType == EXR_PIXEL_UINT) {
+                fill_channel_u32(img, 0, 0);
             }
         }
     }

@@ -131,6 +131,7 @@ exr_result_t nanoexr_read_exr(const char* filename,
                               void* callback_userData,
                               nanoexr_ImageData_t* img,
                               const char* layerName,
+                              int numChannelsToRead,
                               int partIndex,
                               int level);
 
@@ -138,8 +139,8 @@ exr_result_t nanoexr_read_exr(const char* filename,
 typedef void (*nanoexr_attrsAdd)(void*, exr_context_t);
 
 // simplified write for the most basic case of a single part file containing
-// rgb data.
-exr_result_t nanoexr_write_exr(
+// rgb data in half format.
+exr_result_t nanoexr_write_f16_exr(
                const char* filename,
                nanoexr_attrsAdd, void* attrsAdd_userData,
                int width, int height,

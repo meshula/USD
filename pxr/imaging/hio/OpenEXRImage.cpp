@@ -47,16 +47,6 @@
 #include "pxr/base/tf/stringUtils.h"
 #include "pxr/base/tf/type.h"
 
-/*
- 
- TODO:
- 
- - from matthias review: revise the "fill in" algorithm for missing channels
- - from matthias review: read and write int32 images
- - ask matthias: are "subimages" the same as EXR "parts"?
- 
- */
-
 PXR_NAMESPACE_OPEN_SCOPE
 
 class Hio_OpenEXRImage final : public HioImage
@@ -71,6 +61,10 @@ class Hio_OpenEXRImage final : public HioImage
     // mutable because GetMetadata is const, yet it doesn't make sense
     // to cache the dictionary unless metadata is requested.
     mutable VtDictionary     _metadata;
+
+    // The callback dictionary is a pointer to the dictionary that was
+    // passed to the Write method.  It is valid only during the
+    // Write call.
     VtDictionary const*      _callbackDict = nullptr;
 
 public:
@@ -104,6 +98,8 @@ public:
     bool GetSamplerMetadata(HioAddressDimension dim,
                             HioAddressMode *param) const override;
     std::string const &GetFilename() const override { return _filename; }
+
+    const VtDictionary &GetMetadata() const { return _metadata; }
 
 protected:
     bool _OpenForReading(std::string const &filename, int subimage, int mip,
@@ -211,18 +207,6 @@ namespace {
                                  buffer + (y + 1) * width * channelCount,
                                  buffer + (height - y - 1) * width * channelCount);
             }
-#if 0
-            // use std::swap to flip the image in-place
-            for (int y = 0; y < height / 2; ++y) {
-                for (int x = 0; x < width; ++x) {
-                    for (int c = 0; c < channelCount; ++c) {
-                        std::swap(
-                                  buffer[(y * width + x) * channelCount + c],
-                                  buffer[((height - y - 1) * width + x) * channelCount + c]);
-                    }
-                }
-            }
-#endif
         }
         
         // Crop the image in-place.
@@ -286,8 +270,7 @@ bool Hio_OpenEXRImage::ReadCropped(
     if (cropTop < 0 || cropBottom < 0 || cropLeft < 0 || cropRight < 0)
         return false;
 
-    // cache values and
-    // determine what needs to happen as a consequence of the input parameters
+    // cache values for the read/crop/resize pipeline
 
     int fileWidth =  _exrReader.width;
     int fileHeight = _exrReader.height;
@@ -300,14 +283,18 @@ bool Hio_OpenEXRImage::ReadCropped(
 
     bool inputIsHalf =   filePixelType == EXR_PIXEL_HALF;
     bool inputIsFloat =  filePixelType == EXR_PIXEL_FLOAT;
+    bool inputIsUInt =    filePixelType == EXR_PIXEL_UINT;
     bool outputIsFloat = HioGetHioType(storage.format) == HioTypeFloat;
     bool outputIsHalf =  HioGetHioType(storage.format) == HioTypeHalfFloat;
+    bool outputIsUInt =  HioGetHioType(storage.format) == HioTypeUnsignedInt;
 
-    if (!outputIsFloat && !outputIsHalf)
+    // no conversion between uint and a float type is provided.
+    if (outputIsUInt && !inputIsUInt)
+        return false;
+    if (outputIsFloat && !(inputIsFloat || inputIsHalf))
         return false;
 
-    int outputBytesPerPixel = (outputIsFloat ? sizeof(float)
-                                             : sizeof(GfHalf)) * outChannelCount;
+    int outputBytesPerPixel = HioGetDataSizeOfType(storage.format) * outChannelCount;
 
     int readWidth = fileWidth - cropLeft - cropRight;
     int readHeight = fileHeight - cropTop - cropBottom;
@@ -316,17 +303,48 @@ bool Hio_OpenEXRImage::ReadCropped(
         return true;
     }
     bool resizing = (readWidth != outWidth) || (readHeight != outHeight);
+    if (outputIsUInt && resizing) {
+        // resizing is not supported for uint types.
+        return false;
+    }
+
+    if (outputIsUInt) {
+        // no conversion to float; read the data, and crop it if necessary.
+        nanoexr_ImageData_t img;
+        const int partIndex = 0;
+        exr_result_t rv = nanoexr_read_exr(_exrReader.filename,
+                                           exr_AssetRead_Func, this,
+                                           &img, nullptr, 
+                                           outChannelCount,
+                                           partIndex, _mip);
+        if (rv != EXR_ERR_SUCCESS) {
+            return false;
+        }
+        ImageProcessor<uint32_t>::FlipImage(reinterpret_cast<uint32_t*>(img.data),
+                                            fileWidth, fileHeight,
+                                            img.channelCount);
+        ImageProcessor<uint32_t>::CropImage(reinterpret_cast<uint32_t*>(img.data),
+                                            fileWidth, fileHeight,
+                                            img.channelCount,
+                                            cropTop, cropBottom,
+                                            cropLeft, cropRight);
+
+        // copy the data to the output buffer.
+        memcpy(storage.data, img.data, outWidth * outHeight * outputBytesPerPixel);
+        nanoexr_release_image_data(&img);
+        return true;
+    }
 
     // ensure there's enough memory for the greater of input and output channel
     // count, for in place conversions.
     int maxChannelCount = std::max(fileChannelCount, outChannelCount);
     std::vector<GfHalf> halfInputBuffer;
     if (inputIsHalf) {
-        halfInputBuffer.resize(fileWidth * readHeight * maxChannelCount);
+        halfInputBuffer.resize(fileWidth * fileHeight * maxChannelCount);
     }
     std::vector<float> floatInputBuffer;
     if (inputIsHalf && (resizing || outputIsFloat)) {
-        floatInputBuffer.resize(fileWidth * readHeight * maxChannelCount);
+        floatInputBuffer.resize(fileWidth * fileHeight * maxChannelCount);
     }
 
     {
@@ -334,7 +352,8 @@ bool Hio_OpenEXRImage::ReadCropped(
         const int partIndex = 0;
         exr_result_t rv = nanoexr_read_exr(_exrReader.filename,
                                            exr_AssetRead_Func, this,
-                                           &img, nullptr, partIndex, _mip);
+                                           &img, nullptr, 
+                                           outChannelCount, partIndex, _mip);
         if (rv != EXR_ERR_SUCCESS) {
             return false;
         }
@@ -372,22 +391,24 @@ bool Hio_OpenEXRImage::ReadCropped(
     }
 
     if (!resizing) {
+        uint32_t outSize = outWidth * outHeight * outputBytesPerPixel;
+        uint32_t outCount = outWidth * outHeight * outChannelCount;
         if (inputIsHalf && outputIsHalf) {
             memcpy(reinterpret_cast<void*>(storage.data),
-               &halfInputBuffer[0], sizeof(uint16_t) * halfInputBuffer.size());
+               &halfInputBuffer[0], outSize);
         }
         else if (inputIsFloat && outputIsFloat) {
             memcpy(reinterpret_cast<void*>(storage.data),
-               &floatInputBuffer[0], sizeof(float) * floatInputBuffer.size());
+               &floatInputBuffer[0], outSize);
         }
         else if (outputIsFloat) {
-            for (size_t i = 0; i < halfInputBuffer.size(); ++i)
+            for (size_t i = 0; i < outCount; ++i)
                 reinterpret_cast<float*>(storage.data)[i]
                     = half_to_float(halfInputBuffer[i]);
         }
         else {
             // output is half
-            for (size_t i = 0; i < floatInputBuffer.size(); ++i)
+            for (size_t i = 0; i < outCount; ++i)
                 reinterpret_cast<uint16_t*>(storage.data)[i]
                     = float_to_half(floatInputBuffer[i]);
         }
@@ -398,7 +419,7 @@ bool Hio_OpenEXRImage::ReadCropped(
     if (inputIsHalf) {
         ImageProcessor<uint16_t>::HalfToFloat(&halfInputBuffer[0],
                                               &floatInputBuffer[0],
-                                              fileWidth, readHeight,
+                                              fileWidth, fileHeight,
                                               fileChannelCount);
         inputIsFloat = true;
         inputIsHalf = false;
@@ -806,13 +827,12 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage,
     }
 
     _callbackDict = &metadata;
-
     int32_t pxsize = type == HioTypeFloat ? sizeof(float) : sizeof(GfHalf);
     int32_t ch = HioGetComponentCount(storage.format);
     uint8_t* pixels = reinterpret_cast<uint8_t*>(storage.data);
     int32_t lineStride = storage.width * pxsize * ch;
     int32_t pixelStride = pxsize * ch;
-    exr_result_t rv = nanoexr_write_exr(
+    exr_result_t rv = nanoexr_write_f16_exr(
                         _filename.c_str(),
                         _AttributeWriteCallback, this,
                         storage.width, storage.height,
@@ -820,6 +840,7 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage,
                         pixels +  pxsize,      pixelStride, lineStride,  // green
                         pixels,                pixelStride, lineStride); // blue
 
+    _callbackDict = nullptr;
     return rv == EXR_ERR_SUCCESS;
 }
 
