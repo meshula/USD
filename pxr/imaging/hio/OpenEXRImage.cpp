@@ -1,4 +1,3 @@
-
 //
 // Copyright 2023 Pixar
 //
@@ -294,7 +293,7 @@ bool Hio_OpenEXRImage::ReadCropped(
     if (outputIsFloat && !(inputIsFloat || inputIsHalf))
         return false;
 
-    int outputBytesPerPixel = HioGetDataSizeOfType(storage.format) * outChannelCount;
+    int outputBytesPerPixel = (int) HioGetDataSizeOfType(storage.format) * outChannelCount;
 
     int readWidth = fileWidth - cropLeft - cropRight;
     int readHeight = fileHeight - cropTop - cropBottom;
@@ -554,8 +553,7 @@ void Hio_OpenEXRImage::_AttributeReadCallback(void* self_, exr_context_t exr) {
         return;
     
     const int partIndex = self->_subimage;
-    int attrCount = 0;
-    nanoexr_get_attribute_count(exr, partIndex);
+    int attrCount = nanoexr_get_attribute_count(exr, partIndex);
     for (int i = 0; i < attrCount; ++i) {
         const exr_attribute_t* attr;
         nanoexr_get_attribute_by_index(exr, partIndex, i, &attr);

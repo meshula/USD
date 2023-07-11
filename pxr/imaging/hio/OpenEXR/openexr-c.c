@@ -1,4 +1,3 @@
-
 //
 // Copyright 2023 Pixar
 //
@@ -22,7 +21,6 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-
 
 #include "OpenEXRCoreUnity.h"
 
@@ -195,7 +193,7 @@ void nanoexr_set_defaults(const char* filename, nanoexr_Reader_t* reader) {
                              &reader->exrSDKVersionPatch,
                              &reader->exrSDKExtraInfo);
 
-    reader->filename = strndup(filename, strlen(filename));
+    reader->filename = strdup(filename);
     reader->width = 0;
     reader->height = 0;
     reader->channelCount = 0;
@@ -490,7 +488,7 @@ static bool strIsRed(const char* layerName, const char* str) {
         return false;
 
     // check if the case folded string is R or RED, or ends in .R or .RED
-    char* folded = strndup(str, strlen(str));
+    char* folded = strdup(str);
     for (int i = 0; folded[i]; ++i) {
         folded[i] = tolower(folded[i]);
     }
@@ -509,7 +507,7 @@ static bool strIsGreen(const char* layerName, const char* str) {
         return false;
 
     // check if the case folded string is G or GREEN, or ends in .G or .GREEN
-    char* folded = strndup(str, strlen(str));
+    char* folded = strdup(str);
     for (int i = 0; folded[i]; ++i) {
         folded[i] = tolower(folded[i]);
     }
@@ -528,7 +526,7 @@ static bool strIsBlue(const char* layerName, const char* str) {
         return false;
 
     // check if the case folded string is B or BLUE, or ends in .B or .BLUE
-    char* folded = strndup(str, strlen(str));
+    char* folded = strdup(str);
     for (int i = 0; folded[i]; ++i) {
         folded[i] = tolower(folded[i]);
     }
@@ -547,7 +545,7 @@ static bool strIsAlpha(const char* layerName, const char* str) {
         return false;
 
     // check if the case folded string is A or ALPHA, or ends in .A or .ALPHA
-    char* folded = strndup(str, strlen(str));
+    char* folded = strdup(str);
     for (int i = 0; folded[i]; ++i) {
         folded[i] = tolower(folded[i]);
     }
