@@ -27,6 +27,12 @@
 #include <ctype.h>
 #include <math.h>
 
+#if defined(__clang__)
+#pragma clang diagnostic ignored "-Wunused-function"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
+
 // re-export the statically hidden exr_ functions as required
 // for visibility from C++
 
