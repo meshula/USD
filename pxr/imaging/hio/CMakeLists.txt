@@ -49,8 +49,21 @@ pxr_library(hio
         overview.dox
 )
 
-# Not all functions compiled within the OpenEXR library are used, suppress
-# warnings about them, as the warnings are not informative.
-target_compile_options(hio PRIVATE
-     $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:
-     -Wno-unused-function>)
+pxr_build_test(testReadWriteEXR
+    LIBRARIES
+        hio
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
+        
+    CPPFILES
+        testenv/testReadWriteEXR.cpp
+)
+
+#pxr_install_test_dir(
+#    SRC testenv/testReadWriteEXR
+#    DEST testReadWriteEXR
+#)
+
+pxr_register_test(testReadWriteEXR
+    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testReadWriteEXR"
+)

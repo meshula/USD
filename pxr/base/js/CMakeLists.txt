@@ -63,6 +63,8 @@ pxr_build_test(testJsIO
     LIBRARIES
         tf
         js
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testJsIO.cpp
 ) 
@@ -70,6 +72,8 @@ pxr_build_test(testJsConverter
     LIBRARIES
         tf
         js
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testJsConverter.cpp
 ) 
@@ -77,6 +81,8 @@ pxr_build_test(testJsUtils
     LIBRARIES
         tf
         js
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testJsUtils.cpp
 ) 
@@ -84,6 +90,8 @@ pxr_build_test(testJsWriter
     LIBRARIES
         tf
         js
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testJsWriter.cpp
 )
@@ -91,6 +99,8 @@ pxr_build_test(testJsDouble
     LIBRARIES
         tf
         js
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testJsDouble.cpp
 )  

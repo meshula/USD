@@ -167,6 +167,8 @@ else()
             usdRender
             ${PXRCORE_LIBRARY}
             ${PRMAN_LIBRARY}
+            ${Boost_PYTHON_LIBRARY}
+            ${Python3_LIBRARY}
         CPPFILES
             testenv/testHdPrman.cpp
     )

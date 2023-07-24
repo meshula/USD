@@ -68,24 +68,32 @@ pxr_build_test(testArchAbi
     LIBRARIES
         arch
         ${CMAKE_DL_LIBS}
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testArchAbi.cpp
 )
 pxr_build_test(testArchAttributes
     LIBRARIES
         arch
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testAttributes.cpp
     )
 pxr_build_test(testArchDemangle
     LIBRARIES
         arch
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testDemangle.cpp
 )
 pxr_build_test(testArchError
     LIBRARIES
         arch
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testArchUtil.cpp
         testenv/testError.cpp
@@ -93,36 +101,48 @@ pxr_build_test(testArchError
 pxr_build_test(testArchErrno
     LIBRARIES
         arch
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testErrno.cpp
 )
 pxr_build_test(testArchFileSystem
     LIBRARIES
         arch
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testFileSystem.cpp
 )
 pxr_build_test(testArchFunction
     LIBRARIES
         arch
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testFunction.cpp
 )
 pxr_build_test(testArchMath
     LIBRARIES
         arch
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testMath.cpp
 )
 pxr_build_test(testArchPRead
     LIBRARIES
         arch
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testArchPRead.cpp
 )
 pxr_build_test(testArchStackTrace
     LIBRARIES
         arch
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testArchUtil.cpp
         testenv/testStackTrace.cpp
@@ -130,30 +150,40 @@ pxr_build_test(testArchStackTrace
 pxr_build_test(testArchSymbols
     LIBRARIES
         arch
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testSymbols.cpp
 )
 pxr_build_test(testArchSystemInfo
     LIBRARIES
         arch
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testSystemInfo.cpp
 )
 pxr_build_test(testArchThreads
     LIBRARIES
         arch
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testThreads.cpp
 )
 pxr_build_test(testArchTiming
     LIBRARIES
         arch
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testTiming.cpp
 )
 pxr_build_test(testArchVsnprintf
     LIBRARIES
         arch
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testVsnprintf.cpp
 )

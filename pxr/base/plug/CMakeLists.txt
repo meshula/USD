@@ -60,6 +60,8 @@ pxr_build_test_shared_lib(TestPlugDso1
     INSTALL_PREFIX PlugPlugins
     LIBRARIES
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/TestPlugDso1.cpp
 ) 
@@ -67,6 +69,8 @@ pxr_build_test_shared_lib(TestPlugDso2
     INSTALL_PREFIX PlugPlugins
     LIBRARIES
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/TestPlugDso2.cpp
 ) 
@@ -74,6 +78,8 @@ pxr_build_test_shared_lib(TestPlugDso3
     INSTALL_PREFIX PlugPlugins
     LIBRARIES
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/TestPlugDso3.cpp
 ) 
@@ -81,6 +87,8 @@ pxr_build_test_shared_lib(TestPlugDsoEmpty
     INSTALL_PREFIX PlugPlugins
     LIBRARIES
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/TestPlugDsoEmpty.cpp
 ) 
@@ -88,6 +96,8 @@ pxr_build_test_shared_lib(TestPlugDsoIncomplete
     INSTALL_PREFIX PlugPlugins
     LIBRARIES
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/TestPlugDsoIncomplete.cpp
 ) 
@@ -95,6 +105,8 @@ pxr_build_test_shared_lib(TestPlugDsoUnloadable
     INSTALL_PREFIX PlugPlugins
     LIBRARIES
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/TestPlugDsoUnloadable.cpp
 ) 

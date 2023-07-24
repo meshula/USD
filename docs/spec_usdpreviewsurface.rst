@@ -74,7 +74,7 @@ This preview surface supports both "workflows", *specular* and *metalness*.
 
 .. _straightAlphaPreviewSurface:
 
-All color inputs to the :usda:`UsdPreviewSurface` are straight alpha (no
+All color inputs to the :usda:`UsdPreviewSurface`  (no
 pre-multiplication).
 
 In USD's high performance rasterizing renderer, Storm, we decided to

@@ -87,6 +87,8 @@ set(TEST_LIBS
 pxr_build_test(testUsdImagingGLBasicDrawing
     LIBRARIES
         ${TEST_LIBS}
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         unitTestGLDrawing.cpp
         testenv/testUsdImagingGLBasicDrawing.cpp
@@ -95,6 +97,8 @@ pxr_build_test(testUsdImagingGLBasicDrawing
 pxr_build_test(testUsdImagingGLBatchedDrawing
     LIBRARIES
         ${TEST_LIBS}
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         unitTestGLDrawing.cpp
         testenv/testUsdImagingGLBatchedDrawing.cpp
@@ -103,6 +107,8 @@ pxr_build_test(testUsdImagingGLBatchedDrawing
 pxr_build_test(testUsdImagingGLHighlight
     LIBRARIES
         ${TEST_LIBS}
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         unitTestGLDrawing.cpp
         testenv/testUsdImagingGLHighlight.cpp
@@ -111,6 +117,8 @@ pxr_build_test(testUsdImagingGLHighlight
 pxr_build_test(testUsdImagingGLPickAndHighlight
     LIBRARIES
         ${TEST_LIBS}
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         unitTestGLDrawing.cpp
         testenv/testUsdImagingGLPickAndHighlight.cpp
@@ -119,6 +127,8 @@ pxr_build_test(testUsdImagingGLPickAndHighlight
 pxr_build_test(testUsdImagingGLPopOut
     LIBRARIES
         ${TEST_LIBS}
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         unitTestGLDrawing.cpp
         testenv/testUsdImagingGLPopOut.cpp
@@ -127,6 +137,8 @@ pxr_build_test(testUsdImagingGLPopOut
 pxr_build_test(testUsdImagingGLPurpose
     LIBRARIES
         ${TEST_LIBS}
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         unitTestGLDrawing.cpp
         testenv/testUsdImagingGLPurpose.cpp
@@ -135,6 +147,8 @@ pxr_build_test(testUsdImagingGLPurpose
 pxr_build_test(testUsdImagingGLResync
     LIBRARIES
         ${TEST_LIBS}
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         unitTestGLDrawing.cpp
         testenv/testUsdImagingGLResync.cpp
@@ -143,6 +157,8 @@ pxr_build_test(testUsdImagingGLResync
 pxr_build_test(testUsdImagingGLSurfaceShader
     LIBRARIES
         ${TEST_LIBS}
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         unitTestGLDrawing.cpp
         testenv/testUsdImagingGLSurfaceShader.cpp

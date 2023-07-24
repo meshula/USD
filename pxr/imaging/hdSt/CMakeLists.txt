@@ -219,6 +219,8 @@ pxr_build_test(testHdStBasicDrawing
         hd
         garch
         glf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testHdStBasicDrawing.cpp
 )

@@ -118,6 +118,8 @@ pxr_build_test(testHdxRenderTask
         garch
         arch
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testHdxRenderTask.cpp
 )
@@ -130,6 +132,8 @@ pxr_build_test(testHdxLightAndShadow
         garch
         arch
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testHdxLightAndShadow.cpp
 )
@@ -146,6 +150,8 @@ pxr_build_test(testHdxIdRender
         garch
         arch
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testHdxIdRender.cpp
 )
@@ -159,6 +165,8 @@ pxr_build_test(testHdxPickAndHighlight
         garch
         arch
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         unitTestUtils.cpp
         testenv/testHdxPickAndHighlight.cpp
@@ -172,6 +180,8 @@ pxr_build_test(testHdxCameraAndLight
         garch
         arch
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testHdxCameraAndLight.cpp
 )
@@ -184,6 +194,8 @@ pxr_build_test(testHdxDrawTarget
         garch
         arch
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testHdxDrawTarget.cpp
 )
@@ -197,6 +209,8 @@ pxr_build_test(testHdxPickingWithReprAndRefineChanges
         garch
         arch
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         unitTestUtils.cpp
         testenv/testHdxPickingWithReprAndRefineChanges.cpp
@@ -211,6 +225,8 @@ pxr_build_test(testHdxUnpickablesAsOccluders
         garch
         arch
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         unitTestUtils.cpp
         testenv/testHdxUnpickablesAsOccluders.cpp
@@ -225,6 +241,8 @@ pxr_build_test(testHdxPickTarget
         garch
         arch
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         unitTestUtils.cpp
         testenv/testHdxPickTarget.cpp
@@ -239,6 +257,8 @@ pxr_build_test(testHdxPickResolveMode
         garch
         arch
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         unitTestUtils.cpp
         testenv/testHdxPickResolveMode.cpp

@@ -233,6 +233,8 @@ pxr_build_test_shared_lib(TestSdfFileFormatCapabilities
     LIBRARIES
         sdf
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
 
     CPPFILES
         testenv/TestSdfFileFormatCapabilities.cpp
@@ -244,6 +246,8 @@ pxr_build_test_shared_lib(TestSdfNoAssetFileFormat
     LIBRARIES
         sdf
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
 
     CPPFILES
         testenv/TestSdfNoAssetFileFormat.cpp
@@ -255,6 +259,8 @@ pxr_build_test_shared_lib(TestSdfStreamingFileFormat
     LIBRARIES
         sdf
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
 
     CPPFILES
         testenv/TestSdfStreamingFileFormat.cpp
@@ -266,6 +272,8 @@ pxr_build_test_shared_lib(TestSdfTargetFileFormat
     LIBRARIES
         sdf
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
 
     CPPFILES
         testenv/TestSdfTargetFileFormat.cpp
@@ -278,6 +286,8 @@ pxr_build_test_shared_lib(TestSdfResolver
         ar
         sdf
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
 
     CPPFILES
         testenv/TestSdfResolver.cpp
@@ -286,6 +296,8 @@ pxr_build_test_shared_lib(TestSdfResolver
 pxr_build_test(testSdfAttributeBlocking_Cpp
     LIBRARIES
         sdf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testSdfAttributeBlocking.cpp
 ) 
@@ -293,6 +305,8 @@ pxr_build_test(testSdfAttributeBlocking_Cpp
 pxr_build_test(testSdfHardToReach
     LIBRARIES
         sdf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testSdfHardToReach.cpp
 )
@@ -300,6 +314,8 @@ pxr_build_test(testSdfHardToReach
 pxr_build_test(testSdfLayerHints
     LIBRARIES
         sdf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testSdfLayerHints.cpp
 )
@@ -307,6 +323,8 @@ pxr_build_test(testSdfLayerHints
 pxr_build_test(testSdfMetaDataPlugInfo
     LIBRARIES
         sdf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testSdfMetaDataPlugInfo.cpp
 )
@@ -314,6 +332,8 @@ pxr_build_test(testSdfMetaDataPlugInfo
 pxr_build_test(testSdfPathExpression_Cpp
     LIBRARIES
         sdf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testSdfPathExpression.cpp
 )
@@ -321,6 +341,8 @@ pxr_build_test(testSdfPathExpression_Cpp
 pxr_build_test(testSdfPathParser
     LIBRARIES
         sdf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testSdfPathParser.cpp
 )
@@ -328,6 +350,8 @@ pxr_build_test(testSdfPathParser
 pxr_build_test(testSdfPathTable
     LIBRARIES
         sdf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testSdfPathTable.cpp
 )
@@ -336,6 +360,8 @@ pxr_build_test(testSdfPathThreading
     LIBRARIES
         sdf
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testSdfPathThreading.cpp
 )
@@ -344,6 +370,8 @@ pxr_build_test(testSdfPredicateExpression_Cpp
     LIBRARIES
         sdf
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testSdfPredicateExpression.cpp
 )

@@ -21,7 +21,8 @@ pxr_plugin(${PXR_PACKAGE}
 pxr_build_test(testHdTiny
     LIBRARIES
         hdx
-    
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testHdTiny.cpp
 )

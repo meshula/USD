@@ -72,6 +72,8 @@ pxr_library(trace
 pxr_build_test(testTraceCategory
     LIBRARIES
         trace
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testTraceCategory.cpp
 )
@@ -79,6 +81,8 @@ pxr_build_test(testTraceCategory
 pxr_build_test(testTraceData
     LIBRARIES
         trace
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testTraceData.cpp
 )
@@ -86,6 +90,8 @@ pxr_build_test(testTraceData
 pxr_build_test(testTraceHash
     LIBRARIES
         trace
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testTraceHash.cpp
 )
@@ -93,6 +99,8 @@ pxr_build_test(testTraceHash
 pxr_build_test(testTraceMacros
     LIBRARIES
         trace
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testTraceMacros.cpp
 )
@@ -100,6 +108,8 @@ pxr_build_test(testTraceMacros
 pxr_build_test(testTraceOverhead
     LIBRARIES
         trace
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testTraceOverhead.cpp
 )
@@ -107,6 +117,8 @@ pxr_build_test(testTraceOverhead
 pxr_build_test(testTraceThreading
     LIBRARIES
         trace
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testTraceThreading.cpp
 )
@@ -114,6 +126,8 @@ pxr_build_test(testTraceThreading
 pxr_build_test(testTraceSerialization
     LIBRARIES
         trace
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testTraceSerialization.cpp
 )
@@ -121,6 +135,8 @@ pxr_build_test(testTraceSerialization
 pxr_build_test(testTraceCounters
     LIBRARIES
         trace
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testTraceCounters.cpp
 )
@@ -128,6 +144,8 @@ pxr_build_test(testTraceCounters
 pxr_build_test(testTraceMarkers
     LIBRARIES
         trace
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testTraceMarkers.cpp
 )
@@ -135,6 +153,8 @@ pxr_build_test(testTraceMarkers
 pxr_build_test(testTraceReportPerf
     LIBRARIES
         trace
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testTraceReportPerf.cpp
 )
@@ -142,6 +162,8 @@ pxr_build_test(testTraceReportPerf
 pxr_build_test(testTraceEventContainer
     LIBRARIES
         trace
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testTraceEventContainer.cpp
 )

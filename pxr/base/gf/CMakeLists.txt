@@ -167,6 +167,8 @@ endif()
 pxr_build_test(testGfHardToReach
     LIBRARIES
         gf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testGfHardToReach.cpp
 ) 

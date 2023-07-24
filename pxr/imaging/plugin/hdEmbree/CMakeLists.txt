@@ -61,6 +61,8 @@ pxr_build_test(testHdEmbree
         garch
         arch
         hio
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testHdEmbree.cpp
 )

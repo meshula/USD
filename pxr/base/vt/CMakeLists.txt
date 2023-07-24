@@ -67,6 +67,8 @@ pxr_build_test(testVtCpp
         tf
         gf
         vt
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testVtCpp.cpp
 )

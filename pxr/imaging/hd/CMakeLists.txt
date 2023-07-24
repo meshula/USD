@@ -216,7 +216,8 @@ pxr_build_test(testHdBufferSourceEmptyVal
        gf
        tf
        arch
-
+       ${Boost_PYTHON_LIBRARY}
+       ${Python3_LIBRARY}
    CPPFILES
        testenv/testHdBufferSourceEmptyVal.cpp
 )
@@ -224,7 +225,8 @@ pxr_build_test(testHdBufferSourceEmptyVal
 pxr_build_test(testHdBufferSpec
    LIBRARIES
        hd
-
+       ${Boost_PYTHON_LIBRARY}
+       ${Python3_LIBRARY}
    CPPFILES
        testenv/testHdBufferSpec.cpp
 )
@@ -233,7 +235,8 @@ pxr_build_test(testHdBufferSpec
 # pxr_build_test(testHdChangeTracker
 #    LIBRARIES
 #        hd
-
+#        ${Boost_PYTHON_LIBRARY}
+#        ${Python3_LIBRARY}
 #    CPPFILES
 #        testenv/testHdChangeTracker.cpp
 # )
@@ -241,6 +244,8 @@ pxr_build_test(testHdBufferSpec
 pxr_build_test(testHdCommand
    LIBRARIES
        hd
+       ${Boost_PYTHON_LIBRARY}
+       ${Python3_LIBRARY}
 
    CPPFILES
        testenv/testHdCommand.cpp
@@ -249,6 +254,8 @@ pxr_build_test(testHdCommand
 pxr_build_test(testHdDataSourceLocator
    LIBRARIES
        hd
+       ${Boost_PYTHON_LIBRARY}
+       ${Python3_LIBRARY}
 
    CPPFILES
        testenv/testHdDataSourceLocator.cpp
@@ -258,6 +265,8 @@ pxr_build_test(testHdDirtyBitsTranslator
    LIBRARIES
        hd
        tf
+       ${Boost_PYTHON_LIBRARY}
+       ${Python3_LIBRARY}
 
    CPPFILES
        testenv/testHdDirtyBitsTranslator.cpp
@@ -267,6 +276,8 @@ pxr_build_test(testHdDirtyList
    LIBRARIES
        hd
        tf
+       ${Boost_PYTHON_LIBRARY}
+       ${Python3_LIBRARY}
 
    CPPFILES
        testenv/testHdDirtyList.cpp
@@ -277,6 +288,8 @@ pxr_build_test(testHdExtCompDependencySort
        hd
        sdf
        tf
+       ${Boost_PYTHON_LIBRARY}
+       ${Python3_LIBRARY}
 
    CPPFILES
        testenv/testHdExtCompDependencySort.cpp
@@ -285,6 +298,8 @@ pxr_build_test(testHdExtCompDependencySort
 pxr_build_test(testHdExtComputationUtils
    LIBRARIES
        hd
+       ${Boost_PYTHON_LIBRARY}
+       ${Python3_LIBRARY}
 
    CPPFILES
        testenv/testHdExtComputationUtils.cpp
@@ -296,6 +311,8 @@ pxr_build_test(testHdPerfLog
        sdf
        tf
        arch
+       ${Boost_PYTHON_LIBRARY}
+       ${Python3_LIBRARY}
 
    CPPFILES
        testenv/testHdPerfLog.cpp
@@ -315,6 +332,8 @@ pxr_build_test(testHdDataSource
        hd
        sdf
        tf
+       ${Boost_PYTHON_LIBRARY}
+       ${Python3_LIBRARY}
 
    CPPFILES
        testenv/testHdDataSource.cpp
@@ -325,6 +344,8 @@ pxr_build_test(testHdSceneIndex
        hd
        sdf
        tf
+       ${Boost_PYTHON_LIBRARY}
+       ${Python3_LIBRARY}
 
    CPPFILES
        testenv/testHdSceneIndex.cpp
@@ -335,6 +356,8 @@ pxr_build_test(testHdSortedIds
        hd
        sdf
        tf
+       ${Boost_PYTHON_LIBRARY}
+       ${Python3_LIBRARY}
 
    CPPFILES
        testenv/testHdSortedIds.cpp
@@ -343,6 +366,8 @@ pxr_build_test(testHdSortedIds
 pxr_build_test(testHdTimeSampleArray
    LIBRARIES
        hd
+       ${Boost_PYTHON_LIBRARY}
+       ${Python3_LIBRARY}
 
    CPPFILES
        testenv/testHdTimeSampleArray.cpp
@@ -351,6 +376,8 @@ pxr_build_test(testHdTimeSampleArray
 pxr_build_test(testHdTypes
    LIBRARIES
        hd
+       ${Boost_PYTHON_LIBRARY}
+       ${Python3_LIBRARY}
 
    CPPFILES
        testenv/testHdTypes.cpp

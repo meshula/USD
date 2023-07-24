@@ -42,6 +42,8 @@ pxr_build_test(testMeshGenerators
         vt
         geomUtil
         pxOsd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
    CPPFILES
         testenv/testMeshGenerators.cpp
 )

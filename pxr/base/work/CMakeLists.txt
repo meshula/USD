@@ -40,24 +40,32 @@ pxr_library(work
 pxr_build_test(testWorkDispatcher
     LIBRARIES
         work
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testWorkDispatcher.cpp
 ) 
 pxr_build_test(testWorkLoops
     LIBRARIES
         work
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testWorkLoops.cpp
 )
 pxr_build_test(testWorkReduce
     LIBRARIES
         work
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testWorkReduce.cpp
 ) 
 pxr_build_test(testWorkThreadLimits
     LIBRARIES
         work
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testWorkThreadLimits.cpp
 ) 

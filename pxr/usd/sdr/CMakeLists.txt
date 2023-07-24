@@ -52,6 +52,8 @@ pxr_build_test_shared_lib(TestSdrRegistry
         tf
         ndr
         sdr
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/TestSdrRegistry_argsParserPlugin.cpp
         testenv/TestSdrRegistry_discoveryPlugin.cpp

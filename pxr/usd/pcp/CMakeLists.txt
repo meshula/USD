@@ -125,7 +125,9 @@ pxr_build_test_shared_lib(TestPcpDynamicFileFormatPlugin
         tf
         pcp
         sdf
-        
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
+
     CPPFILES
         testenv/TestPcpDynamicFileFormatPlugin.cpp
 )
@@ -137,7 +139,9 @@ pxr_build_test_shared_lib(TestPcpStreamingLayerReload
         tf
         pcp
         sdf
-        
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
+
     CPPFILES
         testenv/TestPcpStreamingLayerReload.cpp
 )
@@ -147,6 +151,8 @@ pxr_build_test(testPcpHardToReach
         tf 
         pcp 
         sdf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
 
     CPPFILES
         testenv/testPcpHardToReach.cpp
@@ -157,6 +163,8 @@ pxr_build_test(testPcpIterator
         tf 
         pcp 
         sdf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
 
     CPPFILES
         testenv/testPcpIterator.cpp
@@ -167,6 +175,8 @@ pxr_build_test(testPcpMapExpression
         tf 
         pcp
         sdf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
 
     CPPFILES
         testenv/testPcpMapExpression.cpp
@@ -177,6 +187,8 @@ pxr_build_test(testPcpPathTranslation_HardToReach
         tf 
         pcp 
         sdf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
 
     CPPFILES
         testenv/testPcpPathTranslation_HardToReach.cpp

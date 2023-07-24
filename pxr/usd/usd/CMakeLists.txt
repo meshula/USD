@@ -265,6 +265,8 @@ pxr_build_test_shared_lib(TestUsdProceduralExternalAssetsFileFormatPlugin
         sdf
         tf
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
         
     CPPFILES
         testenv/TestUsdProceduralExternalAssetsFileFormatPlugin.cpp
@@ -277,6 +279,8 @@ pxr_build_test_shared_lib(TestUsdResolverChangedResolver
         ar
         plug
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
 
     CPPFILES
         testenv/TestUsdResolverChangedResolver.cpp
@@ -286,6 +290,8 @@ pxr_build_test(testUsdAttributeBlockingCpp
     LIBRARIES
         tf
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdAttributeBlocking.cpp
 )
@@ -293,6 +299,8 @@ pxr_build_test(testUsdAttributeBlockingCpp
 pxr_build_test(testUsdAttributeInterpolationCpp
     LIBRARIES
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdAttributeInterpolationCpp.cpp
 )
@@ -300,6 +308,8 @@ pxr_build_test(testUsdAttributeInterpolationCpp
 pxr_build_test(testUsdCreateAttributeCpp
     LIBRARIES
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdCreateAttributeCpp.cpp
 )
@@ -307,6 +317,8 @@ pxr_build_test(testUsdCreateAttributeCpp
 pxr_build_test(testUsdHardToReach
     LIBRARIES
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdHardToReach.cpp
 )
@@ -314,6 +326,8 @@ pxr_build_test(testUsdHardToReach
 pxr_build_test(testUsdIntegerCoding
     LIBRARIES
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdIntegerCoding.cpp
 )
@@ -321,6 +335,8 @@ pxr_build_test(testUsdIntegerCoding
 pxr_build_test(testUsdMetadataCpp
     LIBRARIES
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdMetadata.cpp
 )
@@ -332,6 +348,8 @@ pxr_build_test(testUsdResolverChanged
         sdf
         tf
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdResolverChanged.cpp
 )
@@ -341,6 +359,8 @@ pxr_build_test(testUsdInstancingCpp
         tf
         usd
         sdf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdInstancingCpp.cpp
 )
@@ -349,6 +369,8 @@ pxr_build_test(testUsdPrimGetDescendants
     LIBRARIES
         tf
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdPrimGetDescendants.cpp
 )
@@ -356,6 +378,8 @@ pxr_build_test(testUsdPrimGetDescendants
 pxr_build_test(testUsdStageNotification
     LIBRARIES
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdStageNotification.cpp
 )
@@ -363,6 +387,8 @@ pxr_build_test(testUsdStageNotification
 pxr_build_test(testUsdStageNoPython
     LIBRARIES
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdStageNoPython.cpp
 )
@@ -370,6 +396,8 @@ pxr_build_test(testUsdStageNoPython
 pxr_build_test(testUsdTemplatedIO
     LIBRARIES
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdTemplatedIO.cpp
 )
@@ -381,6 +409,8 @@ pxr_build_test(testUsdStageThreading
         work
         sdf
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdStageThreading.cpp
 )
@@ -392,6 +422,8 @@ pxr_build_test(testUsdThreadedAuthoring
         work
         sdf
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdThreadedAuthoring.cpp
 )
@@ -400,6 +432,8 @@ pxr_build_test(testUsdTimeCodeStream
     LIBRARIES
         tf
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdTimeCodeStream.cpp
 )
@@ -407,6 +441,8 @@ pxr_build_test(testUsdTimeCodeStream
 pxr_build_test(testUsdSchemaBase
     LIBRARIES
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdSchemaBase.cpp
 )
@@ -414,6 +450,8 @@ pxr_build_test(testUsdSchemaBase
 pxr_build_test(testUsdSchemaRegistryCpp
     LIBRARIES
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdSchemaRegistryCpp.cpp
 )
@@ -425,6 +463,8 @@ pxr_build_test(testUsdResolveTarget
         tf
         usd
         vt
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdResolveTarget.cpp
 )
@@ -436,6 +476,8 @@ pxr_build_test(testUsdTimeValueAuthoringCpp
         sdf
         tf
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdTimeValueAuthoring.cpp
 )
@@ -446,6 +488,8 @@ pxr_build_test(testUsdUsdzResolver
         arch
         tf
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdUsdzResolver.cpp
 )
@@ -456,6 +500,8 @@ pxr_build_test(testUsdZipFile_CPP
         arch
         tf
         usd
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdZipFile.cpp
 )

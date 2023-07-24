@@ -258,21 +258,26 @@ if(PXR_ENABLE_PYTHON_SUPPORT)
         LIBRARIES
             tf
             ${Boost_PYTHON_LIBRARY}
-        CPPFILES
+            ${Python3_LIBRARY}
+            CPPFILES
             testenv/testTfPyFunction.cpp
     ) 
 
     pxr_build_test(testTfPyInterpreter
         LIBRARIES
             tf
-        CPPFILES
+            ${Boost_PYTHON_LIBRARY}
+            ${Python3_LIBRARY}
+            CPPFILES
             testenv/testTfPyInterpreter.cpp
     )
 
     pxr_build_test(testTfPyInvoke
         LIBRARIES
             tf
-        CPPFILES
+            ${Boost_PYTHON_LIBRARY}
+            ${Python3_LIBRARY}
+            CPPFILES
             testenv/testTfPyInvoke.cpp
     )
 
@@ -280,7 +285,8 @@ if(PXR_ENABLE_PYTHON_SUPPORT)
         LIBRARIES
             tf
             ${Boost_PYTHON_LIBRARY}
-        CPPFILES
+            ${Python3_LIBRARY}
+            CPPFILES
             testenv/testTfPyLock.cpp
     )
 
@@ -288,7 +294,8 @@ if(PXR_ENABLE_PYTHON_SUPPORT)
         LIBRARIES
             tf
             ${Boost_PYTHON_LIBRARY}
-        CPPFILES
+            ${Python3_LIBRARY}
+            CPPFILES
             testenv/testTfPyResultConversions.cpp
     )
 endif()
@@ -296,6 +303,8 @@ endif()
 pxr_build_test(testTfSIGFPE
     LIBRARIES
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/SIGFPE.cpp
 )
@@ -303,6 +312,8 @@ pxr_build_test(testTfSIGFPE
 pxr_build_test(testTfSIGSEGV
     LIBRARIES
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/SIGSEGV.cpp
 )
@@ -315,6 +326,8 @@ pxr_build_test_shared_lib(TestTfDl
 pxr_build_test_shared_lib(TestTfRegistryFunctionPlugin
     LIBRARIES
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/TestTfRegistryFunctionPlugin.cpp
 )
@@ -322,6 +335,8 @@ pxr_build_test_shared_lib(TestTfRegistryFunctionPlugin
 pxr_build_test(testTfCast
     LIBRARIES
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testTfCast.cpp
 )
@@ -329,6 +344,8 @@ pxr_build_test(testTfCast
 pxr_build_test(testTfSpan
     LIBRARIES
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testTfSpan.cpp
 )
@@ -336,6 +353,8 @@ pxr_build_test(testTfSpan
 pxr_build_test(testTf
     LIBRARIES
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/main.cpp
         testenv/anyUniquePtr.cpp

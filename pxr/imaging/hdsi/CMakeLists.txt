@@ -37,6 +37,8 @@ pxr_build_test(testHdsiPinnedCurveExpandingSceneIndex
        hd
        hdsi
        tf
+       ${Boost_PYTHON_LIBRARY}
+       ${Python3_LIBRARY}
 
    CPPFILES
        testenv/testHdsiPinnedCurveExpandingSceneIndex.cpp

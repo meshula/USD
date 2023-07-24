@@ -149,6 +149,8 @@ pxr_build_test(testUsdGeomXformCache
     LIBRARIES
         usd
         usdGeom
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdGeomXformCache.cpp
 )
@@ -158,6 +160,8 @@ pxr_build_test(testUsdGeomCreateAttribute
     LIBRARIES
         usd
         usdGeom
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdGeomCreateAttribute.cpp
 )
@@ -166,6 +170,8 @@ pxr_build_test(testUsdGeomIsA
     LIBRARIES
         usd
         usdGeom
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdGeomIsA.cpp
 )
@@ -174,6 +180,8 @@ pxr_build_test(testUsdGeomHasAPI
     LIBRARIES
         usd
         usdGeom
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdGeomHasAPI.cpp
 )

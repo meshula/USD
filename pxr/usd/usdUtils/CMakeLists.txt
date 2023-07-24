@@ -96,6 +96,8 @@ pxr_build_test_shared_lib(TestUsdUtilsDependenciesCustomResolver
         ar
         sdf
         tf
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
 
     CPPFILES
         testenv/TestUsdUtilsDependenciesCustomResolver_plugin.cpp
@@ -106,6 +108,8 @@ pxr_build_test(testUsdUtilsCoalescingDiagnosticDelegateCpp
         tf
         usd
         usdUtils
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdUtilsCoalescingDiagnosticDelegate.cpp
 )
@@ -116,6 +120,8 @@ pxr_build_test(testUsdUtilsStitchCpp
         tf
         usd
         usdUtils
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdUtilsStitch.cpp
 )
@@ -126,6 +132,8 @@ pxr_build_test(testUsdUtilsTimeCodeRangeCpp
         tf
         usd
         usdUtils
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdUtilsTimeCodeRange.cpp
 )

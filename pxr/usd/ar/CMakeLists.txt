@@ -93,6 +93,8 @@ pxr_build_test_shared_lib(TestArAdvancedAPI
     LIBRARIES
         tf
         ar
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/TestArAdvancedAPI_plugin.cpp
 ) 
@@ -103,6 +105,8 @@ pxr_build_test_shared_lib(TestArPackageResolver
     LIBRARIES
         tf
         ar
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/TestArPackageResolver_plugin.cpp
 ) 
@@ -113,6 +117,8 @@ pxr_build_test_shared_lib(TestArOptionalImplementation
     LIBRARIES
         tf
         ar
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/TestArOptionalImplementation_plugin.cpp
 ) 
@@ -191,7 +197,9 @@ if (BUILD_SHARED_LIBS)
         LIBRARIES
             tf
             ar
-        CPPFILES
+            ${Boost_PYTHON_LIBRARY}
+            ${Python3_LIBRARY}
+            CPPFILES
             testenv/TestArURIResolver_plugin.cpp
     ) 
 
@@ -200,7 +208,9 @@ if (BUILD_SHARED_LIBS)
             arch
             tf
             ar
-        CPPFILES
+            ${Boost_PYTHON_LIBRARY}
+            ${Python3_LIBRARY}
+            CPPFILES
             testenv/testArURIResolver.cpp
     )
 
@@ -223,6 +233,8 @@ pxr_build_test(testArDefaultResolver_CPP
         arch
         tf
         ar
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testArDefaultResolver.cpp
 ) 
@@ -232,6 +244,8 @@ pxr_build_test(testArNotice_CPP
         arch
         tf
         ar
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testArNotice.cpp
 ) 
@@ -245,6 +259,8 @@ pxr_build_test(testArResolverContext_CPP
         arch
         tf
         ar
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testArResolverContext.cpp
 ) 
@@ -254,6 +270,8 @@ pxr_build_test(testArThreadedAssetCreation
         arch
         tf
         ar
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testArThreadedAssetCreation.cpp
 ) 

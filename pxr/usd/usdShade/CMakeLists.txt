@@ -71,6 +71,8 @@ pxr_build_test(testUsdShadeHasConnectableAPI
         tf
         usdShade
         usdGeom
+        ${Boost_PYTHON_LIBRARY}
+        ${Python3_LIBRARY}
     CPPFILES
         testenv/testUsdShadeHasConnectableAPI.cpp
 )
