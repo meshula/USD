@@ -55,6 +55,7 @@ pxr_library(usdImaging
         extentResolvingSceneIndex
         indexProxy
         materialParamUtils
+        modelSchema
         primvarUtils
         resolvedAttributeCache
         instancerContext
@@ -114,6 +115,7 @@ pxr_library(usdImaging
         renderVarAdapter
         representedByAncestorPrimAdapter
         rerootingSceneIndex
+        sceneIndices
         sphereAdapter
         sphereLightAdapter
         textureUtils

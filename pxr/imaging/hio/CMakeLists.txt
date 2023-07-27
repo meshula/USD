@@ -67,3 +67,4 @@ pxr_build_test(testReadWriteEXR
 pxr_register_test(testReadWriteEXR
     COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testReadWriteEXR"
 )
+

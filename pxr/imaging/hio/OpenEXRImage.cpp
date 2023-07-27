@@ -22,6 +22,15 @@
 // language governing permissions and limitations under the Apache License.
 //
 
+#include "pxr/base/arch/pragmas.h"
+
+// Not all functions in the OpenEXR library are used by Hio, and the OpenEXR
+// symbols themselves are declared static for inclusion within Hio.
+// Therefore, the unused function warning is suppressed as the messages are
+// not useful for development, as it is expected that many functions are
+// defined but not referenced or exported.
+ARCH_PRAGMA_UNUSED_FUNCTION
+
 #include "pxr/imaging/hio/image.h"
 #include "pxr/imaging/hio/types.h"
 

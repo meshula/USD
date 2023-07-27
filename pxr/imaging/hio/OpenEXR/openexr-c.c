@@ -22,16 +22,19 @@
 // language governing permissions and limitations under the Apache License.
 //
 
+#include "pxr/base/arch/pragmas.h"
+
+// Not all functions in the OpenEXR library are used by Hio, and the OpenEXR
+// symbols themselves are declared static for inclusion within Hio.
+// Therefore, the unused function warning is suppressed as the messages are
+// not useful for development, as it is expected that many functions are
+// defined but not referenced or exported.
+ARCH_PRAGMA_UNUSED_FUNCTION
+
 #include "OpenEXRCoreUnity.h"
 
 #include <ctype.h>
 #include <math.h>
-
-#if defined(__clang__)
-#pragma clang diagnostic ignored "-Wunused-function"
-#elif defined(__GNUC__)
-#pragma GCC diagnostic ignored "-Wunused-function"
-#endif
 
 // re-export the statically hidden exr_ functions as required
 // for visibility from C++
@@ -306,10 +309,10 @@ int nanoexr_read_header(nanoexr_Reader_t* reader, exr_read_func_ptr_t readFn,
     reader->channelCount = chlist->num_channels;
     reader->pixelType = chlist->entries[0].pixel_type;
 
-    const exr_attribute_t* attr;
+    const exr_attribute_t* attr = NULL;
     exr_result_t wrap_rv = exr_get_attribute_by_name(exr, partIndex, 
                                                      "wrapmodes", &attr);
-    if (wrap_rv == EXR_ERR_SUCCESS) {
+    if (wrap_rv == EXR_ERR_SUCCESS && attr != NULL) {
         if (!strncmp("black", attr->string->str, 5))
             reader->wrapMode = nanoexr_WrapModeClampToBorderColor;
         else if (!strncmp("clamp", attr->string->str, 5))
@@ -850,19 +853,19 @@ exr_result_t nanoexr_read_tiled_exr(exr_context_t exr,
     exr_result_t rv = EXR_ERR_SUCCESS;
     do {
         int bytesPerChannel = nanoexr_getPixelTypeSize(img->pixelType);
-        uint32_t tilew, tileh;
+        uint32_t tilew = 0, tileh = 0;
         exr_tile_level_mode_t levelMode;
         exr_tile_round_mode_t roundMode;
         rv = exr_get_tile_descriptor(exr, partIndex, &tilew, &tileh, &levelMode, &roundMode);
         if (rv != EXR_ERR_SUCCESS)
             break;
 
-        int mipLevelsX, mipLvelsY;
+        int mipLevelsX = 0, mipLvelsY = 0;
         rv = exr_get_tile_levels(exr, partIndex, &mipLevelsX, &mipLvelsY);
         if (rv != EXR_ERR_SUCCESS)
             break;
 
-        int levelWidth, levelHeight;
+        int levelWidth = 0, levelHeight = 0;
         rv = exr_get_level_sizes(exr, partIndex, mipLevel, mipLevel, &levelWidth, &levelHeight);
         if (rv != EXR_ERR_SUCCESS)
             break;

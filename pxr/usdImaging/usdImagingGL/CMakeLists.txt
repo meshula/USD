@@ -1431,6 +1431,18 @@ pxr_register_test(testUsdImagingGLInstancing_internal_ni
     TESTENV testUsdImagingGLInstancing
 )
 
+pxr_register_test(testUsdImagingGLInstancing_pi_ni_xform
+    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdImagingGLBasicDrawing -offscreen -camera /main_cam -lighting -stage pi_ni_xform.usda -write testUsdImagingGLInstancing_pi_ni_xform.png"
+    IMAGE_DIFF_COMPARE
+        testUsdImagingGLInstancing_pi_ni_xform.png
+    FAIL 0.01
+    FAIL_PERCENT 0.005
+    WARN 0.02
+    WARN_PERCENT 0.0025
+    EXPECTED_RETURN_CODE 0
+    TESTENV testUsdImagingGLInstancing
+)
+
 pxr_register_test(testUsdImagingGLInstancing_SceneIndex_instancedCubes
     COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdImagingGLBasicDrawing -offscreen -lighting -shading smooth -frameAll -stage instancedCubes.usda -write testUsdImagingGLInstancing_instancedCubes.png"
     IMAGE_DIFF_COMPARE
@@ -1441,6 +1453,8 @@ pxr_register_test(testUsdImagingGLInstancing_SceneIndex_instancedCubes
     WARN_PERCENT 0.0025
     EXPECTED_RETURN_CODE 0
     TESTENV testUsdImagingGLInstancing_SceneIndex
+    ENV
+        USDIMAGINGGL_ENGINE_ENABLE_SCENE_INDEX=true
 )
 
 pxr_register_test(testUsdImagingGLInstancing_SceneIndex_instancedCubes2
@@ -1453,6 +1467,8 @@ pxr_register_test(testUsdImagingGLInstancing_SceneIndex_instancedCubes2
     WARN_PERCENT 0.0025
     EXPECTED_RETURN_CODE 0
     TESTENV testUsdImagingGLInstancing_SceneIndex
+    ENV
+        USDIMAGINGGL_ENGINE_ENABLE_SCENE_INDEX=true
 )
 
 pxr_register_test(testUsdImagingGLInstancing_SceneIndex_instancedCubes2NoInstancing
@@ -1465,6 +1481,8 @@ pxr_register_test(testUsdImagingGLInstancing_SceneIndex_instancedCubes2NoInstanc
     WARN_PERCENT 0.0025
     EXPECTED_RETURN_CODE 0
     TESTENV testUsdImagingGLInstancing_SceneIndex
+    ENV
+        USDIMAGINGGL_ENGINE_ENABLE_SCENE_INDEX=true
 )
 
 pxr_register_test(testUsdImagingGLInstancing_SceneIndex_nestedInstancedCubes
@@ -1477,6 +1495,8 @@ pxr_register_test(testUsdImagingGLInstancing_SceneIndex_nestedInstancedCubes
     WARN_PERCENT 0.0025
     EXPECTED_RETURN_CODE 0
     TESTENV testUsdImagingGLInstancing_SceneIndex
+    ENV
+        USDIMAGINGGL_ENGINE_ENABLE_SCENE_INDEX=true
 )
 
 pxr_register_test(testUsdImagingGLInstancing_SceneIndex_nestedInstance
@@ -1489,6 +1509,8 @@ pxr_register_test(testUsdImagingGLInstancing_SceneIndex_nestedInstance
     WARN_PERCENT 0.0025
     EXPECTED_RETURN_CODE 0
     TESTENV testUsdImagingGLInstancing_SceneIndex
+    ENV
+        USDIMAGINGGL_ENGINE_ENABLE_SCENE_INDEX=true
 )
 
 pxr_register_test(testUsdImagingGLInstancing_SceneIndex_ni_pi
@@ -1501,6 +1523,8 @@ pxr_register_test(testUsdImagingGLInstancing_SceneIndex_ni_pi
     WARN_PERCENT 0.0025
     EXPECTED_RETURN_CODE 0
     TESTENV testUsdImagingGLInstancing_SceneIndex
+    ENV
+        USDIMAGINGGL_ENGINE_ENABLE_SCENE_INDEX=true
 )
 
 pxr_register_test(testUsdImagingGLInstancing_SceneIndex_internal_ni
@@ -1513,6 +1537,22 @@ pxr_register_test(testUsdImagingGLInstancing_SceneIndex_internal_ni
     WARN_PERCENT 0.0025
     EXPECTED_RETURN_CODE 0
     TESTENV testUsdImagingGLInstancing_SceneIndex
+    ENV
+        USDIMAGINGGL_ENGINE_ENABLE_SCENE_INDEX=true
+)
+
+pxr_register_test(testUsdImagingGLInstancing_SceneIndex_pi_ni_xform
+    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdImagingGLBasicDrawing -offscreen -camera /main_cam -lighting -stage pi_ni_xform.usda -write testUsdImagingGLInstancing_pi_ni_xform.png"
+    IMAGE_DIFF_COMPARE
+        testUsdImagingGLInstancing_pi_ni_xform.png
+    FAIL 0.01
+    FAIL_PERCENT 0.005
+    WARN 0.02
+    WARN_PERCENT 0.0025
+    EXPECTED_RETURN_CODE 0
+    TESTENV testUsdImagingGLInstancing_SceneIndex
+    ENV
+        USDIMAGINGGL_ENGINE_ENABLE_SCENE_INDEX=true
 )
 
 pxr_register_test(testUsdImagingGLPickAndHighlight

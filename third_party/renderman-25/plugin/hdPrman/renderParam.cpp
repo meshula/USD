@@ -37,19 +37,13 @@
 #include "hdPrman/rixStrings.h"
 #include "hdPrman/utils.h"
 
-#include "pxr/base/arch/fileSystem.h"
 #include "pxr/base/arch/library.h"
-#include "pxr/base/work/threadLimits.h"
-
 #include "pxr/base/plug/registry.h"
 #include "pxr/base/plug/plugin.h"
 #include "pxr/base/tf/debug.h"
 #include "pxr/base/tf/getenv.h"
 #include "pxr/base/tf/envSetting.h"
-#include "pxr/base/tf/staticData.h"
-#include "pxr/base/tf/stringUtils.h"
 #include "pxr/base/tf/pathUtils.h"  // Extract extension from tf token
-#include "pxr/usd/sdf/assetPath.h"
 #include "pxr/usd/sdf/path.h"
 #include "pxr/usd/sdr/registry.h"
 #include "pxr/imaging/hio/imageRegistry.h"
@@ -91,8 +85,9 @@ TF_DEFINE_PRIVATE_TOKENS(
     ((riRiFormatResolution,         "ri:Ri:FormatResolution"))
     ((riHiderMinSamples,            "ri:hider:minsammples"))
     ((riHiderMaxSamples,            "ri:hider:maxsamples"))
-    ((riRiPixelVarriance,           "ri:Ri:PixelVariance"))
+    ((riRiPixelVariance,            "ri:Ri:PixelVariance"))
     ((riRiFormatPixelAspectRatio,   "ri:Ri:FormatPixelAspectRatio"))
+    ((riLimitsThreads,              "ri:limits:threads"))
 );
 
 
@@ -102,17 +97,14 @@ TF_DEFINE_ENV_SETTING(HD_PRMAN_NTHREADS, 0,
                       "Override number of threads used by HdPrman");
 TF_DEFINE_ENV_SETTING(HD_PRMAN_OSL_VERBOSE, 0,
                       "Override osl verbose in HdPrman");
-
-extern TfEnvSetting<bool> HD_PRMAN_ENABLE_QUICKINTEGRATE;
-
-static bool _enableQuickIntegrate =
-    TfGetEnvSetting(HD_PRMAN_ENABLE_QUICKINTEGRATE);
-
 TF_DEFINE_ENV_SETTING(HD_PRMAN_DISABLE_HIDER_JITTER, false,
                       "Disable hider jitter");
+TF_DEFINE_ENV_SETTING(HD_PRMAN_DEFER_SET_OPTIONS, true,
+                      "Defer first SetOptions call to render settings prim sync.");
 
-static bool _disableJitter =
-    TfGetEnvSetting(HD_PRMAN_DISABLE_HIDER_JITTER);
+extern TfEnvSetting<bool> HD_PRMAN_ENABLE_QUICKINTEGRATE;
+static bool _enableQuickIntegrate =
+    TfGetEnvSetting(HD_PRMAN_ENABLE_QUICKINTEGRATE);
 
 TF_MAKE_STATIC_DATA(std::vector<HdPrman_RenderParam::IntegratorCameraCallback>,
                     _integratorCameraCallbacks)
@@ -132,6 +124,7 @@ HdPrman_RenderParam::HdPrman_RenderParam(
     _statsSession(nullptr),
     _riley(nullptr),
     _sceneLightCount(0),
+    _initRileyOptions(false),
     _sampleFiltersId(riley::SampleFilterId::InvalidId()),
     _displayFiltersId(riley::DisplayFilterId::InvalidId()),
     _lastLegacySettingsVersion(0),
@@ -965,10 +958,12 @@ _Contains(
 }
 
 void
-HdPrman_RenderParam::SetOptionsFromRenderSettingsMap(
-    HdRenderSettingsMap const &renderSettingsMap, 
-    RtParamList& options)
+HdPrman_RenderParam::UpdateLegacyOptions()
 {
+    const HdRenderSettingsMap renderSettingsMap =
+        _renderDelegate->GetRenderSettingsMap();
+    RtParamList &options = GetLegacyOptions();
+
     VtValue batchCommandLine;
 
     for (auto const& entry : renderSettingsMap) {
@@ -995,7 +990,7 @@ HdPrman_RenderParam::SetOptionsFromRenderSettingsMap(
             // present.
             if (token == HdRenderSettingsTokens->convergedSamplesPerPixel) {
                 if (!_Contains(renderSettingsMap,
-                        _riOptionsTokens->riRiFormatResolution)) {
+                        _riOptionsTokens->riHiderMaxSamples)) {
 
                     VtValue vtInt = val.Cast<int>();
                     int maxSamples = TF_VERIFY(!vtInt.IsEmpty()) ?
@@ -1005,7 +1000,7 @@ HdPrman_RenderParam::SetOptionsFromRenderSettingsMap(
 
             } else if (token == HdRenderSettingsTokens->convergedVariance) {
                 if (!_Contains(renderSettingsMap,
-                        _riOptionsTokens->riRiPixelVarriance)) {
+                        _riOptionsTokens->riRiPixelVariance)) {
                     VtValue vtFloat = val.Cast<float>();
                     float pixelVariance = TF_VERIFY(!vtFloat.IsEmpty()) ?
                         vtFloat.UncheckedGet<float>() : 0.001f;
@@ -1025,6 +1020,15 @@ HdPrman_RenderParam::SetOptionsFromRenderSettingsMap(
                     const GfVec2i& res = val.UncheckedGet<GfVec2i>();
                     options.SetIntegerArray(RixStr.k_Ri_FormatResolution, 
                                             res.data(), 2);
+                }
+            } else if (token == HdRenderSettingsTokens->threadLimit) {
+                if (!_Contains(renderSettingsMap,
+                        _riOptionsTokens->riLimitsThreads)) {
+                    VtValue vtInt = val.Cast<int>();
+                    if (!vtInt.IsEmpty()) {
+                        options.SetInteger(RixStr.k_limits_threads,
+                            vtInt.UncheckedGet<int>());
+                    }
                 }
 
             } else if (token == HdPrmanRenderSettingsTokens->batchCommandLine) {
@@ -1149,103 +1153,6 @@ HdPrman_RenderParam::SetBatchCommandLineArgs(
                       checkpointinterval);
     if(!checkpointinterval.Empty() || doSnapshot) {
         options->SetInteger(RixStr.k_hider_incremental, 1);
-    }
-}
-
-void
-HdPrman_UpdateSearchPathsFromEnvironment(RtParamList& options)
-{
-    // searchpath:shader contains OSL (.oso)
-    std::string shaderpath = TfGetenv("RMAN_SHADERPATH");
-    if (!shaderpath.empty()) {
-        // RenderMan expects ':' as path separator, regardless of platform
-        NdrStringVec paths = TfStringSplit(shaderpath, ARCH_PATH_LIST_SEP);
-        shaderpath = TfStringJoin(paths, ":");
-        options.SetString( RixStr.k_searchpath_shader,
-                            RtUString(shaderpath.c_str()) );
-    } else {
-        NdrStringVec paths;
-        // Default RenderMan installation under '$RMANTREE/lib/shaders'
-        std::string rmantree = TfGetenv("RMANTREE");
-        if (!rmantree.empty()) {
-            paths.push_back(TfStringCatPaths(rmantree, "lib/shaders"));
-        }
-        // Default hdPrman installation under 'plugins/usd/resources/shaders'
-        PlugPluginPtr plugin =
-            PlugRegistry::GetInstance().GetPluginWithName("hdPrmanLoader");
-        if (plugin)
-        {
-            std::string path = TfGetPathName(plugin->GetPath());
-            if (!path.empty()) {
-                paths.push_back(TfStringCatPaths(path, "resources/shaders"));
-            }
-        }
-        shaderpath = TfStringJoin(paths, ":");
-        options.SetString( RixStr.k_searchpath_shader,
-                            RtUString(shaderpath.c_str()) );
-    }
-
-    // searchpath:rixplugin contains C++ (.so) plugins
-    std::string rixpluginpath = TfGetenv("RMAN_RIXPLUGINPATH");
-    if (!rixpluginpath.empty()) {
-        // RenderMan expects ':' as path separator, regardless of platform
-        NdrStringVec paths = TfStringSplit(rixpluginpath, ARCH_PATH_LIST_SEP);
-        rixpluginpath = TfStringJoin(paths, ":");
-        options.SetString( RixStr.k_searchpath_rixplugin,
-                            RtUString(rixpluginpath.c_str()) );
-    } else {
-        NdrStringVec paths;
-        // Default RenderMan installation under '$RMANTREE/lib/plugins'
-        std::string rmantree = TfGetenv("RMANTREE");
-        if (!rmantree.empty()) {
-            paths.push_back(TfStringCatPaths(rmantree, "lib/plugins"));
-        }
-        rixpluginpath = TfStringJoin(paths, ":");
-        options.SetString( RixStr.k_searchpath_rixplugin,
-                            RtUString(rixpluginpath.c_str()) );
-    }
-
-    // searchpath:texture contains textures (.tex) and Rtx plugins (.so)
-    std::string texturepath = TfGetenv("RMAN_TEXTUREPATH");
-    if (!texturepath.empty()) {
-        // RenderMan expects ':' as path separator, regardless of platform
-        NdrStringVec paths = TfStringSplit(texturepath, ARCH_PATH_LIST_SEP);
-        texturepath = TfStringJoin(paths, ":");
-        options.SetString( RixStr.k_searchpath_texture,
-                            RtUString(texturepath.c_str()) );
-    } else {
-        NdrStringVec paths;
-        // Default RenderMan installation under '$RMANTREE/lib/textures'
-        // and '$RMANTREE/lib/plugins'
-        std::string rmantree = TfGetenv("RMANTREE");
-        if (!rmantree.empty()) {
-            paths.push_back(TfStringCatPaths(rmantree, "lib/textures"));
-            paths.push_back(TfStringCatPaths(rmantree, "lib/plugins"));
-        }
-        // Default hdPrman installation under 'plugins/usd'
-        // We need the path to RtxHioImage and we assume that it lives in the
-        // same directory as hdPrmanLoader
-        PlugPluginPtr plugin =
-            PlugRegistry::GetInstance().GetPluginWithName("hdPrmanLoader");
-        if (plugin)
-        {
-            std::string path = TfGetPathName(plugin->GetPath());
-            if (!path.empty()) {
-                paths.push_back(path);
-            }
-        }
-        texturepath = TfStringJoin(paths, ":");
-        options.SetString( RixStr.k_searchpath_texture,
-                            RtUString(texturepath.c_str()) );
-    }
-
-    std::string proceduralpath = TfGetenv("RMAN_PROCEDURALPATH");
-    if (!proceduralpath.empty()) {
-        // RenderMan expects ':' as path separator, regardless of platform
-        NdrStringVec paths = TfStringSplit(proceduralpath, ARCH_PATH_LIST_SEP);
-        proceduralpath = TfStringJoin(paths, ":");
-        options.SetString( RixStr.k_searchpath_procedural,
-                            RtUString(proceduralpath.c_str()) );
     }
 }
 
@@ -1692,6 +1599,14 @@ HdPrman_RenderParam::_DestroyRiley()
 {
     if (_mgr) {
         if(_riley) {
+            // Riley/RIS crashes if SetOptions hasn't been called prior to
+            // destroying the riley instance.
+            if (!_initRileyOptions) {
+                TF_DEBUG(HDPRMAN_RENDER_SETTINGS).Msg(
+                    "[DestroyRiley] Calling SetOptions to workaround crash.\n");
+                riley::Riley * const riley = AcquireRiley();
+                riley->SetOptions(RtParamList());
+            }
             _mgr->DestroyRiley(_riley);
         }
         _mgr = nullptr;
@@ -1833,6 +1748,13 @@ HdPrman_RenderParam::_ComputeIntegratorNode(
 
     const RtUString rtIntegratorName(integratorName.c_str());
 
+    // If the settings map / env var say to use PbsPathTracer,
+    // we'll turn on volume aggregate rendering.
+    if (integratorName == HdPrmanIntegratorTokens->PbsPathTracer.GetString()) {
+        _SetParamValue(RtUString("volumeAggregate"), VtValue(4),
+            TfToken(), _integratorParams);
+    }
+
     SetIntegratorParamsFromRenderSettingsMap(
         static_cast<HdPrmanRenderDelegate*>(renderDelegate),
         integratorName,
@@ -1856,7 +1778,7 @@ HdPrman_RenderParam::_ComputeIntegratorNode(
 void
 HdPrman_RenderParam::_CreateIntegrator(HdRenderDelegate * const renderDelegate)
 {
-    // Called when there isn't even a render index yet, so we ignore
+    // Called before we have access to the camera Sprim, so we ignore
     // integrator opinions coming from the camera here. They will be
     // consumed in UpdateIntegrator.
     static const HdPrmanCamera * const camera = nullptr;
@@ -1867,11 +1789,19 @@ HdPrman_RenderParam::_CreateIntegrator(HdRenderDelegate * const renderDelegate)
         riley::UserId(
             stats::AddDataLocation(integratorNode.name.CStr()).GetValue()),
         integratorNode);
+    
+    TF_VERIFY(_integratorId != riley::IntegratorId::InvalidId());
+
+    _activeIntegratorId = _integratorId;
 }
 
 void
 HdPrman_RenderParam::UpdateIntegrator(const HdRenderIndex * const renderIndex)
 {
+    if (!TF_VERIFY(_integratorId != riley::IntegratorId::InvalidId())) {
+        return;
+    }
+
     const riley::ShadingNode node = _ComputeIntegratorNode(
         renderIndex->GetRenderDelegate(),
         _cameraContext.GetCamera(renderIndex));
@@ -1932,113 +1862,19 @@ HdPrman_RenderParam::IsValid() const
 void 
 HdPrman_RenderParam::Begin(HdPrmanRenderDelegate *renderDelegate)
 {
-    //////////////////////////////////////////////////////////////////////// 
-    //
-    // Riley setup
-    //
-    static const RtUString us_circle("circle");
-
-    // Set riley options from the render settings map or environment.
-    // Note: As we transition render settings to be scene description driven,
-    //       we'll continue to leverage the render settings map for options that
-    //       aren't specified by the usdRiPxr schema's that are applied to
-    //       RenderSettings (PxrOptionsAPI)
+    _envOptions = HdPrman_Utils::GetRileyOptionsFromEnvironment();
+    _fallbackOptions = HdPrman_Utils::GetDefaultRileyOptions();
+    // Initialize legacy options from the render settings map.
+    UpdateLegacyOptions();
+    
+    // Force initialization of Riley scene options.
+    // (see related comments in SetRileyOptions)
+    if (!HdRenderIndex::IsSceneIndexEmulationEnabled() ||
+        !TfGetEnvSetting(HD_PRMAN_DEFER_SET_OPTIONS))
     {
-        RtParamList &options = GetOptions();
-
-        // Set thread limit for Renderman. Leave a few threads for app.
-        // Note: This option is listed as ri:limits:threads under PxrOptionsAPI.
-        {
-            static const unsigned appThreads = 4;
-            unsigned nThreads =
-                std::max(WorkGetConcurrencyLimit()-appThreads, 1u);
-            // Check the environment
-            const unsigned nThreadsEnv = TfGetEnvSetting(HD_PRMAN_NTHREADS);
-            if (nThreadsEnv > 0) {
-                nThreads = nThreadsEnv;
-            } else {
-                // Otherwise check for a render setting
-                const VtValue vtThreads = renderDelegate->GetRenderSetting(
-                    HdRenderSettingsTokens->threadLimit).Cast<int>();
-                if (!vtThreads.IsEmpty()) {
-                    nThreads = vtThreads.UncheckedGet<int>();
-                }
-            }
-            options.SetInteger(RixStr.k_limits_threads, nThreads);
-        }
-
-        HdPrman_UpdateSearchPathsFromEnvironment(options);
-
-        // Path tracer default configuration. Values below may be overriden by
-        // those in the render settings map and/or prim.
-        // Note: Options below are listed under PxrOptionsAPI as
-        //       ri:hider:minsamples
-        //       ri:hider:maxsamples
-        //       ri:hider:incremental
-        //       ri:hider:jitter
-        //       ri:Ri:FormatPixelAspectRatio
-        //       ri:Ri:FormatPixelVariance
-        //       ri:bucket:order
-        {
-            options.SetInteger(RixStr.k_hider_minsamples, 1);
-            options.SetInteger(RixStr.k_hider_maxsamples, 16);
-            options.SetInteger(RixStr.k_hider_incremental, 1);
-            options.SetInteger(RixStr.k_hider_jitter, !_disableJitter);
-            // XXX Unclear what this option is in the schema.
-            options.SetInteger(RixStr.k_trace_maxdepth, 10);
-            options.SetFloat(RixStr.k_Ri_FormatPixelAspectRatio, 1.0f);
-            options.SetFloat(RixStr.k_Ri_PixelVariance, 0.001f);
-            options.SetString(RixStr.k_bucket_order, us_circle);
-        }
-
-        // Camera lens
-        // Note: This riley option is driven by the active camera's
-        //       shutter open and close times. The values below serve as
-        //       defaults.
-        {
-            // XXX Shutter settings from studio katana defaults:
-            // - /root.renderSettings.shutter{Open,Close}
-            float shutterInterval[2] = { 0.0f, 0.5f };
-            if (!TfGetEnvSetting(HD_PRMAN_ENABLE_MOTIONBLUR)) {
-                shutterInterval[1] = 0.0;
-            }
-            options.SetFloatArray(RixStr.k_Ri_Shutter, shutterInterval, 2);
-        }
-
-        // OSL verbose
-        {
-            const int oslVerbose = TfGetEnvSetting(HD_PRMAN_OSL_VERBOSE);
-            if (oslVerbose > 0)
-                options.SetInteger(RtUString("user:osl:verbose"), oslVerbose);
-        }
-
-        // Searchpaths (TEXTUREPATH, etc)
-        HdPrman_UpdateSearchPathsFromEnvironment(options);
-        
-        // Set additional options from the render settings map (e.g, options
-        // using the ri namespace, i.e., ri:* excluding integrator)
-        SetOptionsFromRenderSettingsMap(
-            static_cast<HdPrmanRenderDelegate*>(renderDelegate)
-                ->GetRenderSettingsMap(), options);
-        
-        RtParamList prunedOptions =
-            HdPrman_Utils::PruneDeprecatedOptions(GetOptions());
-        _riley->SetOptions(prunedOptions);
-
-        TF_DEBUG(HDPRMAN_RENDER_SETTINGS).Msg(
-            "Setting options from legacy settings map on riley initialization:"
-            "%s\n",
-            HdPrmanDebugUtil::RtParamListToString(prunedOptions).c_str());
+        SetRileyOptions();
     }
-
-    GetCameraContext().Begin(_riley);
-
-    _CreateIntegrator(renderDelegate);
-    _CreateQuickIntegrator(renderDelegate);
-    _activeIntegratorId = GetIntegratorId();
-
-    _CreateFallbackMaterials();
-
+        
     // Set the camera path before the first sync so that
     // HdPrmanCamera::Sync can detect whether it is syncing the
     // current camera and needs to set the riley shutter interval
@@ -2062,6 +1898,95 @@ HdPrman_RenderParam::Begin(HdPrmanRenderDelegate *renderDelegate)
             VtDefault = SdfPath());
     }
     GetCameraContext().SetCameraPath(cameraPath);
+}
+
+void
+HdPrman_RenderParam::_CreateInternalPrims()
+{
+    // See comment in SetRileyOptions on when this function needs to be called.
+    GetCameraContext().CreateRileyCamera(AcquireRiley());
+
+    _CreateFallbackMaterials();
+
+    _CreateIntegrator(_renderDelegate);
+    _CreateQuickIntegrator(_renderDelegate);
+    _activeIntegratorId = GetIntegratorId();
+}
+
+static RtParamList
+_Compose(
+    RtParamList const &a,
+    RtParamList const &b,
+    RtParamList const &c,
+    RtParamList const &d)
+{
+    return
+        HdPrman_Utils::Compose(
+            a, HdPrman_Utils::Compose(b, HdPrman_Utils::Compose(c,d)));
+}
+
+void
+HdPrman_RenderParam::SetRenderSettingsPrimOptions(
+    RtParamList const &params)
+{
+    _renderSettingsPrimOptions = params;
+}
+
+void
+HdPrman_RenderParam::SetRileyOptions()
+{
+    // There are a couple of RIS/Riley limitations to call out:
+    // 1. Current Riley implementations require `SetOptions()` to be the first
+    //    call made before any scene manipulation (which includes the creation
+    //    of Riley scene objects).
+    // 2. Several riley settings are immutable and need to be set on the
+    //    first SetOptions call.
+    //
+    // When scene index emulation is enabled, the first SetOptions call is
+    // deferred until HdPrman_RenderSettings::Sync. A fallback render settings
+    // prim is added via HdPrman_RenderSettingsFilteringSceneIndexPlugin to
+    // allow this strategy to work for scenes without one.
+    //
+    // When scene index emulation is disabled, we have no way to know or
+    // guarantee that a render settings prim is present. The first SetOptions
+    // call is called after constructing the Riley instance in
+    // HdPrman_RenderParam::Begin.
+    //
+    {
+        // Compose scene options with the precedence:
+        //     env > render settings prim > legacy settings map > fallback
+        //
+        // XXX: Some riley clients require certain options to be present
+        // on every SetOptions call (e.g. XPU currently needs
+        // ri:searchpath:texture). As a conservative measure, compose
+        // all sources of options for initialization and subsequent updates.
+        // Ideally, the latter would require just the legacy and prim options.
+
+        RtParamList composedParams =
+            _Compose(_envOptions,
+                    _renderSettingsPrimOptions, 
+                    GetLegacyOptions(),
+                    _fallbackOptions);
+
+        RtParamList prunedOptions = HdPrman_Utils::PruneDeprecatedOptions(
+                    composedParams);
+
+        riley::Riley * const riley = AcquireRiley();
+        riley->SetOptions(prunedOptions);
+
+        TF_DEBUG(HDPRMAN_RENDER_SETTINGS).Msg(
+            "SetOptions called on the composed param list:\n  %s\n",
+            HdPrmanDebugUtil::RtParamListToString(
+                prunedOptions, /*indent = */2).c_str());
+    }
+
+    if (!_initRileyOptions) {
+        _initRileyOptions = true;
+
+        // Safe to create riley objects that aren't backed by the scene.
+        // See limitation (1) above.
+        _CreateInternalPrims();
+    }
 }
 
 void 
@@ -2942,12 +2867,14 @@ HdPrman_RenderParam::_CreateQuickIntegrator(
     static const HdPrmanCamera * const camera = nullptr;
 
     if (_enableQuickIntegrate) {
-      riley::ShadingNode integratorNode(
+        riley::ShadingNode integratorNode(
           _ComputeQuickIntegratorNode(renderDelegate, camera));
-      _quickIntegratorId = _riley->CreateIntegrator(
-          riley::UserId(
-              stats::AddDataLocation(integratorNode.name.CStr()).GetValue()),
-          integratorNode);
+        _quickIntegratorId = _riley->CreateIntegrator(
+            riley::UserId(
+                stats::AddDataLocation(integratorNode.name.CStr()).GetValue()),
+            integratorNode);
+    
+        TF_VERIFY(_quickIntegratorId != riley::IntegratorId::InvalidId());
     }
 }
 
@@ -2956,6 +2883,10 @@ HdPrman_RenderParam::UpdateQuickIntegrator(
     const HdRenderIndex * const renderIndex)
 {
     if (_enableQuickIntegrate) {
+        if (!TF_VERIFY(_quickIntegratorId != riley::IntegratorId::InvalidId())) {
+            return;
+        }
+
         const riley::ShadingNode node =
             _ComputeQuickIntegratorNode(
                 renderIndex->GetRenderDelegate(),
@@ -3012,11 +2943,11 @@ HdPrman_RenderParam::UpdateRileyShutterInterval(
         shutterInterval[1] = 0.0f;
     }
     
-    RtParamList &options = GetOptions();
-    options.SetFloatArray(RixStr.k_Ri_Shutter, shutterInterval, 2); 
-    
-    riley::Riley * riley = AcquireRiley();
-    riley->SetOptions(HdPrman_Utils::PruneDeprecatedOptions(options));
+    // Update the shutter interval on the legacy options param list and
+    // commit the scene options.
+    RtParamList &options = GetLegacyOptions();
+    options.SetFloatArray(RixStr.k_Ri_Shutter, shutterInterval, 2);
+    SetRileyOptions();
 }
 
 void

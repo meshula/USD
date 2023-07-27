@@ -66,8 +66,8 @@ pxr_cpp_bin(usdhddemo
         ${QUARTZCORE}
 )
 
-set(METAL_SOURCE BlitShaders.metal)
-set_source_files_properties(${METAL_SOURCE} PROPERTIES LANGUAGE METAL)
+#set(METAL_SOURCE BlitShaders.metal)
+#set_source_files_properties(${METAL_SOURCE} PROPERTIES LANGUAGE METAL)
 
 target_sources(usdhddemo
     PUBLIC

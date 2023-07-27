@@ -49,14 +49,8 @@
 #include "pxr/usd/usdRender/var.h"
 
 #include "pxr/usdImaging/usdImaging/delegate.h"
-#include "pxr/usdImaging/usdImaging/drawModeSceneIndex.h"
-#include "pxr/usdImaging/usdImaging/niPrototypePropagatingSceneIndex.h"
-#include "pxr/usdImaging/usdImaging/piPrototypePropagatingSceneIndex.h"
-#include "pxr/usdImaging/usdImaging/renderSettingsFlatteningSceneIndex.h"
-#include "pxr/usdImaging/usdImaging/rootOverridesSceneIndex.h"
-#include "pxr/usdImaging/usdImaging/selectionSceneIndex.h"
+#include "pxr/usdImaging/usdImaging/sceneIndices.h"
 #include "pxr/usdImaging/usdImaging/stageSceneIndex.h"
-#include "pxr/usdImaging/usdImaging/flattenedDataSourceProviders.h"
 
 #include "pxr/base/tf/envSetting.h"
 #include "pxr/base/tf/pathUtils.h"
@@ -346,12 +340,11 @@ PopulateFallbackRenderSettings(
     // authored. This should match the list in AddNamespacedSettings.
     {
         UsdPrim prim = settings->GetPrim();
-        _SetFallbackValueIfUnauthored(TfToken("ri:trace:maxdepth"), prim, 10);
-        _SetFallbackValueIfUnauthored(TfToken("ri:hider:jitter"), prim, 1);
+        _SetFallbackValueIfUnauthored(TfToken("ri:hider:jitter"), prim, true);
         _SetFallbackValueIfUnauthored(TfToken("ri:hider:minsamples"), prim, 32);
         _SetFallbackValueIfUnauthored(TfToken("ri:hider:maxsamples"), prim, 64);
         _SetFallbackValueIfUnauthored(
-            TfToken("ri:Ri:PixelVariance"), prim, 0.01);
+            TfToken("ri:Ri:PixelVariance"), prim, 0.01f);
     }
 
 
@@ -539,12 +532,10 @@ AddNamespacedSettings(
     VtDictionary const &namespacedSettings, HdRenderSettingsMap *settingsMap)
 {
     // Add fallback settings specific to testHdPrman 
-    // Note: 'ri:trace:maxdepth' cannot be found in the applied schemas 
-    (*settingsMap)[TfToken("ri:trace:maxdepth")] = 10; 
-    (*settingsMap)[TfToken("ri:hider:jitter")] = 1;
+    (*settingsMap)[TfToken("ri:hider:jitter")] = true;
     (*settingsMap)[TfToken("ri:hider:minsamples")] = 32;
     (*settingsMap)[TfToken("ri:hider:maxsamples")] = 64;
-    (*settingsMap)[TfToken("ri:Ri:PixelVariance")] = 0.01;
+    (*settingsMap)[TfToken("ri:Ri:PixelVariance")] = 0.01f;
 
     // Set namespaced settings 
     for (const auto &item : namespacedSettings) {
@@ -730,27 +721,13 @@ HydraSetupAndRender(
     std::unique_ptr<UsdImagingDelegate> hdUsdFrontend;
 
     if (TfGetEnvSetting(TEST_HD_PRMAN_ENABLE_SCENE_INDEX)) {
-        UsdImagingStageSceneIndexRefPtr usdStageSceneIndex;
-        usdStageSceneIndex = UsdImagingStageSceneIndex::New();
-        usdStageSceneIndex->SetStage(stage);
-        usdStageSceneIndex->SetTime(frameNum);
-
-        // Chain scene indices; Note that this mirrors UsdImagingGLEngine
-        HdSceneIndexBaseRefPtr siChainHead = usdStageSceneIndex;
-        siChainHead = UsdImagingRootOverridesSceneIndex::New(siChainHead);
-        siChainHead = UsdImagingPiPrototypePropagatingSceneIndex::New(siChainHead);
-        siChainHead = UsdImagingNiPrototypePropagatingSceneIndex::New(siChainHead);
-        siChainHead = UsdImagingSelectionSceneIndex::New(siChainHead);
-        siChainHead = UsdImagingRenderSettingsFlatteningSceneIndex::New(siChainHead);
-        siChainHead = HdFlatteningSceneIndex::New(
-            siChainHead, UsdImagingFlattenedDataSourceProviders());
-        siChainHead = UsdImagingDrawModeSceneIndex::New(siChainHead, nullptr);
-        siChainHead = HdsiLegacyDisplayStyleOverrideSceneIndex::New(siChainHead);
-
-        // Insert scene index chain into the render index.
+        UsdImagingSceneIndicesCreateInfo createInfo;
+        createInfo.stage = stage;
+        UsdImagingSceneIndices sceneIndices =
+            UsdImagingInstantiateSceneIndices(createInfo);
+        sceneIndices.stageSceneIndex->SetTime(frameNum);
         hdRenderIndex->InsertSceneIndex(
-            siChainHead, SdfPath::AbsoluteRootPath());
-
+            sceneIndices.finalSceneIndex, SdfPath::AbsoluteRootPath());
     } else {
         hdUsdFrontend = std::make_unique<UsdImagingDelegate>(
             hdRenderIndex.get(),
@@ -1013,10 +990,6 @@ int main(int argc, char *argv[])
         settingsMap[HdPrmanRenderSettingsTokens->experimentalSettingsCameraPath] =
             camInfo.cameraPath;
 
-        AddNamespacedSettings(
-            UsdRenderComputeNamespacedSettings(
-                settings.GetPrim(), prmanNamespaces),
-            &settingsMap);
         settingsMap[HdRenderSettingsTokens->enableInteractive] = false;
 
         HydraSetupAndRender(

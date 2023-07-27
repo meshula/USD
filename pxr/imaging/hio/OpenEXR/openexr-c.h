@@ -147,6 +147,7 @@ exr_result_t nanoexr_write_f16_exr(
                uint8_t* red,   int32_t redPixelStride,   int32_t redLineStride,
                uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
                uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride);
+
 exr_result_t nanoexr_write_f32_exr(
                const char* filename,
                nanoexr_attrsAdd, void* attrsAdd_userData,

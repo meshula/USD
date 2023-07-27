@@ -44,6 +44,7 @@
 #include "hdPrman/paramsSetter.h"
 #include "hdPrman/points.h"
 #include "hdPrman/resourceRegistry.h"
+#include "hdPrman/terminalSceneIndexObserver.h"
 #include "hdPrman/tokens.h"
 #include "hdPrman/volume.h"
 
@@ -51,6 +52,7 @@
 #include "pxr/imaging/hd/camera.h"
 #include "pxr/imaging/hd/extComputation.h"
 #include "pxr/imaging/hd/rprim.h"
+#include "pxr/imaging/hd/sceneIndex.h"
 #include "pxr/imaging/hd/sprim.h"
 #include "pxr/imaging/hd/tokens.h"
 
@@ -204,11 +206,9 @@ HdPrmanRenderDelegate::_Initialize()
     if (!integratorEnv.empty()) {
         integrator = integratorEnv;
     }
-
-    // 64 samples is RenderMan default
-    int maxSamples = TfGetenvInt("HD_PRMAN_MAX_SAMPLES", 64);
-
-    float pixelVariance = 0.001f;
+ 
+    const int maxSamples = 64; // 64 samples is RenderMan default
+    const float pixelVariance = 0.001f;
 
     // Prepare list of render settings descriptors
     _settingDescriptors.reserve(5);
@@ -629,5 +629,37 @@ HdPrmanRenderDelegate::GetRenderIndex() const
     }
     return nullptr;
 }
+
+#if HD_API_VERSION >= 55
+
+////////////////////////////////////////////////////////////////////////////
+///
+/// Hydra 2.0 API
+///
+////////////////////////////////////////////////////////////////////////////
+
+void
+HdPrmanRenderDelegate::SetTerminalSceneIndex(
+    const HdSceneIndexBaseRefPtr &terminalSceneIndex)
+{
+    if (!_terminalObserver) {
+        _terminalObserver =
+            std::make_unique<HdPrman_TerminalSceneIndexObserver>(
+                _renderParam, terminalSceneIndex);
+    }
+}
+
+void
+HdPrmanRenderDelegate::Update()
+{
+    if (!_terminalObserver) {
+        TF_CODING_ERROR("Invalid terminal scene index observer.");
+        return;
+    }
+
+    _terminalObserver->Update();
+}
+
+#endif
 
 PXR_NAMESPACE_CLOSE_SCOPE
