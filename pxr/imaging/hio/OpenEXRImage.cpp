@@ -458,12 +458,16 @@ bool Hio_OpenEXRImage::ReadCropped(
         dst.data = reinterpret_cast<uint8_t*>(&resizeOutputBuffer[0]);
     }
     nanoexr_Gaussian_resample(&src, &dst);
-    if (outputIsFloat)
+    if (outputIsFloat) {
+        memcpy(reinterpret_cast<void*>(storage.data), dst.data, dst.dataSize);
         return true;
+    }
 
     ImageProcessor<float>::FloatToHalf(&resizeOutputBuffer[0],
                                        reinterpret_cast<GfHalf*>(dst.data),
                                        outWidth, outHeight, outChannelCount);
+    memcpy(reinterpret_cast<void*>(storage.data), &resizeOutputBuffer[0],
+           outWidth * outHeight * GetBytesPerPixel());
     return true;
 }
 
