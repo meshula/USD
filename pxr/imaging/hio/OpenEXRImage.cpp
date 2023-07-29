@@ -830,38 +830,47 @@ void Hio_OpenEXRImage::_AttributeWriteCallback(void* self_, exr_context_t exr) {
 bool Hio_OpenEXRImage::Write(StorageSpec const &storage,
                              VtDictionary const &metadata)
 {
-    const HioType type = HioGetHioType(storage.format);
-    if (type != HioTypeFloat && type != HioTypeHalfFloat) {
-        TF_CODING_ERROR("Unsupported pixel type %d", type);
-        return false;
-    }
-    switch (storage.format) {
-        case HioFormatFloat16:
-        case HioFormatFloat16Vec2:
-        case HioFormatFloat16Vec3:
-        case HioFormatFloat16Vec4:
-        case HioFormatFloat32:
-        case HioFormatFloat32Vec2:
-        case HioFormatFloat32Vec3:
-        case HioFormatFloat32Vec4:
-            break;
-        default:
-            TF_CODING_ERROR("Unsupported pixel format %d", storage.format);
-            return false;
-    }
-
     _callbackDict = &metadata;
+    exr_result_t rv;
+    const HioType type = HioGetHioType(storage.format);
     int32_t pxsize = type == HioTypeFloat ? sizeof(float) : sizeof(GfHalf);
     int32_t ch = HioGetComponentCount(storage.format);
-    uint8_t* pixels = reinterpret_cast<uint8_t*>(storage.data);
-    int32_t lineStride = storage.width * pxsize * ch;
     int32_t pixelStride = pxsize * ch;
-    
+    int32_t lineStride = storage.width * pxsize * ch;
+    if (type == HioTypeUnsignedByte) {
+        // glf will attempt to write 8 bit unsigned frame buffer data to exr
+        // files, so promote the pixels to float16.
+        int32_t ch = HioGetComponentCount(storage.format);
+        std::vector<GfHalf> pixels(storage.width * storage.height * ch);
+        const uint8_t* src = reinterpret_cast<const uint8_t*>(storage.data);
+        GfHalf* dst = pixels.data();
+        for (int i = 0; i < storage.width * storage.height * ch; ++i) {
+            *dst++ = GfHalf(*src++) / 255.0f;
+        }
+        uint8_t* red = (uint8_t*) pixels.data() + (pxsize * 2);
+        uint8_t* green = ch > 1 ? (uint8_t*) pixels.data() + pxsize : nullptr;
+        uint8_t* blue = ch > 2 ? (uint8_t*) pixels.data() : nullptr;
+        rv = nanoexr_write_f16_exr(
+                _filename.c_str(),
+                _AttributeWriteCallback, this,
+                storage.width, storage.height,
+                (uint8_t*) red,   pixelStride, lineStride,  // red
+                (uint8_t*) green, pixelStride, lineStride,  // green
+                (uint8_t*) blue,  pixelStride, lineStride); // blue
+        _callbackDict = nullptr;
+        return rv == EXR_ERR_SUCCESS;
+    }
+    else if (type != HioTypeFloat && type != HioTypeHalfFloat) {
+        TF_CODING_ERROR("Unsupported pixel type %d", type);
+        _callbackDict = nullptr;
+        return false;
+    }
+
+    uint8_t* pixels = reinterpret_cast<uint8_t*>(storage.data);
     uint8_t* red = pixels + (pxsize * 2);
     uint8_t* green = ch > 1 ? pixels + pxsize : nullptr;
     uint8_t* blue = ch > 2 ? pixels : nullptr;
     
-    exr_result_t rv;
     if (type == HioTypeFloat)
         rv = nanoexr_write_f32_exr(
                 _filename.c_str(),

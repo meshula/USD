@@ -22,6 +22,10 @@
 #include <pxr/imaging/hio/imageRegistry.h>
 #include <pxr/usdImaging/usdImagingGL/engine.h>
 
+#include "pxr/imaging/glf/drawTarget.h"
+
+#include "pxr/imaging/garch/glApi.h"
+
 #include <iostream>
 
 
@@ -42,7 +46,7 @@ float cameraDistance=1;
 
 std::string colorImageFormat = "png";
 
-#if 0
+#if 1
 void
 InitLights()
 {
@@ -115,8 +119,6 @@ DrawSphere( GfVec3f diffuseColor )
 void
 TestGlfDrawTarget()
 {
-    GlfGLContext::MakeCurrent(GlfGLContext::GetSharedGLContext());
-
     GlfDrawTargetRefPtr
         dt = GlfDrawTarget::New( GfVec2i( viewWidth, viewHeight ) );
     TF_AXIOM(dt->GetFramebufferId() != 0);
@@ -308,7 +310,12 @@ void blit(MTLRenderPassDescriptor* renderPassDescriptor,
     [renderEncoder popDebugGroup];
 }
 
-#define INSTALL_LOCN "usd0715"
+PXR_NAMESPACE_CLOSE_SCOPE
+
+
+#define INSTALL_LOCN "usd0727"
+
+PXR_NAMESPACE_USING_DIRECTIVE
 
 int main(int argc, char *argv[])
 {
@@ -369,7 +376,9 @@ int main(int argc, char *argv[])
     // GLFW set up
     //-------------------------------------------------------------------------
     glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+    //glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     /*
     glfwWindowHint(GLFW_FLOAT_PIXEL_TYPE, GLFW_TRUE);
     glfwWindowHint(GLFW_RED_BITS, 16);
@@ -383,15 +392,25 @@ int main(int argc, char *argv[])
     nswindow.contentView.layer = swapchain;
     nswindow.contentView.wantsLayer = YES;
 
-    
-    
-    
-    colorImageFormat = "exr"; // "png"
+    int bail = 20;
+    while (!glfwWindowShouldClose(window)) {
+        glfwPollEvents();
+        usleep(1000);
+        --bail;
+        if (!bail)
+            break;
+    }
 
-   // glfwMakeContextCurrent(window);
-    //TestGlfDrawTarget();
-  //  return EXIT_SUCCESS;
-    
+    if (false) {
+        colorImageFormat = "exr"; // "png"
+        
+        glfwMakeContextCurrent(window);
+        GarchGLApiLoad();
+        GLint numExtensions = 0;
+        glGetIntegerv(GL_NUM_EXTENSIONS, &numExtensions);
+        TestGlfDrawTarget();
+        return EXIT_SUCCESS;
+    }
     
   
     
@@ -436,6 +455,7 @@ int main(int argc, char *argv[])
     //-------------------------------------------------------------------------
     // Read a texture
     //-------------------------------------------------------------------------
+    //const std::string stillLife = "/Users/nporcino/dev/assets/textures/apollo.jpeg";
     const std::string stillLife = "/Users/nporcino/dev/assets/textures/Incredibles.exr";
     //const std::string stillLife = "/Users/nporcino/dev/assets/textures/StillLife.exr";
     //const std::string stillLife = "/Users/nporcino/dev/assets/textures/GoldenGate.exr";
@@ -473,6 +493,14 @@ int main(int argc, char *argv[])
                 std::cout << " format: HioFormatFloat16Vec3\n"; break;
             case HioFormatFloat16Vec4:
                 std::cout << " format: HioFormatFloat16Vec4\n"; break;
+            case HioFormatUNorm8srgb:
+                std::cout << " format: HioFormatUNorm8srgb\n"; break;
+            case HioFormatUNorm8Vec2srgb:
+                std::cout << " format: HioFormatUNorm8Vec2srgb\n"; break;
+            case HioFormatUNorm8Vec3srgb:
+                std::cout << " format: HioFormatUNorm8Vec3srgb\n"; break;
+            case HioFormatUNorm8Vec4srgb:
+                std::cout << " format: HioFormatUNorm8Vec4srgb\n"; break;
             default:
                 std::cout << " format: " << _image->GetFormat() << "\n"; break;
         }
@@ -492,34 +520,35 @@ int main(int argc, char *argv[])
 
         int cropTop = 0;
         int cropBottom = 0;
-        float scale = 0.85f;
+        float scale = 1.f;
         _spec.width  = (int)(_image->GetWidth() * scale);
         _spec.height = (int)((_image->GetHeight() - cropTop - cropBottom) * scale);
         _spec.format = _image->GetFormat();
         _spec.flipped = false;
 
-        const size_t bufsize = _spec.width * _spec.height * 4 * sizeof(uint16_t);
+        size_t bufsize = _spec.width * _spec.height * HioGetDataSizeOfType(_spec.format) * HioGetComponentCount(_spec.format);
         imageData.reset(new char[bufsize]);
         _spec.data = imageData.get();
-
-#if 0
-        const int layer = 0;
-        if (!HdStTextureUtils::ReadAndConvertImage(
-                _image,
-                true, // flipped
-                premultiplyAlpha,
-                mipInfos[0],
-                layer,
-                imageData.get())) {
-            TF_WARN("Unable to read Texture '%s'.", stillLife.c_str());
-        }
-#else
+                
         if (_image->ReadCropped(cropTop, cropBottom, 0, 0, _spec)) {
             // successfully read the image!
+            if (_spec.format == HioFormatUNorm8Vec3srgb) {
+                _spec.format = HioFormatUNorm8Vec4srgb;     // force reading as rgba
+                bufsize = _spec.width * _spec.height * HioGetDataSizeOfType(_spec.format) * HioGetComponentCount(_spec.format);
+                char* newData = new char[bufsize];
+                uint8_t* dst = (uint8_t*) newData;
+                uint8_t* src = (uint8_t*) _spec.data;
+                for (int i = 0; i < _spec.width * _spec.height * 3; i += 3) {
+                    *dst++ = src[i];
+                    *dst++ = src[i+1];
+                    *dst++ = src[i+2];
+                    *dst++ = 255;
+                }
+                imageData.reset(newData);
+                _spec.data = imageData.get();
+            }
         }
-#endif
         const char* output = "/var/tmp/test_exr.exr";
-        _spec.format = HioFormatFloat16Vec4;
         auto writeImage = HioImage::OpenForWriting(output);
         writeImage->Write(_spec);
     }
@@ -537,7 +566,7 @@ int main(int argc, char *argv[])
         textureDesc.dimensions = GfVec3i(_spec.width, _spec.height, 1);
         textureDesc.layerCount = 1;
         textureDesc.mipLevels = 1;
-        textureDesc.pixelsByteSize = _image->GetBytesPerPixel();
+        textureDesc.pixelsByteSize = HioGetDataSizeOfType(_spec.format) * HioGetComponentCount(_spec.format);
         textureDesc.initialData = _spec.data;
         
         HgiTextureHandle _gpuTexture = _hgi->CreateTexture(textureDesc);
@@ -591,4 +620,3 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-PXR_NAMESPACE_CLOSE_SCOPE
