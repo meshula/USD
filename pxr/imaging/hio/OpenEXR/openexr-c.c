@@ -442,9 +442,9 @@ exr_result_t nanoexr_write_f16_exr(
     exr_get_scanlines_per_chunk(exr, partidx, &scansperchunk);
     bool                  first = true;
 
-    uint8_t* pRed = red + (height - 1) * redLineStride;
-    uint8_t* pGreen = green + (height - 1) * greenLineStride;
-    uint8_t* pBlue = blue + (height - 1) * blueLineStride;
+    uint8_t* pRed = red; // + (height - 1) * redLineStride;
+    uint8_t* pGreen = green; // + (height - 1) * greenLineStride;
+    uint8_t* pBlue = blue; // + (height - 1) * blueLineStride;
     
     int chunkInfoIndex = 0;
     for (int y = dataw.min.y; y <= dataw.max.y; y += scansperchunk, ++chunkInfoIndex) {
@@ -495,9 +495,12 @@ exr_result_t nanoexr_write_f16_exr(
         }
 
         first = false;
-        pRed -= redLineStride;
-        pGreen -= greenLineStride;
-        pBlue -= blueLineStride;
+        pRed += redLineStride;
+        pGreen += greenLineStride;
+        pBlue += blueLineStride;
+        //pRed -= redLineStride;
+        //pGreen -= greenLineStride;
+        //pBlue -= blueLineStride;
     }
 
     result = exr_encoding_destroy(exr, &encoder);

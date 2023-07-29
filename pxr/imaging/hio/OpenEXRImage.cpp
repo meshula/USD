@@ -333,7 +333,7 @@ bool Hio_OpenEXRImage::ReadCropped(
                                             img.channelCount,
                                             cropTop, cropBottom,
                                             cropLeft, cropRight);
-        if (!storage.flipped) {
+        if (storage.flipped) {
             ImageProcessor<uint32_t>::FlipImage(reinterpret_cast<uint32_t*>(img.data),
                                                 fileWidth - cropLeft - cropRight,
                                                 fileHeight - cropTop - cropBottom,
@@ -385,7 +385,7 @@ bool Hio_OpenEXRImage::ReadCropped(
                                               img.channelCount,
                                               cropTop, cropBottom,
                                               cropLeft, cropRight);
-            if (!storage.flipped) {
+            if (storage.flipped) {
                 ImageProcessor<GfHalf>::FlipImage(&halfInputBuffer[0],
                                                   fileWidth - cropLeft - cropRight,
                                                   fileHeight - cropTop - cropBottom,
@@ -398,7 +398,7 @@ bool Hio_OpenEXRImage::ReadCropped(
                                              img.channelCount,
                                              cropTop, cropBottom,
                                              cropLeft, cropRight);
-            if (!storage.flipped) {
+            if (storage.flipped) {
                 ImageProcessor<float>::FlipImage(&floatInputBuffer[0],
                                                  fileWidth - cropLeft - cropRight,
                                                  fileHeight - cropTop - cropBottom,
