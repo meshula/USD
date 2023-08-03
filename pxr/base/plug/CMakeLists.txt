@@ -1,6 +1,12 @@
 set(PXR_PREFIX pxr/base)
 set(PXR_PACKAGE plug)
 
+if (APPLEx)
+    set(PLUG_INITCONFIG initConfig.mm)
+else()
+    set(PLUG_INITCONFIG initConfig.cpp)
+endif()
+
 pxr_library(plug
     LIBRARIES
         arch
@@ -32,7 +38,7 @@ pxr_library(plug
         thisPlugin.h
 
     CPPFILES
-        initConfig.cpp
+        ${PLUG_INITCONFIG}
 
     PYTHON_CPPFILES
         moduleDeps.cpp

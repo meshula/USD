@@ -456,7 +456,8 @@ int main(int argc, char *argv[])
     // Read a texture
     //-------------------------------------------------------------------------
     //const std::string stillLife = "/Users/nporcino/dev/assets/textures/apollo.jpeg";
-    const std::string stillLife = "/Users/nporcino/dev/assets/textures/Incredibles.exr";
+    //const std::string stillLife = "/Users/nporcino/dev/assets/textures/Incredibles.exr";
+    const std::string stillLife = "/Users/nporcino/dev/assets/testCards/WoodPlanksDonut.exr";
     //const std::string stillLife = "/Users/nporcino/dev/assets/textures/StillLife.exr";
     //const std::string stillLife = "/Users/nporcino/dev/assets/textures/GoldenGate.exr";
     //const std::string stillLife = "/Users/nporcino/dev/assets/textures/out-dwaa.exr";
@@ -523,7 +524,7 @@ int main(int argc, char *argv[])
         float scale = 1.f;
         _spec.width  = (int)(_image->GetWidth() * scale);
         _spec.height = (int)((_image->GetHeight() - cropTop - cropBottom) * scale);
-        _spec.format = _image->GetFormat();
+        _spec.format = HioFormatFloat16Vec4; // _image->GetFormat();
         _spec.flipped = false;
 
         size_t bufsize = _spec.width * _spec.height * HioGetDataSizeOfType(_spec.format) * HioGetComponentCount(_spec.format);

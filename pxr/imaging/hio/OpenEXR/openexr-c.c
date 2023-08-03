@@ -330,14 +330,24 @@ int nanoexr_read_header(nanoexr_Reader_t* reader, exr_read_func_ptr_t readFn,
     return rv;
 }
 
-exr_result_t nanoexr_write_f16_exr(
+exr_result_t nanoexr_write_exr(
     const char* filename,
     nanoexr_attrsAdd attrsAdd, void* attrsAdd_userData,
-    int width, int height,
+    int width, int height, exr_pixel_type_t pixel_type,
     uint8_t* red,   int32_t redPixelStride,   int32_t redLineStride,
     uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
-    uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride)
+    uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride,
+    uint8_t* alpha, int32_t alphaPixelStride, int32_t alphaLineStride)
 {
+
+    int channelCount = red ? 1 : 0;
+    channelCount += blue ? 1 : 0;
+    channelCount += green ? 1 : 0;
+    channelCount += alpha ? 1 : 0;
+    if (!channelCount) {
+        return EXR_ERR_INVALID_ARGUMENT;
+    }
+
     int partidx = 0;
     exr_context_t exr;
     exr_context_initializer_t init = EXR_DEFAULT_CONTEXT_INITIALIZER;
@@ -381,47 +391,66 @@ exr_result_t nanoexr_write_f16_exr(
         return result;
     }
 
-    result = exr_add_channel(
-        exr,
-        partidx,
-        "R",
-        EXR_PIXEL_HALF,
-        EXR_PERCEPTUALLY_LOGARITHMIC, // hint to compressor data is an image
-        1, 1); // x & y sampling rate
-    if (result != EXR_ERR_SUCCESS) {
-        return result;
+    if (red) {
+        result = exr_add_channel(
+                     exr,
+                     partidx,
+                     "R",
+                     pixel_type,
+                     EXR_PERCEPTUALLY_LOGARITHMIC, // hint that data is an image
+                     1, 1); // x & y sampling rate
+        if (result != EXR_ERR_SUCCESS) {
+            return result;
+        }
     }
-    
-    result = exr_add_channel(
-        exr,
-        partidx,
-        "G",
-        EXR_PIXEL_HALF,
-        EXR_PERCEPTUALLY_LOGARITHMIC,
-        1, 1); // x & y sampling rate
-    if (result != EXR_ERR_SUCCESS) {
-        return result;
+
+    if (green) {
+        result = exr_add_channel(
+                     exr,
+                     partidx,
+                     "G",
+                     pixel_type,
+                     EXR_PERCEPTUALLY_LOGARITHMIC,
+                     1, 1); // x & y sampling rate
+        if (result != EXR_ERR_SUCCESS) {
+            return result;
+        }
     }
-    
-    result = exr_add_channel(
-        exr,
-        partidx,
-        "B",
-        EXR_PIXEL_HALF,
-        EXR_PERCEPTUALLY_LOGARITHMIC,
-        1, 1); // x & y sampling rate
-    if (result != EXR_ERR_SUCCESS) {
-        return result;
+
+    if (blue) {
+        result = exr_add_channel(
+                     exr,
+                     partidx,
+                     "B",
+                     pixel_type,
+                     EXR_PERCEPTUALLY_LOGARITHMIC,
+                     1, 1); // x & y sampling rate
+        if (result != EXR_ERR_SUCCESS) {
+            return result;
+        }
+    }
+
+    if (alpha) {
+        result = exr_add_channel(
+                     exr,
+                     partidx,
+                     "A",
+                     pixel_type,
+                     EXR_PERCEPTUALLY_LOGARITHMIC,
+                     1, 1); // x & y sampling rate
+        if (result != EXR_ERR_SUCCESS) {
+            return result;
+        }
     }
 
     result = exr_set_version(exr, partidx, 1); // 1 is the latest version
 
     // set chromaticities to Rec. ITU-R BT.709-3
     exr_attr_chromaticities_t chroma = {
-        0.6400f, 0.3300f, // red
-        0.3000f, 0.6000f, // green
-        0.1500f, 0.0600f, // blue
-        0.3127f, 0.3290f};  // white
+        0.6400f, 0.3300f,  // red
+        0.3000f, 0.6000f,  // green
+        0.1500f, 0.0600f,  // blue
+        0.3127f, 0.3290f}; // white
     result = exr_attr_set_chromaticities(exr, partidx, "chromaticities", &chroma);
     if (result != EXR_ERR_SUCCESS) {
         return result;
@@ -442,191 +471,10 @@ exr_result_t nanoexr_write_f16_exr(
     exr_get_scanlines_per_chunk(exr, partidx, &scansperchunk);
     bool                  first = true;
 
-    uint8_t* pRed = red; // + (height - 1) * redLineStride;
-    uint8_t* pGreen = green; // + (height - 1) * greenLineStride;
-    uint8_t* pBlue = blue; // + (height - 1) * blueLineStride;
-    
-    int chunkInfoIndex = 0;
-    for (int y = dataw.min.y; y <= dataw.max.y; y += scansperchunk, ++chunkInfoIndex) {
-        result = exr_write_scanline_chunk_info(exr, partidx, y, &cinfo);
-        if (result != EXR_ERR_SUCCESS) {
-            return result;
-        }
-
-        if (first)
-        {
-            result = exr_encoding_initialize(exr, partidx, &cinfo, &encoder);
-            if (result != EXR_ERR_SUCCESS) {
-                return result;
-            }
-        }
-        else
-        {
-            result = exr_encoding_update(exr, partidx, &cinfo, &encoder);
-        }
-        
-        encoder.channel_count = 3;
-        encoder.channels[0].user_pixel_stride = redPixelStride;
-        encoder.channels[0].user_line_stride  = redLineStride;
-        encoder.channels[0].encode_from_ptr   = pRed;
-        encoder.channels[0].height            = scansperchunk; // chunk height
-        encoder.channels[0].width             = dataw.max.x - dataw.min.y + 1;
-        encoder.channels[1].user_pixel_stride = greenPixelStride;
-        encoder.channels[1].user_line_stride  = greenLineStride;
-        encoder.channels[1].height            = scansperchunk; // chunk height
-        encoder.channels[1].width             = dataw.max.x - dataw.min.y + 1;
-        encoder.channels[1].encode_from_ptr   = pGreen;
-        encoder.channels[2].user_pixel_stride = bluePixelStride;
-        encoder.channels[2].user_line_stride  = blueLineStride;
-        encoder.channels[2].height            = scansperchunk; // chunk height
-        encoder.channels[2].width             = dataw.max.x - dataw.min.y + 1;
-        encoder.channels[2].encode_from_ptr   = pBlue;
-
-        if (first) {
-            result = exr_encoding_choose_default_routines(exr, partidx, &encoder);
-            if (result != EXR_ERR_SUCCESS) {
-                return result;
-            }
-        }
-
-        result = exr_encoding_run(exr, partidx, &encoder);
-        if (result != EXR_ERR_SUCCESS) {
-            return result;
-        }
-
-        first = false;
-        pRed += redLineStride;
-        pGreen += greenLineStride;
-        pBlue += blueLineStride;
-        //pRed -= redLineStride;
-        //pGreen -= greenLineStride;
-        //pBlue -= blueLineStride;
-    }
-
-    result = exr_encoding_destroy(exr, &encoder);
-    if (result != EXR_ERR_SUCCESS) {
-        return result;
-    }
-
-    result = exr_finish(&exr);
-    return result;
-}
-
-exr_result_t nanoexr_write_f32_exr(
-    const char* filename,
-    nanoexr_attrsAdd attrsAdd, void* attrsAdd_userData,
-    int width, int height,
-    uint8_t* red,   int32_t redPixelStride,   int32_t redLineStride,
-    uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
-    uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride)
-{
-    int partidx = 0;
-    exr_context_t exr;
-    exr_context_initializer_t init = EXR_DEFAULT_CONTEXT_INITIALIZER;
-
-    // switch to write mode after everything is set up
-    /// XXX improvement: use EXR_INTERMEDIATE_TEMP_FILE
-    exr_result_t result = exr_start_write(
-                                &exr, filename, EXR_WRITE_FILE_DIRECTLY, &init);
-    if (result != EXR_ERR_SUCCESS) {
-        return result;
-    }
-
-    result = exr_add_part(exr, "beauty", EXR_STORAGE_SCANLINE, &partidx);
-    if (result != EXR_ERR_SUCCESS) {
-        return result;
-    }
-
-    // modern exr should support long names
-    exr_set_longname_support(exr, 1);
-
-    /// XXX In the future Hio may be able to specify compression levels
-    result = exr_set_zip_compression_level(exr, 0, 4);
-    if (result != EXR_ERR_SUCCESS) {
-        return result;
-    }
-
-    exr_attr_box2i_t dataw = {0, 0, width - 1, height - 1};
-    exr_attr_box2i_t dispw = dataw;
-    exr_attr_v2f_t   swc   = {0.5f, 0.5f}; // center of the screen window
-    result = exr_initialize_required_attr (
-        exr,
-        partidx,
-        &dataw,
-        &dispw,
-        1.f,    // pixel aspect ratio
-        &swc,
-        1.f,    // screen window width corresponding to swc
-        EXR_LINEORDER_INCREASING_Y,
-        EXR_COMPRESSION_ZIPS); // one line per chunk, ZIP is 16
-    if (result != EXR_ERR_SUCCESS) {
-        return result;
-    }
-
-    result = exr_add_channel(
-        exr,
-        partidx,
-        "R",
-        EXR_PIXEL_FLOAT,
-        EXR_PERCEPTUALLY_LOGARITHMIC, // hint to compressor data is an image
-        1, 1); // x & y sampling rate
-    if (result != EXR_ERR_SUCCESS) {
-        return result;
-    }
-    
-    result = exr_add_channel(
-        exr,
-        partidx,
-        "G",
-        EXR_PIXEL_FLOAT,
-        EXR_PERCEPTUALLY_LOGARITHMIC,
-        1, 1); // x & y sampling rate
-    if (result != EXR_ERR_SUCCESS) {
-        return result;
-    }
-    
-    result = exr_add_channel(
-        exr,
-        partidx,
-        "B",
-        EXR_PIXEL_FLOAT,
-        EXR_PERCEPTUALLY_LOGARITHMIC,
-        1, 1); // x & y sampling rate
-    if (result != EXR_ERR_SUCCESS) {
-        return result;
-    }
-
-    result = exr_set_version(exr, partidx, 1); // 1 is the latest version
-
-    // set chromaticities to Rec. ITU-R BT.709-3
-    exr_attr_chromaticities_t chroma = {
-        0.6400f, 0.3300f, // red
-        0.3000f, 0.6000f, // green
-        0.1500f, 0.0600f, // blue
-        0.3127f, 0.3290f};  // white
-    result = exr_attr_set_chromaticities(exr, partidx, "chromaticities", &chroma);
-    if (result != EXR_ERR_SUCCESS) {
-        return result;
-    }
-
-    if (attrsAdd) {
-        attrsAdd(attrsAdd_userData, exr);
-    }
-
-    result = exr_write_header(exr);
-    if (result != EXR_ERR_SUCCESS) {
-        return result;
-    }
-    
-    exr_encode_pipeline_t encoder;
-    exr_chunk_info_t cinfo;
-    int32_t               scansperchunk = 0;
-    exr_get_scanlines_per_chunk(exr, partidx, &scansperchunk);
-    bool                  first = true;
-
-    uint8_t* pRed = red + (height - 1) * redLineStride;
+    uint8_t* pRed =   red + (height - 1) * redLineStride;
     uint8_t* pGreen = green + (height - 1) * greenLineStride;
-    uint8_t* pBlue = blue + (height - 1) * blueLineStride;
+    uint8_t* pBlue =  blue + (height - 1) * blueLineStride;
+    uint8_t* pAlpha = alpha + (height - 1) * alphaLineStride;
     
     int chunkInfoIndex = 0;
     for (int y = dataw.min.y; y <= dataw.max.y; y += scansperchunk, ++chunkInfoIndex) {
@@ -647,22 +495,38 @@ exr_result_t nanoexr_write_f32_exr(
             result = exr_encoding_update(exr, partidx, &cinfo, &encoder);
         }
         
-        encoder.channel_count = 3;
-        encoder.channels[0].user_pixel_stride = redPixelStride;
-        encoder.channels[0].user_line_stride  = redLineStride;
-        encoder.channels[0].encode_from_ptr   = pRed;
-        encoder.channels[0].height            = scansperchunk; // chunk height
-        encoder.channels[0].width             = dataw.max.x - dataw.min.y + 1;
-        encoder.channels[1].user_pixel_stride = greenPixelStride;
-        encoder.channels[1].user_line_stride  = greenLineStride;
-        encoder.channels[1].height            = scansperchunk; // chunk height
-        encoder.channels[1].width             = dataw.max.x - dataw.min.y + 1;
-        encoder.channels[1].encode_from_ptr   = pGreen;
-        encoder.channels[2].user_pixel_stride = bluePixelStride;
-        encoder.channels[2].user_line_stride  = blueLineStride;
-        encoder.channels[2].height            = scansperchunk; // chunk height
-        encoder.channels[2].width             = dataw.max.x - dataw.min.y + 1;
-        encoder.channels[2].encode_from_ptr   = pBlue;
+        int c = 0;
+        encoder.channel_count = channelCount;
+        if (red) {
+            encoder.channels[c].user_pixel_stride = redPixelStride;
+            encoder.channels[c].user_line_stride  = redLineStride;
+            encoder.channels[c].encode_from_ptr   = pRed;
+            encoder.channels[c].height            = scansperchunk; // chunk height
+            encoder.channels[c].width             = dataw.max.x - dataw.min.y + 1;
+            ++c;
+        }
+        if (green) {
+            encoder.channels[c].user_pixel_stride = greenPixelStride;
+            encoder.channels[c].user_line_stride  = greenLineStride;
+            encoder.channels[c].height            = scansperchunk; // chunk height
+            encoder.channels[c].width             = dataw.max.x - dataw.min.y + 1;
+            encoder.channels[c].encode_from_ptr   = pGreen;
+            ++c;
+        }
+        if (blue) {
+            encoder.channels[c].user_pixel_stride = bluePixelStride;
+            encoder.channels[c].user_line_stride  = blueLineStride;
+            encoder.channels[c].height            = scansperchunk; // chunk height
+            encoder.channels[c].encode_from_ptr   = pBlue;
+            ++c;
+        }
+        if (alpha) {
+            encoder.channels[c].user_pixel_stride = alphaPixelStride;
+            encoder.channels[c].user_line_stride  = alphaLineStride;
+            encoder.channels[c].height            = scansperchunk; // chunk height
+            encoder.channels[c].width             = dataw.max.x - dataw.min.y + 1;
+            encoder.channels[c].encode_from_ptr   = pAlpha;
+        }
 
         if (first) {
             result = exr_encoding_choose_default_routines(exr, partidx, &encoder);
@@ -677,9 +541,15 @@ exr_result_t nanoexr_write_f32_exr(
         }
 
         first = false;
+        //pRed += redLineStride;
+        //pGreen += greenLineStride;
+        //pBlue += blueLineStride;
+        //pAlpha += alphaLineStride;
+
         pRed -= redLineStride;
         pGreen -= greenLineStride;
         pBlue -= blueLineStride;
+        pAlpha -= alphaLineStride;
     }
 
     result = exr_encoding_destroy(exr, &encoder);
@@ -690,6 +560,7 @@ exr_result_t nanoexr_write_f32_exr(
     result = exr_finish(&exr);
     return result;
 }
+
 
 int nanoexr_getPixelTypeSize(exr_pixel_type_t t)
 {
