@@ -1,5 +1,5 @@
 //
-// Copyright 2016 Pixar
+// Copyright 2023 Pixar
 //
 // Licensed under the Apache License, Version 2.0 (the "Apache License")
 // with the following modification; you may not use this file except in
@@ -21,26 +21,35 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
+#ifndef PXR_USD_IMAGING_USD_IMAGING_GEOM_MODEL_API_ADAPTER_H
+#define PXR_USD_IMAGING_USD_IMAGING_GEOM_MODEL_API_ADAPTER_H
 
-#include "pxr/pxr.h"
-#include "pxr/base/tf/pyFunction.h"
-#include "pxr/base/tf/pyObjWrapper.h"
+#include "pxr/usdImaging/usdImaging/apiSchemaAdapter.h"
 
-#include <boost/python/object.hpp>
+PXR_NAMESPACE_OPEN_SCOPE
 
-#include <string>
+class UsdImagingGeomModelAPIAdapter : public UsdImagingAPISchemaAdapter
+{
+public:
 
-using namespace boost;
+    using BaseAdapter = UsdImagingAPISchemaAdapter;
 
-PXR_NAMESPACE_USING_DIRECTIVE
+    USDIMAGING_API
+    HdContainerDataSourceHandle GetImagingSubprimData(
+            UsdPrim const& prim,
+            TfToken const& subprim,
+            TfToken const& appliedInstanceName,
+            const UsdImagingDataSourceStageGlobals &stageGlobals) override;
 
-void wrapFunction() {
-    TfPyFunctionFromPython<void ()>();
-    TfPyFunctionFromPython<bool ()>();
-    TfPyFunctionFromPython<int ()>();
-    TfPyFunctionFromPython<long ()>();
-    TfPyFunctionFromPython<double ()>();
-    TfPyFunctionFromPython<std::string ()>();
-    TfPyFunctionFromPython<python::object ()>();
-    TfPyFunctionFromPython<TfPyObjWrapper ()>();
-}
+    USDIMAGING_API
+    HdDataSourceLocatorSet InvalidateImagingSubprim(
+            UsdPrim const& prim,
+            TfToken const& subprim,
+            TfToken const& appliedInstanceName,
+            TfTokenVector const& properties,
+            UsdImagingPropertyInvalidationType invalidationType) override;
+};
+
+PXR_NAMESPACE_CLOSE_SCOPE
+
+#endif
