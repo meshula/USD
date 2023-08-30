@@ -315,6 +315,8 @@ bool Hio_OpenEXRImage::ReadCropped(
         // resizing is not supported for uint types.
         return false;
     }
+    
+    bool flip = storage.flipped;
 
     if (outputIsUInt) {
         // no conversion to float; read the data, and crop it if necessary.
@@ -333,7 +335,7 @@ bool Hio_OpenEXRImage::ReadCropped(
                                             img.channelCount,
                                             cropTop, cropBottom,
                                             cropLeft, cropRight);
-        if (!storage.flipped) {
+        if (flip) {
             ImageProcessor<uint32_t>::FlipImage(reinterpret_cast<uint32_t*>(img.data),
                                                 fileWidth - cropLeft - cropRight,
                                                 fileHeight - cropTop - cropBottom,
@@ -385,7 +387,7 @@ bool Hio_OpenEXRImage::ReadCropped(
                                               img.channelCount,
                                               cropTop, cropBottom,
                                               cropLeft, cropRight);
-            if (!storage.flipped) {
+            if (flip) {
                 ImageProcessor<GfHalf>::FlipImage(&halfInputBuffer[0],
                                                   fileWidth - cropLeft - cropRight,
                                                   fileHeight - cropTop - cropBottom,
@@ -398,7 +400,7 @@ bool Hio_OpenEXRImage::ReadCropped(
                                              img.channelCount,
                                              cropTop, cropBottom,
                                              cropLeft, cropRight);
-            if (!storage.flipped) {
+            if (flip) {
                 ImageProcessor<float>::FlipImage(&floatInputBuffer[0],
                                                  fileWidth - cropLeft - cropRight,
                                                  fileHeight - cropTop - cropBottom,
@@ -872,7 +874,7 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage,
         rv = nanoexr_write_exr(
                 _filename.c_str(),
                 _AttributeWriteCallback, this,
-                storage.width, storage.height,
+                storage.width, storage.height, storage.flipped,
                 EXR_PIXEL_HALF,
                 (uint8_t*) red,   pixelStride, lineStride,
                 (uint8_t*) green, pixelStride, lineStride,
@@ -914,7 +916,7 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage,
         rv = nanoexr_write_exr(
                 _filename.c_str(),
                 _AttributeWriteCallback, this,
-                storage.width, storage.height,
+                storage.width, storage.height, storage.flipped,
                 EXR_PIXEL_FLOAT,
                 red,   pixelStride, lineStride,
                 green, pixelStride, lineStride,
@@ -924,7 +926,7 @@ bool Hio_OpenEXRImage::Write(StorageSpec const &storage,
         rv = nanoexr_write_exr(
                 _filename.c_str(),
                 _AttributeWriteCallback, this,
-                storage.width, storage.height,
+                storage.width, storage.height, storage.flipped,
                 EXR_PIXEL_HALF,
                 red,   pixelStride, lineStride,
                 green, pixelStride, lineStride,

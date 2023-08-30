@@ -333,7 +333,8 @@ int nanoexr_read_header(nanoexr_Reader_t* reader, exr_read_func_ptr_t readFn,
 exr_result_t nanoexr_write_exr(
     const char* filename,
     nanoexr_attrsAdd attrsAdd, void* attrsAdd_userData,
-    int width, int height, exr_pixel_type_t pixel_type,
+    int width, int height, bool flipped,
+    exr_pixel_type_t pixel_type,
     uint8_t* red,   int32_t redPixelStride,   int32_t redLineStride,
     uint8_t* green, int32_t greenPixelStride, int32_t greenLineStride,
     uint8_t* blue,  int32_t bluePixelStride,  int32_t blueLineStride,
@@ -471,10 +472,23 @@ exr_result_t nanoexr_write_exr(
     exr_get_scanlines_per_chunk(exr, partidx, &scansperchunk);
     bool                  first = true;
 
-    uint8_t* pRed =   red + (height - 1) * redLineStride;
-    uint8_t* pGreen = green + (height - 1) * greenLineStride;
-    uint8_t* pBlue =  blue + (height - 1) * blueLineStride;
-    uint8_t* pAlpha = alpha + (height - 1) * alphaLineStride;
+    uint8_t* pRed;
+    uint8_t* pGreen;
+    uint8_t* pBlue;
+    uint8_t* pAlpha;
+
+    if (flipped) {
+        pRed =   red + (height - 1) * redLineStride;
+        pGreen = green + (height - 1) * greenLineStride;
+        pBlue =  blue + (height - 1) * blueLineStride;
+        pAlpha = alpha + (height - 1) * alphaLineStride;
+    }
+    else {
+        pRed =   red;
+        pGreen = green;
+        pBlue =  blue;
+        pAlpha = alpha;
+    }
     
     int chunkInfoIndex = 0;
     for (int y = dataw.min.y; y <= dataw.max.y; y += scansperchunk, ++chunkInfoIndex) {
@@ -541,15 +555,18 @@ exr_result_t nanoexr_write_exr(
         }
 
         first = false;
-        //pRed += redLineStride;
-        //pGreen += greenLineStride;
-        //pBlue += blueLineStride;
-        //pAlpha += alphaLineStride;
-
-        pRed -= redLineStride;
-        pGreen -= greenLineStride;
-        pBlue -= blueLineStride;
-        pAlpha -= alphaLineStride;
+        if (flipped) {
+            pRed -= redLineStride;
+            pGreen -= greenLineStride;
+            pBlue -= blueLineStride;
+            pAlpha -= alphaLineStride;
+        }
+        else {
+            pRed += redLineStride;
+            pGreen += greenLineStride;
+            pBlue += blueLineStride;
+            pAlpha += alphaLineStride;
+        }
     }
 
     result = exr_encoding_destroy(exr, &encoder);
