@@ -692,7 +692,7 @@ ZLIB = Dependency("zlib", InstallZlib, "include/zlib.h")
 # boost
 
 if Windows():
-    BOOST_VERSION_FILE = "include/boost-1_78/boost/version.hpp"
+    BOOST_VERSION_FILE = "include/boost-1_81/boost/version.hpp"
 else:
     BOOST_VERSION_FILE = "include/boost/version.hpp"
 
@@ -702,18 +702,18 @@ def InstallBoost_Helper(context, force, buildArgs):
     # However, there are some cases where a newer version is required.
     # - Building with Python 3.10 requires boost 1.76.0 or newer.
     #   (https://github.com/boostorg/python/commit/cbd2d9)
-    # - Building with Visual Studio 2022 requires boost 1.78.0 or newer.
+    # - Building with Visual Studio 2022 requires boost 1.81.0 or newer.
     #   (https://github.com/boostorg/build/issues/735)
-    # - Building on MacOS requires boost 1.78.0 or newer to resolve Python 3
+    # - Building on MacOS requires boost 1.81.0 or newer to resolve Python 3
     #   compatibility issues on Big Sur and Monterey.
     pyInfo = GetPythonInfo(context)
     pyVer = (int(pyInfo[3].split('.')[0]), int(pyInfo[3].split('.')[1]))
     if context.buildPython and pyVer >= (3, 10):
-        BOOST_URL = "https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.zip"
+        BOOST_URL = "https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.zip"
     elif IsVisualStudio2022OrGreater():
-        BOOST_URL = "https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.zip"
+        BOOST_URL = "https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.zip"
     elif MacOS():
-        BOOST_URL = "https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.zip"
+        BOOST_URL = "https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.zip"
     else:
         BOOST_URL = "https://boostorg.jfrog.io/artifactory/main/release/1.70.0/source/boost_1_70_0.zip"
 
@@ -913,7 +913,7 @@ def InstallBoost(context, force, buildArgs):
 # settings for maximum compatibility.
 #
 # On behalf of versions of visual studio prior to vs2022, we still support
-# boost 1.70. We don't completely know if boost 1.78 is in play on Windows, 
+# boost 1.70. We don't completely know if boost 1.81 is in play on Windows, 
 # until we have determined whether Python 3 has been selected as a target. 
 # That isn't known at this point in the script, so we simplify the logic by 
 # checking for any of the possible boost header locations that are possible
@@ -921,7 +921,7 @@ def InstallBoost(context, force, buildArgs):
 BOOST = Dependency("boost", InstallBoost, 
                    "include/boost/version.hpp",
                    "include/boost-1_70/boost/version.hpp",
-                   "include/boost-1_78/boost/version.hpp")
+                   "include/boost-1_81/boost/version.hpp")
 
 ############################################################
 # Intel TBB
