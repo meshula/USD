@@ -72,3 +72,8 @@ if (PXR_BUILD_PYTHON_DOCUMENTATION)
 endif()
 
 pxr_toplevel_epilogue()
+
+if (APPLE)
+    message(STATUS "OpenUSD.framework will be created during installation")
+    pxr_create_apple_framework()
+endif()
