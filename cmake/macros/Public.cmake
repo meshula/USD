@@ -1283,3 +1283,59 @@ function(pxr_build_python_documentation)
         --output ${INSTALL_PYTHON_PXR_ROOT})")
 
 endfunction() # pxr_build_python_documentation
+
+function(pxr_create_apple_framework)
+
+    # Set paths
+    set(FRAMEWORK_NAME "OpenUSD")
+    set(FRAMEWORK_DIR "${CMAKE_INSTALL_PREFIX}/${FRAMEWORK_NAME}.framework")
+    set(FRAMEWORK_HEADERS_DIR "${FRAMEWORK_DIR}/Headers")
+    set(FRAMEWORK_LIBS_DIR "${FRAMEWORK_DIR}/Libraries")
+    set(FRAMEWORK_PLIST "${FRAMEWORK_DIR}/Versions/A/Resources/Info.plist")
+    set(FRAMEWORK_VERSION "1.0")
+
+    # Generate Info.plist
+    # Set the encoded Info.plist content
+    set(FRAMEWORK_INFO_PLIST
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
+        "<plist version=\"1.0\">\n"
+        "<dict>\n"
+        "    <key>CFBundleDevelopmentRegion</key>\n"
+        "    <string>en</string>\n"
+        "    <key>CFBundleExecutable</key>\n"
+        "    <string>${FRAMEWORK_NAME}</string>\n"
+        "    <key>CFBundleIdentifier</key>\n"
+        "    <string>com.yourcompany.${FRAMEWORK_NAME}</string>\n"
+        "    <key>CFBundleInfoDictionaryVersion</key>\n"
+        "    <string>6.0</string>\n"
+        "    <key>CFBundleName</key>\n"
+        "    <string>${FRAMEWORK_NAME}</string>\n"
+        "    <key>CFBundlePackageType</key>\n"
+        "    <string>FMWK</string>\n"
+        "    <key>CFBundleShortVersionString</key>\n"
+        "    <string>${FRAMEWORK_VERSION}</string>\n"
+        "    <key>CFBundleVersion</key>\n"
+        "    <string>${FRAMEWORK_VERSION}</string>\n"
+        "    <key>CSResourcesFileMapped</key>\n"
+        "    <true/>\n"
+        "</dict>\n"
+        "</plist>\n"
+    )
+
+    # Create Framework directories
+    install(DIRECTORY DESTINATION ${FRAMEWORK_HEADERS_DIR})
+    install(DIRECTORY DESTINATION ${FRAMEWORK_LIBS_DIR})
+
+    # Copy headers and libraries during install
+    install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/include/" DESTINATION "${FRAMEWORK_HEADERS_DIR}")
+    install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/lib/" DESTINATION "${FRAMEWORK_LIBS_DIR}")
+
+    # Generate Info.plist during install
+    file(WRITE ${FRAMEWORK_PLIST} ${FRAMEWORK_INFO_PLIST})
+    install(FILES ${FRAMEWORK_PLIST} DESTINATION "${FRAMEWORK_DIR}/Versions/A/Resources")
+
+    # Define custom target for the framework
+    add_custom_target(${FRAMEWORK_NAME}_plist ALL DEPENDS ${FRAMEWORK_PLIST})
+
+endfunction()
