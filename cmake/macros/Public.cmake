@@ -1327,9 +1327,13 @@ function(pxr_create_apple_framework)
     install(DIRECTORY DESTINATION ${FRAMEWORK_HEADERS_DIR})
     install(DIRECTORY DESTINATION ${FRAMEWORK_LIBS_DIR})
 
-    # Copy headers and libraries during install
+    # Copy headers, libraries, and plugins during install
     install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/include/" DESTINATION "${FRAMEWORK_HEADERS_DIR}")
     install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/lib/" DESTINATION "${FRAMEWORK_LIBS_DIR}")
+    install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/plugin/" DESTINATION "${FRAMEWORK_DIR}/Versions/A/Resources/plugin")
+
+    # MaterialX libraries
+    install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/libraries/" DESTINATION "${FRAMEWORK_DIR}/Versions/A/Resources/libraries")
 
     # Generate Info.plist during install
     file(WRITE ${FRAMEWORK_PLIST} ${FRAMEWORK_INFO_PLIST})

@@ -691,7 +691,7 @@ ZLIB = Dependency("zlib", InstallZlib, "include/zlib.h")
 ############################################################
 # boost
 
- The default installation of boost on Windows puts headers in a versioned 
+# The default installation of boost on Windows puts headers in a versioned 
 # subdirectory, which we have to account for here. Specifying "layout=system" 
 # would cause the Windows header install to match Linux/MacOS, but the 
 # "layout=system" flag also changes the naming of the boost dlls in a 
