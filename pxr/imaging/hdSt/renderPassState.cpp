@@ -274,7 +274,7 @@ HdStRenderPassState::Prepare(
 
     // allocate bar if it does not exist
     if (!_renderPassStateBar || 
-        (_clipPlanesBufferSize != clipPlanes.size()) ||
+        _clipPlanesBufferSize < clipPlanes.size() ||
         _alphaThresholdCurrent != _alphaThreshold) {
         HdBufferSpecVector bufferSpecs;
 
@@ -343,12 +343,18 @@ HdStRenderPassState::Prepare(
             HdShaderTokens->viewport,
             HdTupleType{HdTypeFloatVec4, 1});
 
-        if (clipPlanes.size() > 0) {
-            bufferSpecs.emplace_back(
-                HdShaderTokens->clipPlanes,
-                HdTupleType{HdTypeFloatVec4, clipPlanes.size()});
-        }
-        _clipPlanesBufferSize = clipPlanes.size();
+        // Avoid shader permutations when using 0-4 clip planes by always
+        // allocating storage for 4 clip planes.
+        static constexpr size_t s_minNumClipPlanes = 4;
+        _clipPlanesBufferSize =
+            std::max<size_t>(clipPlanes.size(), s_minNumClipPlanes);
+        bufferSpecs.emplace_back(
+            HdShaderTokens->clipPlanes,
+            HdTupleType{HdTypeFloatVec4, _clipPlanesBufferSize});
+
+        bufferSpecs.emplace_back(
+            HdShaderTokens->numClipPlanes,
+            HdTupleType{HdTypeUInt32, 1});
 
         // allocate interleaved buffer
         _renderPassStateBar = 
@@ -466,6 +472,10 @@ HdStRenderPassState::Prepare(
                 VtValue(clipPlanes),
                 clipPlanes.size()));
     }
+    sources.push_back(
+    std::make_shared<HdVtBufferSource>(
+        HdShaderTokens->numClipPlanes,
+        VtValue(uint32_t(clipPlanes.size()))));
 
     hdStResourceRegistry->AddSources(_renderPassStateBar, std::move(sources));
 
@@ -824,7 +834,10 @@ HdStRenderPassState::GetShaderHash() const
     if (_renderPassShader) {
         boost::hash_combine(hash, _renderPassShader->ComputeHash());
     }
-    boost::hash_combine(hash, GetClipPlanes().size());
+
+    // See note earlier about avoiding shader variants when 0-4 clip planes are
+    // used.
+    boost::hash_combine(hash, _clipPlanesBufferSize);
     boost::hash_combine(hash, _UseAlphaMask());
     return hash;
 }
@@ -891,25 +904,66 @@ GfVec4f _ToVec4f(const VtValue &v)
 void
 HdStRenderPassState::_InitAttachmentDesc(
     HgiAttachmentDesc &attachmentDesc,
+    HdRenderPassAovBinding const & binding,
+    HdRenderBuffer const * renderBuffer,
     int aovIndex) const
 {
-    // HdSt expresses blending per RenderPassState, where Hgi expresses
-    // blending per-attachment. Transfer pass blend state to attachments.
-    attachmentDesc.blendEnabled = _blendEnabled;
-    attachmentDesc.srcColorBlendFactor = HgiBlendFactor(_blendColorSrcFactor);
-    attachmentDesc.dstColorBlendFactor = HgiBlendFactor(_blendColorDstFactor);
-    attachmentDesc.colorBlendOp = HgiBlendOp(_blendColorOp);
-    attachmentDesc.srcAlphaBlendFactor = HgiBlendFactor(_blendAlphaSrcFactor);
-    attachmentDesc.dstAlphaBlendFactor = HgiBlendFactor(_blendAlphaDstFactor);
-    attachmentDesc.alphaBlendOp = HgiBlendOp(_blendAlphaOp);
-    attachmentDesc.blendConstantColor = _blendConstantColor;
+    if (TF_VERIFY(renderBuffer, "Invalid render buffer")) {
+        attachmentDesc.format = HdStHgiConversions::GetHgiFormat(
+            renderBuffer->GetFormat());
+    }
 
-    if (!_colorMaskUseDefault) {
-        if (aovIndex > 0 && aovIndex < (int)_colorMasks.size()) {
-            attachmentDesc.colorMask = _GetColorMask(_colorMasks[aovIndex]);
-        } else if (_colorMasks.size() == 1) {
-            attachmentDesc.colorMask = _GetColorMask(_colorMasks[0]);
+    if (HdAovHasDepthSemantic(binding.aovName)) {
+        attachmentDesc.usage = HgiTextureUsageBitsDepthTarget;
+    } else if (HdAovHasDepthStencilSemantic(binding.aovName)) {
+        attachmentDesc.usage = HgiTextureUsageBitsStencilTarget |
+                               HgiTextureUsageBitsDepthTarget;
+    } else {
+        attachmentDesc.usage = HgiTextureUsageBitsColorTarget;
+
+        // HdSt expresses blending per RenderPassState, where Hgi expresses
+        // blending per-attachment. Transfer pass blend state to attachments.
+        attachmentDesc.blendEnabled = _blendEnabled;
+        attachmentDesc.srcColorBlendFactor =
+            HgiBlendFactor(_blendColorSrcFactor);
+        attachmentDesc.dstColorBlendFactor =
+            HgiBlendFactor(_blendColorDstFactor);
+        attachmentDesc.colorBlendOp = HgiBlendOp(_blendColorOp);
+        attachmentDesc.srcAlphaBlendFactor =
+            HgiBlendFactor(_blendAlphaSrcFactor);
+        attachmentDesc.dstAlphaBlendFactor =
+            HgiBlendFactor(_blendAlphaDstFactor);
+        attachmentDesc.alphaBlendOp = HgiBlendOp(_blendAlphaOp);
+        attachmentDesc.blendConstantColor = _blendConstantColor;
+
+        if (!_colorMaskUseDefault) {
+            if (aovIndex > 0 && aovIndex < (int)_colorMasks.size()) {
+                attachmentDesc.colorMask = _GetColorMask(_colorMasks[aovIndex]);
+            } else if (_colorMasks.size() == 1) {
+                attachmentDesc.colorMask = _GetColorMask(_colorMasks[0]);
+            }
         }
+    }
+
+    // We need to use LoadOpLoad instead of DontCare because we can have
+    // multiple render passes that use the same attachments.
+    // For example, translucent renders after opaque so we must load the
+    // opaque results before rendering translucent objects.
+    HgiAttachmentLoadOp loadOp = binding.clearValue.IsEmpty() ?
+        HgiAttachmentLoadOpLoad :
+        HgiAttachmentLoadOpClear;
+    attachmentDesc.loadOp = loadOp;
+
+    // Don't store multisample images. Only store the resolved versions.
+    // This saves a bunch of bandwith (especially on tiled gpu's).
+    // attachmentDesc.storeOp = (multiSampled && resolveMultiSample) ?
+    //     HgiAttachmentStoreOpDontCare :
+    //     HgiAttachmentStoreOpStore;
+    // APPLE METAL: The logic above needs revisiting!
+    attachmentDesc.storeOp = HgiAttachmentStoreOpStore;
+
+    if (!binding.clearValue.IsEmpty()) {
+        attachmentDesc.clearValue = _ToVec4f(binding.clearValue);
     }
 }
 
@@ -934,7 +988,6 @@ HdStRenderPassState::MakeGraphicsCmdsDesc(
         HdRenderPassAovBinding const & aov = aovBindings[aovIndex];
         HdRenderBuffer * const renderBuffer =
             _GetRenderBuffer(aov, renderIndex);
-
 
         if (!TF_VERIFY(renderBuffer, "Invalid render buffer")) {
             continue;
@@ -963,34 +1016,7 @@ HdStRenderPassState::MakeGraphicsCmdsDesc(
         }
 
         HgiAttachmentDesc attachmentDesc;
-
-        attachmentDesc.format = hgiTexHandle->GetDescriptor().format;
-        attachmentDesc.usage = hgiTexHandle->GetDescriptor().usage;
-
-        // We need to use LoadOpLoad instead of DontCare because we can have
-        // multiple render passes that use the same attachments.
-        // For example, translucent renders after opaque so we must load the
-        // opaque results before rendering translucent objects.
-        HgiAttachmentLoadOp loadOp = aov.clearValue.IsEmpty() ?
-            HgiAttachmentLoadOpLoad :
-            HgiAttachmentLoadOpClear;
-
-        attachmentDesc.loadOp = loadOp;
-
-        // Don't store multisample images. Only store the resolved versions.
-        // This saves a bunch of bandwith (especially on tiled gpu's).
-        attachmentDesc.storeOp = (multiSampled && resolveMultiSample) ?
-            HgiAttachmentStoreOpDontCare :
-            HgiAttachmentStoreOpStore;
-        
-        // APPLE METAL: The logic above needs revisiting!
-        attachmentDesc.storeOp = HgiAttachmentStoreOpStore;
-
-        if (!aov.clearValue.IsEmpty()) {
-            attachmentDesc.clearValue = _ToVec4f(aov.clearValue);
-        }
-
-        _InitAttachmentDesc(attachmentDesc, aovIndex);
+        _InitAttachmentDesc(attachmentDesc, aov, renderBuffer, aovIndex);
 
         if (HdAovHasDepthSemantic(aov.aovName) ||
             HdAovHasDepthStencilSemantic(aov.aovName)) {
@@ -1075,31 +1101,21 @@ void
 HdStRenderPassState::_InitAttachmentState(
     HgiGraphicsPipelineDesc * pipeDesc) const
 {
-    // For Metal we have to pass the color and depth descriptors down so
-    // that they are available when creating the Render Pipeline State for
-    // the fragment shaders.
+    // For Metal and Vulkan, we have to pass the color and depth descriptors 
+    // down so that they are available when creating the Render Pipeline State
+    // for the fragment shaders.
     HdRenderPassAovBindingVector const& aovBindings = GetAovBindings();
 
     for (size_t aovIndex = 0; aovIndex < aovBindings.size(); ++aovIndex) {
         HdRenderPassAovBinding const & binding = aovBindings[aovIndex];
+        HgiAttachmentDesc attachment;
+        _InitAttachmentDesc(
+            attachment, binding, binding.renderBuffer, aovIndex);
+
         if (HdAovHasDepthSemantic(binding.aovName) ||
             HdAovHasDepthStencilSemantic(binding.aovName)) {
-            HdFormat const hdFormat = binding.renderBuffer->GetFormat();
-            HgiFormat const format = HdStHgiConversions::GetHgiFormat(hdFormat);
-            pipeDesc->depthAttachmentDesc.format = format;
-            pipeDesc->depthAttachmentDesc.usage =
-                HgiTextureUsageBitsDepthTarget;
-
-            if (HdAovHasDepthStencilSemantic(binding.aovName)) {
-                pipeDesc->depthAttachmentDesc.usage |=
-                    HgiTextureUsageBitsStencilTarget;
-            }
+            pipeDesc->depthAttachmentDesc = attachment;
         } else {
-            HdFormat const hdFormat = binding.renderBuffer->GetFormat();
-            HgiFormat const format = HdStHgiConversions::GetHgiFormat(hdFormat);
-            HgiAttachmentDesc attachment;
-            attachment.format = format;
-            _InitAttachmentDesc(attachment, aovIndex);
             pipeDesc->colorAttachmentDescs.push_back(attachment);
         }
     }

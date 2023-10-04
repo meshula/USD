@@ -42,6 +42,11 @@ import re
 
 from .cdUtils import *
 
+
+API_RE_FIND = re.compile(r"""\b[A-Z]+_API(?:\s+|$)""")
+API_RE_REPLACE = ""
+
+
 class Writer:
     """
     Manage the formatting of Python docstrings and output file generation.
@@ -205,11 +210,17 @@ class Writer:
         # following lines of a list item are indented at the same
         # level. We word wrap the text, but don't break long words
         # as we don't want to word wrap code sections.
+        # Take extra care with doxygen lifted CODE block lines.
         textWrapper = textwrap.TextWrapper(width=70, break_long_words=False)
-        newlines = list(map(textWrapper.fill, newlines))
+        wrapped_lines = []
+        for line in newlines:
+            if line.startswith("CODE_START"): # skip line wrapping on codeblock - manually unwrapped below
+                wrapped_lines.append(line)
+            else:
+                wrapped_lines.append(textWrapper.fill(line))
         lines = []
         inlistitem = False
-        for curline in newlines:
+        for curline in wrapped_lines:
             # the textwrap.fill call adds \n's at line breaks
             for line in curline.split('\n'):
                 if line.startswith("   - "):
@@ -463,6 +474,7 @@ class Writer:
         ret = ret.replace('boost::', '')
         ret = ret.replace('vector', 'sequence')
         ret = ret.replace('::', '.')
+        ret = API_RE_FIND.sub(API_RE_REPLACE, ret)
         ret = ret.strip()
         if ret.startswith(self.prefix):
             ret = ret[len(self.prefix):]

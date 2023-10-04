@@ -179,6 +179,7 @@ HdSt_CodeGen::HdSt_CodeGen(HdSt_GeometricShaderPtr const &geometricShader,
     , _hasCS(false)
     , _hasPTCS(false)
     , _hasPTVS(false)
+    , _hasClipPlanes(false)
 {
     TF_VERIFY(geometricShader);
 }
@@ -194,6 +195,7 @@ HdSt_CodeGen::HdSt_CodeGen(HdStShaderCodeSharedPtrVector const &shaders)
     , _hasCS(false)
     , _hasPTCS(false)
     , _hasPTVS(false)
+    , _hasClipPlanes(false)
 {
 }
 
@@ -708,9 +710,9 @@ _ResourceGenerator::_GenerateHgiResources(
             if (element.inOut == InOut::STAGE_IN) {
                 if (_IsVertexAttribInputStage(shaderStage)) {
                     HgiShaderFunctionParamDesc param;
-                        param.nameInShader = element.name;
-                        param.type = element.dataType;
-                        param.location = _GetLocation(element, metaData);
+                    param.nameInShader = element.name;
+                    param.type = element.dataType;
+                    param.location = _GetLocation(element, metaData);
                     if (shaderStage == HdShaderTokens->postTessControlShader ||
                         shaderStage == HdShaderTokens->postTessVertexShader) {
                         param.arraySize = "VERTEX_CONTROL_POINTS_PER_PATCH";
@@ -718,16 +720,13 @@ _ResourceGenerator::_GenerateHgiResources(
                     HgiShaderFunctionAddStageInput(funcDesc, param);
                 } else {
                     HgiShaderFunctionParamDesc param;
-                        param.nameInShader = element.name;
-                        param.type = element.dataType;
-                        param.interstageSlot = _GetSlot(element.name);
-                        param.interpolation =
-                            _GetInterpolation(element.qualifiers);
-                        param.sampling =
-                            _GetSamplingQualifier(element.qualifiers);
-                        param.storage =
-                            _GetStorageQualifier(element.qualifiers);
-                        param.arraySize = element.arraySize;
+                    param.nameInShader = element.name;
+                    param.type = element.dataType;
+                    param.interstageSlot = _GetSlot(element.name);
+                    param.interpolation = _GetInterpolation(element.qualifiers);
+                    param.sampling = _GetSamplingQualifier(element.qualifiers);
+                    param.storage = _GetStorageQualifier(element.qualifiers);
+                    param.arraySize = element.arraySize;
                     HgiShaderFunctionAddStageInput(funcDesc, param);
                 }
             } else if (element.inOut == InOut::STAGE_OUT) {
@@ -739,16 +738,13 @@ _ResourceGenerator::_GenerateHgiResources(
                         /*role=*/_GetOutputRoleName(element.name));
                 } else {
                     HgiShaderFunctionParamDesc param;
-                        param.nameInShader = element.name,
-                        param.type = element.dataType,
-                        param.interstageSlot = _GetSlot(element.name);
-                        param.interpolation =
-                                _GetInterpolation(element.qualifiers);
-                        param.sampling =
-                                _GetSamplingQualifier(element.qualifiers);
-                        param.storage =
-                                _GetStorageQualifier(element.qualifiers);
-                        param.arraySize = element.arraySize;
+                    param.nameInShader = element.name,
+                    param.type = element.dataType,
+                    param.interstageSlot = _GetSlot(element.name);
+                    param.interpolation = _GetInterpolation(element.qualifiers);
+                    param.sampling = _GetSamplingQualifier(element.qualifiers);
+                    param.storage = _GetStorageQualifier(element.qualifiers);
+                    param.arraySize = element.arraySize;
                     HgiShaderFunctionAddStageOutput(funcDesc, param);
                 }
             }
@@ -1817,6 +1813,10 @@ HdSt_CodeGen::Compile(HdStResourceRegistry*const registry)
                                     dbIt->name, dbIt->dataType, dbIt->arraySize,
                                     NULL,  dbIt->concatenateNames);
             }
+
+            if (dbIt->name == HdShaderTokens->clipPlanes) {
+                _hasClipPlanes = true;
+            }
         }
 
         _genDecl << "};\n";
@@ -2616,6 +2616,12 @@ HdSt_CodeGen::_CompileWithGeneratedHgiResources(
                 &vsDesc, "gl_PointSize", "float", pointRole);
         }
 
+        if (_hasClipPlanes) {
+            HgiShaderFunctionAddStageOutput(
+                &vsDesc, "gl_ClipDistance", "float",
+                "clip_distance", /*arraySize*/"HD_NUM_clipPlanes");
+        }
+
         if (!glslProgram->CompileShader(vsDesc)) {
             return nullptr;
         }
@@ -2685,6 +2691,12 @@ HdSt_CodeGen::_CompileWithGeneratedHgiResources(
         tcsDesc.shaderCodeDeclarations = declarations.c_str();
         tcsDesc.shaderCode = source.c_str();
         tcsDesc.generatedShaderCodeOut = &_tcsSource;
+        
+        if (_hasClipPlanes) {
+            HgiShaderFunctionAddStageOutput(
+                &tcsDesc, "gl_ClipDistance", "float",
+                "clip_distance", /*arraySize*/"HD_NUM_clipPlanes");
+        }
 
         if (!glslProgram->CompileShader(tcsDesc)) {
             return nullptr;
@@ -2709,6 +2721,12 @@ HdSt_CodeGen::_CompileWithGeneratedHgiResources(
         tesDesc.shaderCodeDeclarations = declarations.c_str();
         tesDesc.shaderCode = source.c_str();
         tesDesc.generatedShaderCodeOut = &_tesSource;
+
+        if (_hasClipPlanes) {
+            HgiShaderFunctionAddStageOutput(
+                &tesDesc, "gl_ClipDistance", "float",
+                "clip_distance", /*arraySize*/"HD_NUM_clipPlanes");
+        }
 
         if (!glslProgram->CompileShader(tesDesc)) {
             return nullptr;
@@ -2804,6 +2822,12 @@ HdSt_CodeGen::_CompileWithGeneratedHgiResources(
             &ptcsDesc, "gl_PointSize", "float",
                 pointRole);
 
+        if (_hasClipPlanes) {
+            HgiShaderFunctionAddStageOutput(
+                &ptcsDesc, "gl_ClipDistance", "float",
+                "clip_distance", /*arraySize*/"HD_NUM_clipPlanes");
+        }
+
         if (!glslProgram->CompileShader(ptcsDesc)) {
             return nullptr;
         }
@@ -2890,6 +2914,12 @@ HdSt_CodeGen::_CompileWithGeneratedHgiResources(
             &ptvsDesc, "gl_PointSize", "float",
                 pointRole);
 
+        if (_hasClipPlanes) {
+            HgiShaderFunctionAddStageOutput(
+                &ptvsDesc, "gl_ClipDistance", "float",
+                "clip_distance", /*arraySize*/"HD_NUM_clipPlanes");
+        }
+
         if (!glslProgram->CompileShader(ptvsDesc)) {
             return nullptr;
         }
@@ -2919,6 +2949,12 @@ HdSt_CodeGen::_CompileWithGeneratedHgiResources(
         gsDesc.shaderCodeDeclarations = declarations.c_str();
         gsDesc.shaderCode = source.c_str();
         gsDesc.generatedShaderCodeOut = &_gsSource;
+
+        if (_hasClipPlanes) {
+            HgiShaderFunctionAddStageOutput(
+                &gsDesc, "gl_ClipDistance", "float",
+                "clip_distance", /*arraySize*/"HD_NUM_clipPlanes");
+        }
 
         if (!glslProgram->CompileShader(gsDesc)) {
             return nullptr;
@@ -4652,7 +4688,7 @@ HdSt_CodeGen::_GenerateInstancePrimvar()
       };
 
       // --------- instance data accessors ----------
-      vec3 HdGet_translate(int localIndex=0) {
+      vec3 HdGet_hydra_instanceTranslations(int localIndex=0) {
           return instanceData0[GetInstanceCoord()].translate;
       }
     */
@@ -4689,11 +4725,11 @@ HdSt_CodeGen::_GenerateInstancePrimvar()
       note that instance primvar may or may not be defined for each level.
       we expect level is an unrollable constant to optimize out branching.
 
-      vec3 HdGetInstance_translate(int level, vec3 defaultValue) {
-          if (level == 0) return HdGet_translate_0();
+      vec3 HdGetInstance_hydra_instanceTranslations(int level, vec3 defaultValue) {
+          if (level == 0) return HdGet_hydra_instanceTranslations_0();
           // level==1 is not defined. use default
-          if (level == 2) return HdGet_translate_2();
-          if (level == 3) return HdGet_translate_3();
+          if (level == 2) return HdGet_hydra_instanceTranslations_2();
+          if (level == 3) return HdGet_hydra_instanceTranslations_3();
           return defaultValue;
       }
     */
@@ -4714,14 +4750,14 @@ HdSt_CodeGen::_GenerateInstancePrimvar()
       common accessor, if the primvar is defined on the instancer but not
       the rprim.
 
-      #if !defined(HD_HAS_translate)
-      #define HD_HAS_translate 1
-      vec3 HdGet_translate(int localIndex) {
+      #if !defined(HD_HAS_hydra_instanceTranslations)
+      #define HD_HAS_hydra_instanceTranslations 1
+      vec3 HdGet_hydra_instanceTranslations(int localIndex) {
           // 0 is the lowest level for which this is defined
-          return HdGet_translate_0();
+          return HdGet_hydra_instanceTranslations_0();
       }
-      vec3 HdGet_translate() {
-          return HdGet_translate(0);
+      vec3 HdGet_hydra_instanceTranslations() {
+          return HdGet_hydra_instanceTranslations(0);
       }
       #endif
     */
@@ -4745,6 +4781,14 @@ HdSt_CodeGen::_GenerateInstancePrimvar()
 void
 HdSt_CodeGen::_GenerateElementPrimvar()
 {
+    // Don't need to codegen element primvars for frustum culling as they're
+    // unneeded. Including them can cause errors in Hgi backends like Vulkan, 
+    // which needs the resource layout made in HgiVulkanResourceBindings to 
+    // match the one generated by SPIRV-Reflect in HgiVulkanGraphicsPipeline
+    // when creating the VkPipelineLayout.
+    if (_geometricShader->IsFrustumCullingPass()) {
+        return;
+    }
     /*
     Accessing uniform primvar data:
     ===============================
