@@ -62,6 +62,13 @@ endif()
 
 if (PXR_BUILD_DOCUMENTATION)
     pxr_build_documentation()
+
+    # If building python doc strings, run script
+    # that uses doxygen build results and installed
+    # USD python modules
+    if (PXR_BUILD_PYTHON_DOCUMENTATION)
+        pxr_build_python_documentation()
+    endif()
 endif()   
 
 # If building python doc strings, run script
@@ -71,9 +78,10 @@ if (PXR_BUILD_PYTHON_DOCUMENTATION)
     pxr_build_python_documentation()
 endif()
 
-pxr_toplevel_epilogue()
-
 if (APPLE)
     message(STATUS "OpenUSD.framework will be created during installation")
     pxr_create_apple_framework()
 endif()
+
+pxr_toplevel_epilogue()
+

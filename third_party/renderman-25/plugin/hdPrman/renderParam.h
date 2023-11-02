@@ -31,8 +31,10 @@
 #include "hdPrman/cameraContext.h"
 #include "hdPrman/renderViewContext.h"
 #include "hdPrman/tokens.h"
+#include "pxr/base/gf/vec2f.h"
 #include "pxr/imaging/hd/sceneDelegate.h"
 #include "pxr/imaging/hd/renderDelegate.h"
+#include "pxr/imaging/hd/renderSettings.h"
 #include "pxr/imaging/hd/material.h"
 
 #include "Riley.h"
@@ -185,28 +187,20 @@ public:
         int vertexPrimvarCount,
         RtPrimVarList& primvars);
 
-    HDPRMAN_API
-    static bool GetMotionBlur(
-        HdSceneDelegate *sceneDelegate, const SdfPath& id);
-
-    HDPRMAN_API
-    static bool GetVelocityBlur(
-        HdSceneDelegate *sceneDelegate, const SdfPath& id);
-
-    HDPRMAN_API
-    static bool GetAccelerationBlur(
-        HdSceneDelegate *sceneDelegate, const SdfPath& id);
-
-    HDPRMAN_API
-    static int GetNumGeoSamples(
-        HdSceneDelegate *sceneDelegate, const SdfPath& id);
-
-    HDPRMAN_API
-    static int GetNumXformSamples(
-        HdSceneDelegate *sceneDelegate, const SdfPath& id);
-
     // Request edit access to the Riley scene and return it.
+    HDPRMAN_API
     riley::Riley * AcquireRiley();
+
+    // Get the current frame-relative shutter interval.
+    // Note: This function should be called after SetRileyOptions.
+    const GfVec2f& GetShutterInterval() {
+        return _shutterInterval;
+    }
+
+    // Returns whether motion blur is enabled based on the cached riley shutter
+    // interval.
+    // Note: This function should be called after SetRileyOptions.
+    bool IsMotionBlurEnabled() const;
 
     // Provides external access to resources used to set parameters for
     // options and the active integrator.
@@ -224,6 +218,11 @@ public:
         return _lastLegacySettingsVersion;
     }
     void SetLastLegacySettingsVersion(int version);
+
+    // Legacy data flow to resolution from the render pass via render pass
+    // state.
+    GfVec2i const &GetResolution() { return _resolution; }
+    void SetResolution(GfVec2i const & resolution);
 
     // Invalidate texture at path.
     void InvalidateTexture(const std::string &path);
@@ -250,8 +249,9 @@ public:
 
     void CreateRenderViewFromRenderSpec(const VtDictionary &renderSpec);
 
-    void CreateRenderViewFromRenderSettingsPrim(
-        HdPrman_RenderSettings const &renderSettingsPrim);
+    void CreateRenderViewFromRenderSettingsProduct(
+        HdRenderSettings::RenderProduct const &product,
+        HdPrman_RenderViewContext *renderViewContext);
 
     // Starts the render thread (if needed), and tells the render thread to
     // call into riley and start a render.
@@ -295,7 +295,7 @@ public:
     }
 
     // Creates displays in riley based on rendersettings map
-    void CreateRenderViewFromProducts(
+    void CreateRenderViewFromLegacyProducts(
         const VtArray<HdRenderSettingsMap>& renderProducts, int frame);
 
     // Scene version counter.
@@ -305,17 +305,17 @@ public:
     // resolution edits, so we need to keep track of these too.
     void SetActiveIntegratorId(riley::IntegratorId integratorId);
 
-    GfVec2i resolution;
-
     void UpdateQuickIntegrator(const HdRenderIndex * renderIndex);
 
     riley::IntegratorId GetQuickIntegratorId() const {
         return _quickIntegratorId;
     }
 
-    // Compute shutter interval from render settings and camera and
-    // immediately set it as riley option.
-    void UpdateRileyShutterInterval(const HdRenderIndex * renderIndex);
+    // Compute shutter interval from the camera Sprim and legacy render settings
+    // map and update the value on the legacy options param list.
+    // Also invoke SetRileyOptions to commit it.
+    void SetRileyShutterIntervalFromCameraContextCameraPath(
+        const HdRenderIndex * renderIndex);
 
     // Path to the Integrator from the Render Settings Prim
     void SetRenderSettingsIntegratorPath(HdSceneDelegate *sceneDelegate,
@@ -365,6 +365,12 @@ public:
     // Cache scene options from the render settings prim.
     void SetRenderSettingsPrimOptions(RtParamList const &params);
 
+    // Set path of the driving render settings prim.
+    void SetDrivingRenderSettingsPrimPath(SdfPath const &path);
+
+    // Get path of the driving render settings prim.
+    SdfPath const& GetDrivingRenderSettingsPrimPath() const;
+
     // Set Riley scene options by composing opinion sources.
     void SetRileyOptions();
 
@@ -374,8 +380,12 @@ private:
         const std::string &xpuVariant,
         const std::vector<std::string>& extraArgs);
 
-    // Creation of riley prims that are not backed by the scene.
+    // Creation of riley prims that are either not backed by the scene 
+    // (e.g., fallback materials) OR those that are
+    // currently managed by render param (such as the camera, render view and
+    // render terminals).
     void _CreateInternalPrims();
+    void _DeleteInternalPrims();
     void _CreateFallbackMaterials();
     void _CreateIntegrator(HdRenderDelegate * renderDelegate);
     void _CreateQuickIntegrator(HdRenderDelegate * renderDelegate);
@@ -404,6 +414,8 @@ private:
         HdPrman_RenderViewDesc& renderViewDesc,
         const std::vector<size_t>& renderOutputIndices,
         RtParamList& displayParams, bool isXpu);
+    
+    void _UpdateShutterInterval(const RtParamList &composedParams);
 
 private:
     // Top-level entrypoint to PRMan.
@@ -462,7 +474,7 @@ private:
     RtParamList _quickIntegratorParams;
 
     // The integrator to use.
-    // Updated from render pass state.
+    // Updated from render pass state OR render settings prim.
     riley::IntegratorId _activeIntegratorId;
 
     // Coordinate system conversion cache.
@@ -472,6 +484,10 @@ private:
 
     HdPrman_CameraContext _cameraContext;
     HdPrman_RenderViewContext _renderViewContext;
+
+    // Frame-relative shutter window used to determine if motion blur is
+    // enabled.
+    GfVec2f _shutterInterval;
 
     // Flag to indicate whether Riley scene options were set.
     bool _initRileyOptions;
@@ -483,6 +499,8 @@ private:
     /// ------------------------------------------------------------------------
     // Render settings prim driven state
     //
+
+    SdfPath _drivingRenderSettingsPrimPath;
 
     RtParamList _renderSettingsPrimOptions;
 
@@ -501,11 +519,14 @@ private:
     /// ------------------------------------------------------------------------
 
     /// ------------------------------------------------------------------------
-    // Legacy render settings driven state
+    // Legacy render settings and render pass driven state
     //
     // Params from the render settings map.
     RtParamList _legacyOptions;
     int _lastLegacySettingsVersion;
+
+    // Resolution for the render pass via render pass state.
+    GfVec2i _resolution;
 
     RtParamList _integratorParams;
     /// ------------------------------------------------------------------------
@@ -520,36 +541,75 @@ private:
     HdPrmanRenderDelegate* _renderDelegate;
 };
 
-// Convert Hydra points to Riley point primvar.
+/// Convert Hydra points to Riley point primvar.
+/// This method is invoked when the velocityBlur scene index plugin
+/// is present. In this scenario, deformation or velocity motion blur has been
+/// pre-applied.
+/// \sa Compare to ConvertPositions(..) above.
+///
 void
-HdPrman_ConvertPointsPrimvar(HdSceneDelegate *sceneDelegate, SdfPath const &id,
-                             RtPrimVarList& primvars, size_t npoints);
+HdPrman_ConvertPointsPrimvar(
+    HdSceneDelegate *sceneDelegate,
+    SdfPath const &id,
+    GfVec2f const &shutterInterval,
+    RtPrimVarList& primvars,
+    size_t npoints);
 
-// Count hydra points to set element count on primvars and then
-// convert them to Riley point primvar.
+/// Count hydra points to set element count on primvars and then
+/// convert them to Riley point primvar.
+/// This method is invoked when the velocityBlur scene index plugin
+/// is present. In this scenario, deformation or velocity motion blur has been
+/// pre-applied.
+/// \sa Compare to ConvertPositions(..) above.
+/// 
 size_t
-HdPrman_ConvertPointsPrimvarForPoints(HdSceneDelegate *sceneDelegate, SdfPath const &id,
-                                      RtPrimVarList& primvars);
+HdPrman_ConvertPointsPrimvarForPoints(
+    HdSceneDelegate *sceneDelegate,
+    SdfPath const &id,
+    GfVec2f const &shutterInterval,
+    RtPrimVarList& primvars);
 
-// Convert any Hydra primvars that should be Riley primvars.
+/// Convert any Hydra primvars that should be Riley primvars.
 void
-HdPrman_ConvertPrimvars(HdSceneDelegate *sceneDelegate, SdfPath const& id,
-                        RtPrimVarList& primvars, int numUniform, int numVertex,
-                        int numVarying, int numFaceVarying, float time = 0.f);
+HdPrman_ConvertPrimvars(
+    HdSceneDelegate *sceneDelegate,
+    SdfPath const& id,
+    RtPrimVarList& primvars,
+    int numUniform,
+    int numVertex,
+    int numVarying,
+    int numFaceVarying,
+    float time = 0.f);
 
-// Check for any primvar opinions on the material that should be Riley primvars.
+/// Check for any primvar opinions on the material that should be Riley primvars.
 void
-HdPrman_TransferMaterialPrimvarOpinions(HdSceneDelegate *sceneDelegate,
-                                        SdfPath const& hdMaterialId,
-                                        RtPrimVarList& primvars);
+HdPrman_TransferMaterialPrimvarOpinions(
+    HdSceneDelegate *sceneDelegate,
+    SdfPath const& hdMaterialId,
+    RtPrimVarList& primvars);
 
-// Resolve Hd material ID to the corresponding Riley material & displacement
+/// Resolve Hd material ID to the corresponding Riley material & displacement
 bool
-HdPrman_ResolveMaterial(HdSceneDelegate *sceneDelegate,
-                        SdfPath const& hdMaterialId,
-                        riley::Riley *riley,
-                        riley::MaterialId *materialId,
-                        riley::DisplacementId *dispId);
+HdPrman_ResolveMaterial(
+    HdSceneDelegate *sceneDelegate,
+    SdfPath const& hdMaterialId,
+    riley::Riley *riley,
+    riley::MaterialId *materialId,
+    riley::DisplacementId *dispId);
+
+/// Returns the value of the 'mblur' primvar on the prim if present.
+/// Returns true otherwise.
+bool
+HdPrman_IsMotionBlurPrimvarEnabled(
+    HdSceneDelegate *sceneDelegate,
+    const SdfPath& id);
+
+/// Returns the value of the 'xformsamples' primvar on the prim if present.
+/// It provides a way to disable xform motion blur on a prim.
+/// Returns 2 otherwise indicating that motion blur is enabled.
+int
+HdPrman_GetNumXformSamples(
+    HdSceneDelegate *sceneDelegate, const SdfPath& id);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 

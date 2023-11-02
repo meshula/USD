@@ -123,6 +123,7 @@ static bool _enableQuickIntegrate =
 
 // Used when Creating Riley RenderView from the RenderSettings or RenderSpec
 static GfVec2i _fallbackResolution = GfVec2i(512,512);
+static GfVec2f _fallbackShutter = GfVec2f(0.0f, 0.5f); // 180' shutter
 
 TF_MAKE_STATIC_DATA(std::vector<HdPrman_RenderParam::IntegratorCameraCallback>,
                     _integratorCameraCallbacks)
@@ -135,17 +136,18 @@ HdPrman_RenderParam::HdPrman_RenderParam(
         const std::string &rileyVariant,
         const std::string &xpuVariant,
         const std::vector<std::string>& extraArgs) :
-    resolution(0),
     _rix(nullptr),
     _ri(nullptr),
     _mgr(nullptr),
     _statsSession(nullptr),
     _riley(nullptr),
     _sceneLightCount(0),
+    _shutterInterval(_fallbackShutter),
     _initRileyOptions(false),
     _sampleFiltersId(riley::SampleFilterId::InvalidId()),
     _displayFiltersId(riley::DisplayFilterId::InvalidId()),
     _lastLegacySettingsVersion(0),
+    _resolution(0),
     _renderDelegate(renderDelegate)
 {
     // Create the stats session
@@ -164,6 +166,8 @@ HdPrman_RenderParam::HdPrman_RenderParam(
 HdPrman_RenderParam::~HdPrman_RenderParam()
 {
     DeleteRenderThread();
+
+    _DeleteInternalPrims();
 
     _DestroyRiley();
 
@@ -216,13 +220,23 @@ HdPrman_RenderParam::IsLightFilterUsed(TfToken const& name)
     return _lightFilterRefs.find(name) != _lightFilterRefs.end();
 }
 
-static
-size_t
-_ConvertPointsPrimvar(HdSceneDelegate *sceneDelegate, SdfPath const &id,
-                      RtPrimVarList& primvars, const size_t * npointsHint)
+// See related note in HdPrman_RenderParam::IsMotionBlurEnabled below.
+static bool
+_IsMotionBlurEnabled(GfVec2f const& shutterInterval)
+{
+    return shutterInterval[0] != shutterInterval[1];
+}
+
+static size_t
+_ConvertPointsPrimvar(
+    HdSceneDelegate *sceneDelegate,
+    SdfPath const &id,
+    GfVec2f const &shutterInterval,
+    RtPrimVarList& primvars,
+    const size_t * npointsHint)
 {
     HdExtComputationPrimvarDescriptorVector compPrimvar;
-    if( !HdPrman_RenderParam::HasSceneIndexPlugin(
+    if (!HdPrman_RenderParam::HasSceneIndexPlugin(
             HdPrmanPluginTokens->extComp )) {
         // Check if points is a ext computed primvar
         {
@@ -268,8 +282,9 @@ _ConvertPointsPrimvar(HdSceneDelegate *sceneDelegate, SdfPath const &id,
     // This motion blur check is for legacy purposes;
     // it's only relevant for externally computed points
     // that didn't result from scene index plug-in
-    if(!compPrimvar.empty() &&
-       !HdPrman_RenderParam::GetMotionBlur(sceneDelegate, id)) {
+    if (!compPrimvar.empty() &&
+        !(_IsMotionBlurEnabled(shutterInterval) &&
+          HdPrman_IsMotionBlurPrimvarEnabled(sceneDelegate, id))) {
         VtVec3fArray pointsVal = points.Resample(0.f);
         primvars.SetPointDetail(
             RixStr.k_P, (RtPoint3 const*)pointsVal.cdata(),
@@ -312,19 +327,27 @@ _ConvertPointsPrimvar(HdSceneDelegate *sceneDelegate, SdfPath const &id,
 }
 
 void
-HdPrman_ConvertPointsPrimvar(HdSceneDelegate *sceneDelegate, SdfPath const &id,
-                             RtPrimVarList& primvars, const size_t npoints)
+HdPrman_ConvertPointsPrimvar(
+    HdSceneDelegate *sceneDelegate,
+    SdfPath const &id,
+    GfVec2f const &shutterInterval,
+    RtPrimVarList& primvars,
+    const size_t npoints)
 
 {
-    _ConvertPointsPrimvar(sceneDelegate, id, primvars, &npoints);
+    _ConvertPointsPrimvar(
+        sceneDelegate, id, shutterInterval, primvars, &npoints);
 }
 
 size_t
 HdPrman_ConvertPointsPrimvarForPoints(
-    HdSceneDelegate *sceneDelegate, SdfPath const &id,
+    HdSceneDelegate *sceneDelegate,
+    SdfPath const &id,
+    GfVec2f const &shutterInterval,
     RtPrimVarList& primvars)
 {
-    return _ConvertPointsPrimvar(sceneDelegate, id, primvars, nullptr);
+    return _ConvertPointsPrimvar(
+        sceneDelegate, id, shutterInterval, primvars, nullptr);
 }
 
 
@@ -1112,6 +1135,8 @@ HdPrman_RenderParam::UpdateLegacyOptions()
             } else if (token == HdPrmanRenderSettingsTokens->batchCommandLine) {
                 batchCommandLine = val;
             }
+            // Note: HdPrmanRenderSettingsTokens->disableMotionBlur is handled in
+            //       SetRileyShutterIntervalFromCameraContextCameraPath.  
         }
     }
     // Apply the batch command line settings last, so that they can
@@ -1570,7 +1595,7 @@ _AddRenderOutput(RtUString aovName,
 static
 HdPrman_RenderViewDesc
 _ComputeRenderViewDesc(
-    const HdPrman_RenderSettings &renderSettingsPrim,
+    HdRenderSettings::RenderProduct const &product,
     const riley::CameraId cameraId,
     const riley::IntegratorId integratorId,
     const riley::SampleFilterList &sampleFilterList,
@@ -1581,65 +1606,53 @@ _ComputeRenderViewDesc(
     renderViewDesc.integratorId = integratorId;
     renderViewDesc.sampleFilterList = sampleFilterList;
     renderViewDesc.displayFilterList = displayFilterList;
-    // XXX Note that the resolution can be different for the Render Settings 
-    // and the Render Product. However, both the resolution and cameraId are 
-    // set on the renderViewDesc instead of the DisplayDesc (the riley
-    // counterpart to the Render Output). So Render Products with changes to 
-    // attributes affecting the resolution/cameraId would need separate 
-    // RenderViewDesc's
-    const HdRenderSettings::RenderProducts &renderProducts =
-        renderSettingsPrim.GetRenderProducts();
-    renderViewDesc.resolution = !renderProducts.empty()
-        ? renderSettingsPrim.GetRenderProducts().at(0).resolution
-        : _fallbackResolution;
+    renderViewDesc.resolution = product.resolution;
 
     /* RenderProduct */
     int renderVarIndex = 0;
     std::map<SdfPath, int> seenRenderVars;
-    for (HdRenderSettings::RenderProduct product : renderProducts) {
 
-        // Create a DisplayDesc for this RenderProduct
-        HdPrman_RenderViewDesc::DisplayDesc displayDesc;
-        displayDesc.name = RtUString(product.name.GetText());
-        displayDesc.params = _ToRtParamList(product.namespacedSettings);
-        displayDesc.driver = _GetOutputDisplayDriverType(product.name);
+    // Create a DisplayDesc for this RenderProduct
+    HdPrman_RenderViewDesc::DisplayDesc displayDesc;
+    displayDesc.name = RtUString(product.name.GetText());
+    displayDesc.params = _ToRtParamList(product.namespacedSettings);
+    displayDesc.driver = _GetOutputDisplayDriverType(product.name);
 
-        /* RenderVar */
-        for (const HdRenderSettings::RenderProduct::RenderVar &renderVar :
-                product.renderVars) {
-            // Store the index to this RenderVar from all the renderOutputDesc's 
-            // saved on this renderViewDesc
-            auto renderVarIt = seenRenderVars.find(renderVar.varPath);
-            if (renderVarIt != seenRenderVars.end()) {
-                displayDesc.renderOutputIndices.push_back(renderVarIt->second);
-                continue;
-            } 
-            seenRenderVars.insert(
-                std::pair<SdfPath, int>(renderVar.varPath, renderVarIndex));
-            displayDesc.renderOutputIndices.push_back(renderVarIndex);
-            renderVarIndex++;
+    /* RenderVar */
+    for (const HdRenderSettings::RenderProduct::RenderVar &renderVar :
+            product.renderVars) {
+        // Store the index to this RenderVar from all the renderOutputDesc's 
+        // saved on this renderViewDesc
+        auto renderVarIt = seenRenderVars.find(renderVar.varPath);
+        if (renderVarIt != seenRenderVars.end()) {
+            displayDesc.renderOutputIndices.push_back(renderVarIt->second);
+            continue;
+        } 
+        seenRenderVars.insert(
+            std::pair<SdfPath, int>(renderVar.varPath, renderVarIndex));
+        displayDesc.renderOutputIndices.push_back(renderVarIndex);
+        renderVarIndex++;
 
-            // Map renderVar sourceName to Ri name.
-            std::string varSourceName = (renderVar.sourceType == _tokens->lpe) 
-                ? _tokens->lpe.GetString() + ":" + renderVar.sourceName
-                : renderVar.sourceName;
-            const RtUString sourceName(varSourceName.c_str());
+        // Map renderVar sourceName to Ri name.
+        std::string varSourceName = (renderVar.sourceType == _tokens->lpe) 
+            ? _tokens->lpe.GetString() + ":" + renderVar.sourceName
+            : renderVar.sourceName;
+        const RtUString sourceName(varSourceName.c_str());
 
-            // Create a RenderOutputDesc for this RenderVar and add it to the 
-            // renderViewDesc.
-            // Note that we are not using the renderOutputIndices passed into 
-            // this function, we are instead relying on the indices stored above
-            std::vector<size_t> renderOutputIndices;
-            _AddRenderOutput(sourceName, 
-                             renderVar.dataType, 
-                             HdFormatInvalid, // using renderVar.dataType
-                             sourceName, 
-                             _ToRtParamList(renderVar.namespacedSettings),
-                             &renderViewDesc.renderOutputDescs,
-                             &renderOutputIndices);
-        }
-        renderViewDesc.displayDescs.push_back(displayDesc);
+        // Create a RenderOutputDesc for this RenderVar and add it to the 
+        // renderViewDesc.
+        // Note that we are not using the renderOutputIndices passed into 
+        // this function, we are instead relying on the indices stored above
+        std::vector<size_t> renderOutputIndices;
+        _AddRenderOutput(sourceName, 
+                        renderVar.dataType, 
+                        HdFormatInvalid, // using renderVar.dataType
+                        sourceName, 
+                        _ToRtParamList(renderVar.namespacedSettings),
+                        &renderViewDesc.renderOutputDescs,
+                        &renderOutputIndices);
     }
+    renderViewDesc.displayDescs.push_back(displayDesc);
 
     return renderViewDesc;
 }
@@ -1656,33 +1669,30 @@ HdPrman_RenderParam::CreateRenderViewFromRenderSpec(
             GetSampleFilterList(),
             GetDisplayFilterList());
 
+    TF_DEBUG(HDPRMAN_RENDER_PASS)
+        .Msg("Create Riley RenderView from the RenderSpec.\n");
+                
     GetRenderViewContext().CreateRenderView(renderViewDesc, AcquireRiley());
 }
 
 /// XXX This should eventually replace the above use of the RenderSpec
 void 
-HdPrman_RenderParam::CreateRenderViewFromRenderSettingsPrim(
-    HdPrman_RenderSettings const &renderSettingsPrim)
+HdPrman_RenderParam::CreateRenderViewFromRenderSettingsProduct(
+    HdRenderSettings::RenderProduct const &product,
+    HdPrman_RenderViewContext *renderViewContext)
 {
-    // XXX The additonal arguments, apart from the Render Settings prim,
-    // should eventually come from the Render Settings prim itself.
+    // XXX Ideally, the render terminals and camera context are provided as
+    //     arguments. They are currently managed by render param.
     const HdPrman_RenderViewDesc renderViewDesc =
         _ComputeRenderViewDesc(
-            renderSettingsPrim,
+            product,
             GetCameraContext().GetCameraId(), 
             GetActiveIntegratorId(), 
             GetSampleFilterList(),
             GetDisplayFilterList());
 
-    // XXX Interactive viewport rendering using hdPrman currently relies on 
-    // having AOV bindings (via the task/render pass state) and uses the 
-    // "hydra" display driver to write rendered pixels into an intermediate 
-    // framebuffer which is then blit into the hydra AOVs. 
-    // XXX  To drive interactive viewport rendering with the RenderSettings 
-    // prim, the created Riley RenderViewDesc needs to use the "hydra" Riley
-    // DisplayDriver (analogous to the RenderProduct productType).
+    renderViewContext->CreateRenderView(renderViewDesc, AcquireRiley());
 
-    GetRenderViewContext().CreateRenderView(renderViewDesc, AcquireRiley());
 }
 
 void
@@ -1784,6 +1794,12 @@ void
 HdPrman_RenderParam::SetLastLegacySettingsVersion(const int version)
 {
     _lastLegacySettingsVersion = version;
+}
+
+void
+HdPrman_RenderParam::SetResolution(GfVec2i const & resolution)
+{
+    _resolution = resolution;
 }
 
 void
@@ -1906,11 +1922,12 @@ HdPrman_RenderParam::_RenderThreadCallback()
     static RtUString const US_RENDERMODE = RtUString("renderMode");
     static RtUString const US_INTERACTIVE = RtUString("interactive");
 
-    // Note: this is currently hard-coded because hdprman only ever 
-    // create a single camera. When this changes, we will need to make sure 
+    // Note: this is currently hard-coded because hdprman currently 
+    // creates only one single camera (via the camera context).
+    // When this changes, we will need to make sure 
     // the correct name is used here.
-    // Note: why not use us_main_cam defined earlier in the same file?
-    static RtUString const defaultReferenceCamera = RtUString("main_cam");
+    RtUString const &defaultReferenceCamera =
+        GetCameraContext().GetCameraName();
 
     RtParamList renderOptions;
     renderOptions.SetString(US_RENDERMODE, US_INTERACTIVE);
@@ -1986,17 +2003,79 @@ HdPrman_RenderParam::Begin(HdPrmanRenderDelegate *renderDelegate)
     }
 }
 
+// See comment in SetRileyOptions on when this function needs to be called.
 void
 HdPrman_RenderParam::_CreateInternalPrims()
 {
-    // See comment in SetRileyOptions on when this function needs to be called.
-    GetCameraContext().CreateRileyCamera(AcquireRiley());
+    GetCameraContext().CreateRileyCamera(
+        AcquireRiley(), HdPrman_CameraContext::GetDefaultReferenceCameraName());
 
     _CreateFallbackMaterials();
 
     _CreateIntegrator(_renderDelegate);
     _CreateQuickIntegrator(_renderDelegate);
     _activeIntegratorId = GetIntegratorId();
+}
+
+static void
+_DeleteAndResetMaterial(
+    riley::Riley * const riley,
+    riley::MaterialId *id)
+{
+    if (*id != riley::MaterialId::InvalidId()) {
+        riley->DeleteMaterial(*id);
+        *id = riley::MaterialId::InvalidId();
+    }
+}
+
+static void
+_DeleteAndResetIntegrator(
+    riley::Riley * const riley,
+    riley::IntegratorId *id)
+{
+    if (*id != riley::IntegratorId::InvalidId()) {
+        riley->DeleteIntegrator(*id);
+        *id = riley::IntegratorId::InvalidId();
+    }
+}
+
+static void
+_DeleteAndResetSampleFilter(
+    riley::Riley * const riley,
+    riley::SampleFilterId *id)
+{
+    if (*id != riley::SampleFilterId::InvalidId()) {
+        riley->DeleteSampleFilter(*id);
+        *id = riley::SampleFilterId::InvalidId();
+    }
+}
+
+static void
+_DeleteAndResetDisplayFilter(
+    riley::Riley * const riley,
+    riley::DisplayFilterId *id)
+{
+    if (*id != riley::DisplayFilterId::InvalidId()) {
+        riley->DeleteDisplayFilter(*id);
+        *id = riley::DisplayFilterId::InvalidId();
+    }
+}
+
+void
+HdPrman_RenderParam::_DeleteInternalPrims()
+{
+    riley::Riley * const riley = AcquireRiley();
+
+    // Renderview has a handle to the camera, so delete it first.
+    GetRenderViewContext().DeleteRenderView(riley);
+    GetCameraContext().DeleteRileyCameraAndClipPlanes(riley);
+
+    _DeleteAndResetMaterial(riley, &_fallbackMaterialId);
+    _DeleteAndResetMaterial(riley, &_fallbackVolumeMaterialId);
+    _DeleteAndResetIntegrator(riley, &_integratorId);
+    _DeleteAndResetIntegrator(riley, &_quickIntegratorId);
+    _DeleteAndResetSampleFilter(riley, &_sampleFiltersId);
+    _DeleteAndResetDisplayFilter(riley, &_displayFiltersId);
 }
 
 static RtParamList
@@ -2012,7 +2091,8 @@ _Compose(
 }
 
 void
-HdPrman_RenderParam::SetRenderSettingsPrimOptions(RtParamList const &params)
+HdPrman_RenderParam::SetRenderSettingsPrimOptions(
+    RtParamList const &params)
 {
     _renderSettingsPrimOptions = params;
 
@@ -2020,6 +2100,23 @@ HdPrman_RenderParam::SetRenderSettingsPrimOptions(RtParamList const &params)
         "Updating render settings param list \n %s\n",
         HdPrmanDebugUtil::RtParamListToString(params).c_str()
     );
+}
+
+void
+HdPrman_RenderParam::SetDrivingRenderSettingsPrimPath(
+    SdfPath const &path)
+{
+    if (path != _drivingRenderSettingsPrimPath) {
+        _drivingRenderSettingsPrimPath = path;
+        TF_DEBUG(HDPRMAN_RENDER_SETTINGS).Msg(
+            "Driving render settings prim is %s\n", path.GetText());
+    }
+}
+
+SdfPath const&
+HdPrman_RenderParam::GetDrivingRenderSettingsPrimPath() const
+{
+    return _drivingRenderSettingsPrimPath;
 }
 
 void
@@ -2068,6 +2165,10 @@ HdPrman_RenderParam::SetRileyOptions()
             "SetOptions called on the composed param list:\n  %s\n",
             HdPrmanDebugUtil::RtParamListToString(
                 prunedOptions, /*indent = */2).c_str());
+        
+        // If we've updated the riley shutter interval in SetOptions above,
+        // make sure to update the cached value.
+        _UpdateShutterInterval(prunedOptions);
     }
 
     if (!_initRileyOptions) {
@@ -2093,7 +2194,9 @@ void
 HdPrman_RenderParam::StartRender()
 {
     // Last chance to set Ri options before starting riley!
-    // Called from HdPrman_RenderPass::_Execute
+    // Called from HdPrman_RenderPass::_Execute for *interactive* rendering.
+    // NOTE: We don't use a render thread for offline ("batch") rendering. See
+    //       HdPrman_RenderPass::_RenderInMainThread().
 
     // Prepare Riley state for rendering.
     // Pass a valid riley callback pointer during IPR
@@ -2723,13 +2826,15 @@ HdPrman_RenderParam::CreateFramebufferAndRenderViewFromAovs(
     renderViewDesc.integratorId = GetActiveIntegratorId();
     renderViewDesc.sampleFilterList = GetSampleFilterList();
     renderViewDesc.displayFilterList = GetDisplayFilterList();
-    renderViewDesc.resolution = resolution;
+    renderViewDesc.resolution = GetResolution();
 
+    TF_DEBUG(HDPRMAN_RENDER_PASS)
+        .Msg("Create Riley RenderView from AOV bindings.\n");
     GetRenderViewContext().CreateRenderView(renderViewDesc, riley);
 }
 
 void
-HdPrman_RenderParam::CreateRenderViewFromProducts(
+HdPrman_RenderParam::CreateRenderViewFromLegacyProducts(
     const VtArray<HdRenderSettingsMap>& renderProducts, int frame)
 {
     // Display edits are not currently supported in HdPrman
@@ -2917,8 +3022,10 @@ HdPrman_RenderParam::CreateRenderViewFromProducts(
 
     renderViewDesc.cameraId = GetCameraContext().GetCameraId();
     renderViewDesc.integratorId = GetActiveIntegratorId();
-    renderViewDesc.resolution = resolution;
+    renderViewDesc.resolution = GetResolution();
 
+    TF_DEBUG(HDPRMAN_RENDER_PASS)
+        .Msg("Create Riley RenderView from the legacy products.\n");
     GetRenderViewContext().CreateRenderView(renderViewDesc, _riley);
 }
 
@@ -2947,6 +3054,32 @@ HdPrman_RenderParam::AcquireRiley()
     sceneVersion++;
 
     return _riley;
+}
+
+static const float*
+_GetShutterParam(const RtParamList &params)
+{
+    return params.GetFloatArray(RixStr.k_Ri_Shutter, 2);
+}
+
+void
+HdPrman_RenderParam::_UpdateShutterInterval(const RtParamList &composedParams)
+{
+    if (const float *val = _GetShutterParam(composedParams)) {
+        _shutterInterval = GfVec2f(val[0], val[1]);
+    }
+
+    if (HdPrman_RenderParam::HasSceneIndexPlugin(
+        HdPrmanPluginTokens->velocityBlur) ) {
+
+#if PXR_VERSION >= 2205
+        // When there's only one sample available the velocity blur plug-in 
+        // doesn't have access to the correct shutter interval, so this is 
+        // a workaround to provide it.
+        HdPrman_VelocityMotionBlurSceneIndexPlugin::SetShutterInterval(
+            _shutterInterval[0], _shutterInterval[1]);
+#endif
+    }
 }
 
 riley::ShadingNode
@@ -3026,44 +3159,51 @@ HdPrman_RenderParam::UpdateQuickIntegrator(
     }
 }
 
-// Note that we only support motion blur with the correct shutter
-// interval if the the camera path and disableMotionBlur value
-// have been set to the desired values before any syncing or rendering
-// has happened. We don't update the riley shutter interval in
-// response to setting these render settings. The only callee of
-// UpdateRileyShutterInterval is HdPrmanCamera::Sync.
+// tl;dr: Motion blur is currently supported only if the camera path and/or
+//        disableMotionBlur are set on the legacy render settings map BEFORE
+//        syncing prims.
+//        When using a well-formed render settings prim, the computed unioned
+//        shutter interval may be available (23.11 onwards) which circumvents
+//        the above limitation.
 //
-// This limitation is due to Riley's limitation: the shutter interval
-// option has to be set before any sampled prim vars or transforms are
-// given to Riley. It might be possible to circumvent this limitation
-// by forcing a sync of all rprim's and the camera transform (through
-// the render index'es change tracker) when the shutter interval changes.
+// Here's the longform story:
+//
+// Riley has a limitation in that the shutter interval scene option param
+// has to be set before any time sampled primvars or transforms are
+// given to Riley.
+//
+// The shutter interval is specified on the camera. In the legacy task based
+// data flow, the camera used to render is known only during render pass
+// execution which happens AFTER prim sync. To circumvent this, we use
+// the legacy render settings map to provide the camera path during render
+// delegate construction. See HdPrmanExperimentalRenderSpecTokens->camera
+// and _tokens->renderCameraPath (latter is used by Solaris).
+//
+// When the said camera is sync'd, we commit its shutter interval IFF it is
+// the one to use for rendering. See HdPrman_Camera::Sync.
+//
+// This "shutter interval discovery" issue may not be relevant when using the
+// render settings prim. If using 23.11 and later, the shutter interval
+// is computed from on the cameras used by the render products. See
+// HdPrman_RenderSettings::Sync.
+//
+// HOWEVER:
+// Changing the camera shutter (either on the camera or changing the camera
+// used) AFTER syncing prims with motion samples (e.g., lights & geometry)
+// requires the prims to be resync'd. This scenario isn't supported currently.
+// XXX Note that updating the render setting _tokens->renderCameraPath currently
+//     results in marking all rprims dirty.
+//     See HdPrmanRenderDelegate::SetRenderSetting. This handling is rather
+//     adhoc and should be cleaned up.
 //
 void
-HdPrman_RenderParam::UpdateRileyShutterInterval(
+HdPrman_RenderParam::SetRileyShutterIntervalFromCameraContextCameraPath(
     const HdRenderIndex * const renderIndex)
 {
     // Fallback shutter interval.
     float shutterInterval[2] = { 0.0f, 0.5f };
     
-    // Try to get shutter interval from camera. Note that shutter open and close
-    // times are frame relative and refer to the times the shutter begins to
-    // open and fully closes respectively.
-    if (const HdCamera * const camera =
-            _cameraContext.GetCamera(renderIndex)) {
-        shutterInterval[0] = camera->GetShutterOpen();
-        shutterInterval[1] = camera->GetShutterClose();
-    }
-
-    // Deprecated.
-    const bool instantaneousShutter =
-        renderIndex->GetRenderDelegate()->GetRenderSetting<bool>(
-            HdPrmanRenderSettingsTokens->instantaneousShutter, false);
-    if (instantaneousShutter) {
-        // Disable motion blur by making the interval a single point.
-        shutterInterval[1] = shutterInterval[0];
-    }
-
+    // Handle legacy render setting.
     const bool disableMotionBlur =
         renderIndex->GetRenderDelegate()->GetRenderSetting<bool>(
             HdPrmanRenderSettingsTokens->disableMotionBlur, false);
@@ -3071,25 +3211,35 @@ HdPrman_RenderParam::UpdateRileyShutterInterval(
         // Disable motion blur by sampling at current frame only.
         shutterInterval[0] = 0.0f;
         shutterInterval[1] = 0.0f;
+
+    } else {
+        // Try to get shutter interval from camera.
+        // Note that shutter open and close times are frame relative and refer 
+        // to the times the shutter begins to open and fully closes
+        // respectively.
+        if (const HdCamera * const camera =
+                _cameraContext.GetCamera(renderIndex)) {
+            shutterInterval[0] = camera->GetShutterOpen();
+            shutterInterval[1] = camera->GetShutterClose();
+        }
+
+        // Deprecated.
+        const bool instantaneousShutter =
+            renderIndex->GetRenderDelegate()->GetRenderSetting<bool>(
+                HdPrmanRenderSettingsTokens->instantaneousShutter, false);
+        if (instantaneousShutter) {
+            // Disable motion blur by making the interval a single point.
+            shutterInterval[1] = shutterInterval[0];
+        }
     }
 
-    if( HdPrman_RenderParam::HasSceneIndexPlugin(
-            HdPrmanPluginTokens->velocityBlur) ) {
-        // When there's only one sample available the velocity blur plug-in doesn't
-        // have access to the correct shutter interval, so this is a workaround
-        // to provide it.
-#if PXR_VERSION >= 2205
-        HdPrman_VelocityMotionBlurSceneIndexPlugin::SetShutterInterval(
-            shutterInterval[0], shutterInterval[1]);
-#endif
-    }
-    
-    // Update the shutter interval on the legacy options param list and
+    // Update the shutter interval on the *legacy* options param list and
     // commit the scene options. Note that the legacy options has a weaker
     // opinion that the env var HD_PRMAN_ENABLE_MOTIONBLUR and the render
     // settings prim.
     RtParamList &options = GetLegacyOptions();
     options.SetFloatArray(RixStr.k_Ri_Shutter, shutterInterval, 2);
+
     SetRileyOptions();
 }
 
@@ -3358,17 +3508,25 @@ HdPrman_RenderParam::GetInstancer(const SdfPath& id)
     return nullptr;
 }
 
+// Motion blur can be disabled in the following ways:
+// 1. Environment (HD_PRMAN_ENABLE_MOTIONBLUR env setting)
+// 2. Render settings prim (if _all_ products have it disabled)
+// 3. Legacy render settings map (disableMotionBlur setting)
+//
+// Riley concerns itself only with the Ri:Shutter param. Having composed
+// the above opinions when setting the Riley scene options, we use the resolved 
+// shutter interval to decipher whether motion blur is enabled.
 bool
-HdPrman_RenderParam::GetMotionBlur(HdSceneDelegate *sceneDelegate,
-                              const SdfPath &id)
+HdPrman_RenderParam::IsMotionBlurEnabled() const
 {
-    // Check global setting first
-    if(sceneDelegate->GetRenderIndex().GetRenderDelegate()->
-       GetRenderSetting<bool>(HdPrmanRenderSettingsTokens->disableMotionBlur,
-                              false)) {
-        return false;
-    }
+    return _IsMotionBlurEnabled(_shutterInterval);
+}
 
+bool
+HdPrman_IsMotionBlurPrimvarEnabled(
+    HdSceneDelegate *sceneDelegate,
+    const SdfPath &id)
+{
     // Then see if disabled locally
     bool blur = true;
     float t[1];
@@ -3380,9 +3538,10 @@ HdPrman_RenderParam::GetMotionBlur(HdSceneDelegate *sceneDelegate,
     return blur;
 }
 
-bool
-HdPrman_RenderParam::GetVelocityBlur(HdSceneDelegate *sceneDelegate,
-                                 const SdfPath &id)
+static bool
+_GetVelocityBlur(
+    HdSceneDelegate *sceneDelegate,
+    const SdfPath &id)
 {
     bool vblur = true;
     float t[1];
@@ -3396,9 +3555,10 @@ HdPrman_RenderParam::GetVelocityBlur(HdSceneDelegate *sceneDelegate,
     return vblur;
 }
 
-bool
-HdPrman_RenderParam::GetAccelerationBlur(HdSceneDelegate *sceneDelegate,
-                                     const SdfPath &id)
+static bool
+_GetAccelerationBlur(
+    HdSceneDelegate *sceneDelegate,
+    const SdfPath &id)
 {
     bool ablur = true;
     float t[1];
@@ -3412,9 +3572,10 @@ HdPrman_RenderParam::GetAccelerationBlur(HdSceneDelegate *sceneDelegate,
     return ablur;
 }
 
-int
-HdPrman_RenderParam::GetNumGeoSamples(HdSceneDelegate *sceneDelegate,
-                                  const SdfPath &id)
+static int
+_GetNumGeoSamples(
+    HdSceneDelegate *sceneDelegate,
+    const SdfPath &id)
 {
     int nsamples = 2;
     float t[1];
@@ -3434,8 +3595,9 @@ HdPrman_RenderParam::GetNumGeoSamples(HdSceneDelegate *sceneDelegate,
 }
 
 int
-HdPrman_RenderParam::GetNumXformSamples(HdSceneDelegate *sceneDelegate,
-                                  const SdfPath &id)
+HdPrman_GetNumXformSamples(
+    HdSceneDelegate *sceneDelegate,
+    const SdfPath &id)
 {
     int nsamples = 2;
     float t[1];
@@ -3446,6 +3608,8 @@ HdPrman_RenderParam::GetNumXformSamples(HdSceneDelegate *sceneDelegate,
     }
     return nsamples;
 }
+
+
 
 // This method duplicates functionality in velocityMotionBlurSceneIndexPlugin,
 // and is for backward compatibility when scene index plug-ins aren't available.
@@ -3503,7 +3667,9 @@ HdPrman_RenderParam::ConvertPositions(
     }
 
     // Get motion blur settings
-    bool blur = GetMotionBlur(sceneDelegate, id);
+    bool blur =
+        IsMotionBlurEnabled() &&
+        HdPrman_IsMotionBlurPrimvarEnabled(sceneDelegate, id);
     float shutterOpen = 0.0f;
     float shutterClose = 0.5f;
     const HdPrman_CameraContext& camCtx = GetCameraContext();
@@ -3519,9 +3685,10 @@ HdPrman_RenderParam::ConvertPositions(
     bool velocityBlur = false;
     bool accelerationBlur = false;
     if (blur) {
-        accelerationBlur = GetAccelerationBlur(sceneDelegate, id);
-        velocityBlur = (GetVelocityBlur(sceneDelegate, id) || accelerationBlur);
-        numSamples = GetNumGeoSamples(sceneDelegate, id);
+        accelerationBlur = _GetAccelerationBlur(sceneDelegate, id);
+        velocityBlur =
+            _GetVelocityBlur(sceneDelegate, id) || accelerationBlur;
+        numSamples = _GetNumGeoSamples(sceneDelegate, id);
     }
     // Attempt motion blur
     if (blur && numSamples > 1 && (shutterOpen != shutterClose)) {

@@ -59,6 +59,7 @@
 #include "pxr/imaging/hd/materialConnectionSchema.h"
 #include "pxr/imaging/hd/materialNetworkSchema.h"
 #include "pxr/imaging/hd/materialNodeSchema.h"
+#include "pxr/imaging/hd/materialNodeParameterSchema.h"
 #include "pxr/imaging/hd/materialSchema.h"
 #include "pxr/imaging/hd/meshSchema.h"
 #include "pxr/imaging/hd/meshTopologySchema.h"
@@ -2412,19 +2413,6 @@ HdDataSourceLegacyPrim::GetCachedLocators()
     return locators;
 }
 
-static
-bool
-_IsTypeLightLike(const TfToken &type)
-{
-    // Things for which HdSceneDelegate::GetLightParamValue is meaningful
-    // for emulation
-    if (HdPrimTypeIsLight(type) || type == HdPrimTypeTokens->lightFilter) {
-        return true;
-    }
-
-    return false;
-}
-
 bool
 HdDataSourceLegacyPrim::_IsLight()
 {
@@ -2488,13 +2476,10 @@ HdDataSourceLegacyPrim::GetNames()
         result.push_back(HdExtentSchemaTokens->extent);
     }
 
-    if (_IsLight()) {
+    if (_IsLight() || _type == HdPrimTypeTokens->lightFilter) {
         result.push_back(HdMaterialSchemaTokens->material);
         result.push_back(HdXformSchemaTokens->xform);
         result.push_back(HdLightSchemaTokens->light);
-    } else if (_IsTypeLightLike(_type)) {
-        result.push_back(HdLightSchemaTokens->light);
-        result.push_back(HdMaterialSchemaTokens->material);
     }
 
     if (_type == HdPrimTypeTokens->material) {
@@ -2577,6 +2562,11 @@ _ConvertHdMaterialNetworkToHdDataSources(
     std::vector<TfToken> nodeNames;
     std::vector<HdDataSourceBaseHandle> nodeValues;
 
+    struct ParamData {
+        VtValue value;
+        TfToken colorSpace;
+    };
+
     for (auto const &iter: hdNetworkMap.map) {
         const TfToken &terminalName = iter.first;
         const HdMaterialNetwork &hdNetwork = iter.second;
@@ -2594,10 +2584,39 @@ _ConvertHdMaterialNetworkToHdDataSources(
             std::vector<TfToken> paramsNames;
             std::vector<HdDataSourceBaseHandle> paramsValues;
 
+            // Gather parameter value and colorspace metadata in paramsInfo, a 
+            // mapping of the parameter name to its value and colorspace data.
+            std::map<std::string, ParamData> paramsInfo;
             for (const auto &p : node.parameters) {
-                paramsNames.push_back(p.first);
+
+                // Strip "colorSpace" prefix 
+                const std::pair<std::string, bool> res = 
+                    SdfPath::StripPrefixNamespace(p.first, 
+                        HdMaterialNodeParameterSchemaTokens->colorSpace);
+
+                // Colorspace metadata
+                if (res.second) {
+                    paramsInfo[res.first].colorSpace = p.second.Get<TfToken>();
+                }
+                // Value 
+                else {
+                    paramsInfo[p.first].value = p.second.Get<VtValue>();
+                }
+            }
+
+            // Create and store the HdMaterialNodeParameter DataSource
+            for (const auto &item : paramsInfo) {
+                paramsNames.push_back(TfToken(item.first));
                 paramsValues.push_back(
-                    HdRetainedTypedSampledDataSource<VtValue>::New(p.second)
+                    HdMaterialNodeParameterSchema::Builder()
+                        .SetValue(
+                            HdRetainedTypedSampledDataSource<VtValue>::New(
+                                item.second.value))
+                        .SetColorSpace(item.second.colorSpace.IsEmpty() 
+                            ? nullptr
+                            : HdRetainedTypedSampledDataSource<TfToken>::New(
+                                item.second.colorSpace))
+                        .Build()
                 );
             }
 
@@ -2708,7 +2727,10 @@ _ConvertRenderTerminalResourceToHdDataSource(const VtValue &outputNodeValue)
     for (const auto &p : outputNode.parameters) {
         paramsNames.push_back(p.first);
         paramsValues.push_back(
-            HdRetainedTypedSampledDataSource<VtValue>::New(p.second)
+            HdMaterialNodeParameterSchema::Builder()
+                .SetValue(
+                    HdRetainedTypedSampledDataSource<VtValue>::New(p.second))
+                .Build()
         );
     }
 

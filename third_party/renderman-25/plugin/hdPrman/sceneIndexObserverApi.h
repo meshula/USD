@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Pixar
+// Copyright 2023 Pixar
 //
 // Licensed under the Apache License, Version 2.0 (the "Apache License")
 // with the following modification; you may not use this file except in
@@ -21,29 +21,26 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef EXT_RMANPKG_22_0_PLUGIN_RENDERMAN_PLUGIN_HD_PRMAN_MATFILT_CONVERSIONS_H
-#define EXT_RMANPKG_22_0_PLUGIN_RENDERMAN_PLUGIN_HD_PRMAN_MATFILT_CONVERSIONS_H
+#ifndef EXT_RMANPKG_25_0_PLUGIN_RENDERMAN_PLUGIN_HD_PRMAN_SCENE_INDEX_OBSERVER_API_H
+#define EXT_RMANPKG_25_0_PLUGIN_RENDERMAN_PLUGIN_HD_PRMAN_SCENE_INDEX_OBSERVER_API_H
 
-#include "pxr/pxr.h"
-#include "Riley.h"
-#include <vector>
+#include "pxr/imaging/hd/version.h"
 
-PXR_NAMESPACE_OPEN_SCOPE
+// There was no hdsi/version.h before this HD_API_VERSION.
+#if HD_API_VERSION >= 58 
 
-class HdPrman_RenderParam;
-class HdSceneDelegate;
-class SdfPath;
-class TfToken;
+#include "pxr/imaging/hdsi/version.h"
 
-void HdPrmanLightFilterGenerateCoordSysAndLinks(
-    riley::ShadingNode *filter,
-    const SdfPath &filterPath,
-    std::vector<riley::CoordinateSystemId> *coordsysIds,
-    std::vector<TfToken> *filterLinks,
-    HdSceneDelegate *sceneDelegate,
-    HdPrman_RenderParam *renderParam,
-    riley::Riley *riley);
-
-PXR_NAMESPACE_CLOSE_SCOPE
-
+// HDPRMAN_USE_SCENE_INDEX_OBSERVER controls whether hdPrman uses the new
+// HdsiPrimManagingSceneIndexObserver and other new API for the implementation
+// as a scene index observer.
+//
+// We can only use for late enough versions of USD.
+//
+#if HDSI_API_VERSION >= 11
+#define HDPRMAN_USE_SCENE_INDEX_OBSERVER
 #endif
+
+#endif // #if HD_API_VERSION >= 58
+
+#endif // EXT_RMANPKG_25_0_PLUGIN_RENDERMAN_PLUGIN_HD_PRMAN_SCENE_INDEX_OBSERVER_API_H
