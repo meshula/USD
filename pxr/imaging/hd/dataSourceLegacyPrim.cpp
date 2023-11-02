@@ -46,6 +46,7 @@
 #include "pxr/imaging/hd/extentSchema.h"
 #include "pxr/imaging/hd/geomSubsetSchema.h"
 #include "pxr/imaging/hd/geomSubsetsSchema.h"
+#include "pxr/imaging/hd/imageShaderSchema.h"
 #include "pxr/imaging/hd/instanceCategoriesSchema.h"
 #include "pxr/imaging/hd/instancedBySchema.h"
 #include "pxr/imaging/hd/instancerTopologySchema.h"
@@ -58,6 +59,7 @@
 #include "pxr/imaging/hd/materialConnectionSchema.h"
 #include "pxr/imaging/hd/materialNetworkSchema.h"
 #include "pxr/imaging/hd/materialNodeSchema.h"
+#include "pxr/imaging/hd/materialNodeParameterSchema.h"
 #include "pxr/imaging/hd/materialSchema.h"
 #include "pxr/imaging/hd/meshSchema.h"
 #include "pxr/imaging/hd/meshTopologySchema.h"
@@ -90,8 +92,6 @@ TF_DEFINE_PRIVATE_TOKENS(
     _tokens,
     (binding)
     (coordSys)
-    (prmanParams)
-    ((prmanParamsNames, ""))
 );
 
 // ----------------------------------------------------------------------------
@@ -106,6 +106,26 @@ HdLegacyPrimTypeIsVolumeField(TfToken const &primType)
 // ----------------------------------------------------------------------------
 
 namespace {
+
+template<typename TimeSampleArray>
+static
+void _FillSampleTimes(
+    const TimeSampleArray &timeSamples,
+    const HdSampledDataSource::Time startTime,
+    const HdSampledDataSource::Time endTime,
+    std::vector<HdSampledDataSource::Time> * const outSampleTimes)
+{
+    if (!outSampleTimes) {
+        return;
+    }
+    for (size_t i = 0; i < timeSamples.count; ++i) {
+        const float t = timeSamples.times[i];
+        if (startTime <= t && t <= endTime) {
+            outSampleTimes->push_back(t);
+        }
+    }
+}
+
 
 class Hd_DataSourceLegacyPrimvarValue : public HdSampledDataSource
 {
@@ -156,13 +176,7 @@ public:
         // XXX: Start and end times come from the sene delegate, so we can't
         // get samples outside of those provided. However, we can clamp
         // returned samples to be in the right range.
-        if (outSampleTimes != nullptr) {
-            for (const float &t : _timeSamples.times) {
-                if (t >= startTime && t <= endTime) {
-                    outSampleTimes->push_back(t);
-                }
-            }
-        }
+        _FillSampleTimes(_timeSamples, startTime, endTime, outSampleTimes);
 
         return true;
     }
@@ -224,13 +238,7 @@ public:
         // XXX: Start and end times come from the sene delegate, so we can't
         // get samples outside of those provided. However, we can clamp
         // returned samples to be in the right range.
-        if (outSampleTimes != nullptr) {
-            for (const float &t : _timeSamples.times) {
-                if (t >= startTime && t <= endTime) {
-                    outSampleTimes->push_back(t);
-                }
-            }
-        }
+        _FillSampleTimes(_timeSamples, startTime, endTime, outSampleTimes);
 
         return true;
     }
@@ -299,13 +307,7 @@ public:
         // XXX: Start and end times come from the sene delegate, so we can't
         // get samples outside of those provided. However, we can clamp
         // returned samples to be in the right range.
-        if (outSampleTimes != nullptr) {
-            for (const float &t : _timeSamples.times) {
-                if (t >= startTime && t <= endTime) {
-                    outSampleTimes->push_back(t);
-                }
-            }
-        }
+        _FillSampleTimes(_timeSamples, startTime, endTime, outSampleTimes);
 
         return true;
     }
@@ -453,13 +455,7 @@ public:
         // XXX: Start and end times come from the scene delegate, so we can't
         // get samples outside of those provided. However, we can clamp
         // returned samples to be in the right range.
-        if (outSampleTimes != nullptr) {
-            for (const float &t : _timeSamples.times) {
-                if (t >= startTime && t <= endTime) {
-                    outSampleTimes->push_back(t);
-                }
-            }
-        }
+        _FillSampleTimes(_timeSamples, startTime, endTime, outSampleTimes);
 
         return true;
     }
@@ -1370,7 +1366,8 @@ public:
             HdTokens->shadowLink,
             HdTokens->lightFilterLink,
             HdTokens->isLight,
-            HdTokens->materialSyncMode
+            HdTokens->materialSyncMode,
+            HdTokens->portals,
         };
         return result;
     }
@@ -1925,13 +1922,7 @@ public:
         // XXX: Start and end times come from the sene delegate, so we can't
         // get samples outside of those provided. However, we can clamp
         // returned samples to be in the right range.
-        if (outSampleTimes != nullptr) {
-            for (const float &t : _timeSamples.times) {
-                if (t >= startTime && t <= endTime) {
-                    outSampleTimes->push_back(t);
-                }
-            }
-        }
+        _FillSampleTimes(_timeSamples, startTime, endTime, outSampleTimes);
 
         return true;
     }
@@ -2262,8 +2253,8 @@ public:
             }
         }
 
-        // Note: active can be skipped (instead of hardcoding it to false here)
-        //       since a downstream scene index will author its opinion.
+        // Note: Skip 'active' and 'shutterInterval' fields which are computed
+        //       by a downstream scene index.
 
         return HdSampledDataSourceHandle(
             Hd_GenericGetSampledDataSource::New(_sceneDelegate, _id, name));
@@ -2272,6 +2263,78 @@ public:
 private:
     HdSceneDelegate *_sceneDelegate;
     SdfPath _id;
+};
+
+// ----------------------------------------------------------------------------
+
+class Hd_DataSourceImageShader : public HdContainerDataSource
+{
+public:
+    HD_DECLARE_DATASOURCE(Hd_DataSourceImageShader);
+
+    Hd_DataSourceImageShader(
+        const SdfPath& id, HdSceneDelegate* sceneDelegate)
+    : _id(id), _sceneDelegate(sceneDelegate)
+    {
+        TF_VERIFY(_sceneDelegate);
+    }
+
+    TfTokenVector GetNames() override
+    {
+        static const TfTokenVector names = {
+            HdImageShaderSchemaTokens->enabled,
+            HdImageShaderSchemaTokens->priority,
+            HdImageShaderSchemaTokens->filePath,
+            HdImageShaderSchemaTokens->constants
+        };
+        return names;
+    }
+
+    HdDataSourceBaseHandle Get(const TfToken &name) override
+    {
+        if (name == HdImageShaderSchemaTokens->enabled) {
+            const VtValue value = _sceneDelegate->Get(
+                _id, HdImageShaderSchemaTokens->enabled);
+            if (value.IsHolding<bool>()) {
+                return HdRetainedTypedSampledDataSource<bool>::New(
+                    value.UncheckedGet<bool>());
+            }
+        }
+
+        if (name == HdImageShaderSchemaTokens->priority) {
+            const VtValue value = _sceneDelegate->Get(
+                _id, HdImageShaderSchemaTokens->priority);
+            if (value.IsHolding<int>()) {
+                return HdRetainedTypedSampledDataSource<int>::New(
+                    value.UncheckedGet<int>());
+            }
+        }
+
+        if (name == HdImageShaderSchemaTokens->filePath) {
+            const VtValue value = _sceneDelegate->Get(
+                _id, HdImageShaderSchemaTokens->filePath);
+            if (value.IsHolding<int>()) {
+                return HdRetainedTypedSampledDataSource<SdfAssetPath>::New(
+                    value.UncheckedGet<SdfAssetPath>());
+            }
+        }
+
+        if (name == HdImageShaderSchemaTokens->constants) {
+            const VtValue value = _sceneDelegate->Get(
+                _id, HdImageShaderSchemaTokens->constants);
+            if (value.IsHolding<VtDictionary>()) {
+                return _ToContainerDS(
+                    value.UncheckedGet<VtDictionary>());
+            }
+        }
+
+        return HdSampledDataSourceHandle(
+            Hd_GenericGetSampledDataSource::New(_sceneDelegate, _id, name));
+    }
+
+private:
+    SdfPath _id;
+    HdSceneDelegate* _sceneDelegate;
 };
 
 // ----------------------------------------------------------------------------
@@ -2350,19 +2413,6 @@ HdDataSourceLegacyPrim::GetCachedLocators()
     return locators;
 }
 
-static
-bool
-_IsTypeLightLike(const TfToken &type)
-{
-    // Things for which HdSceneDelegate::GetLightParamValue is meaningful
-    // for emulation
-    if (HdPrimTypeIsLight(type) || type == HdPrimTypeTokens->lightFilter) {
-        return true;
-    }
-
-    return false;
-}
-
 bool
 HdDataSourceLegacyPrim::_IsLight()
 {
@@ -2426,13 +2476,10 @@ HdDataSourceLegacyPrim::GetNames()
         result.push_back(HdExtentSchemaTokens->extent);
     }
 
-    if (_IsLight()) {
+    if (_IsLight() || _type == HdPrimTypeTokens->lightFilter) {
         result.push_back(HdMaterialSchemaTokens->material);
         result.push_back(HdXformSchemaTokens->xform);
         result.push_back(HdLightSchemaTokens->light);
-    } else if (_IsTypeLightLike(_type)) {
-        result.push_back(HdLightSchemaTokens->light);
-        result.push_back(HdMaterialSchemaTokens->material);
     }
 
     if (_type == HdPrimTypeTokens->material) {
@@ -2494,8 +2541,8 @@ HdDataSourceLegacyPrim::GetNames()
         result.push_back(HdPrimTypeTokens->drawTarget);
     }
 
-    if (_type == _tokens->prmanParams) {
-        result.push_back(_tokens->prmanParams);
+    if (_type == HdPrimTypeTokens->imageShader) {
+        result.push_back(HdPrimTypeTokens->imageShader);
     }
 
     result.push_back(HdSceneIndexEmulationTokens->sceneDelegate);
@@ -2515,6 +2562,11 @@ _ConvertHdMaterialNetworkToHdDataSources(
     std::vector<TfToken> nodeNames;
     std::vector<HdDataSourceBaseHandle> nodeValues;
 
+    struct ParamData {
+        VtValue value;
+        TfToken colorSpace;
+    };
+
     for (auto const &iter: hdNetworkMap.map) {
         const TfToken &terminalName = iter.first;
         const HdMaterialNetwork &hdNetwork = iter.second;
@@ -2532,10 +2584,39 @@ _ConvertHdMaterialNetworkToHdDataSources(
             std::vector<TfToken> paramsNames;
             std::vector<HdDataSourceBaseHandle> paramsValues;
 
+            // Gather parameter value and colorspace metadata in paramsInfo, a 
+            // mapping of the parameter name to its value and colorspace data.
+            std::map<std::string, ParamData> paramsInfo;
             for (const auto &p : node.parameters) {
-                paramsNames.push_back(p.first);
+
+                // Strip "colorSpace" prefix 
+                const std::pair<std::string, bool> res = 
+                    SdfPath::StripPrefixNamespace(p.first, 
+                        HdMaterialNodeParameterSchemaTokens->colorSpace);
+
+                // Colorspace metadata
+                if (res.second) {
+                    paramsInfo[res.first].colorSpace = p.second.Get<TfToken>();
+                }
+                // Value 
+                else {
+                    paramsInfo[p.first].value = p.second.Get<VtValue>();
+                }
+            }
+
+            // Create and store the HdMaterialNodeParameter DataSource
+            for (const auto &item : paramsInfo) {
+                paramsNames.push_back(TfToken(item.first));
                 paramsValues.push_back(
-                    HdRetainedTypedSampledDataSource<VtValue>::New(p.second)
+                    HdMaterialNodeParameterSchema::Builder()
+                        .SetValue(
+                            HdRetainedTypedSampledDataSource<VtValue>::New(
+                                item.second.value))
+                        .SetColorSpace(item.second.colorSpace.IsEmpty() 
+                            ? nullptr
+                            : HdRetainedTypedSampledDataSource<TfToken>::New(
+                                item.second.colorSpace))
+                        .Build()
                 );
             }
 
@@ -2646,7 +2727,10 @@ _ConvertRenderTerminalResourceToHdDataSource(const VtValue &outputNodeValue)
     for (const auto &p : outputNode.parameters) {
         paramsNames.push_back(p.first);
         paramsValues.push_back(
-            HdRetainedTypedSampledDataSource<VtValue>::New(p.second)
+            HdMaterialNodeParameterSchema::Builder()
+                .SetValue(
+                    HdRetainedTypedSampledDataSource<VtValue>::New(p.second))
+                .Build()
         );
     }
 
@@ -2972,49 +3056,6 @@ HdDataSourceLegacyPrim::_GetInstanceCategoriesDataSource()
     );
 }
 
-HdDataSourceBaseHandle
-HdDataSourceLegacyPrim::_GetPrmanParamsDataSource()
-{
-    VtValue namesValue = _sceneDelegate->Get(_id, _tokens->prmanParamsNames);
-    if (!namesValue.IsHolding<TfTokenVector>()) {
-        return nullptr;
-    }
-
-    TfTokenVector dictKeys;
-    std::vector<HdDataSourceBaseHandle> dicts;
-
-    for (const TfToken &dictName : namesValue.UncheckedGet<TfTokenVector>()) {
-        VtValue dictValue = _sceneDelegate->Get(_id, dictName);
-
-        if (!dictValue.IsHolding<std::map<TfToken, VtValue>>()) {
-            continue;
-        }
-
-        std::map<TfToken, VtValue> dict =
-            dictValue.UncheckedGet<std::map<TfToken, VtValue>>();
-
-        if (dict.empty()) {
-            continue;
-        }
-
-        TfTokenVector valueKeys;
-        std::vector<HdDataSourceBaseHandle> values;
-        for (const auto &valuePair : dict) {
-            valueKeys.push_back(valuePair.first);
-            values.push_back(
-                HdRetainedSampledDataSource::New(valuePair.second));
-        }
-
-        dictKeys.push_back(dictName);
-        dicts.push_back(HdRetainedContainerDataSource::New(
-            valueKeys.size(), valueKeys.data(), values.data()));
-    }
-
-
-    return HdRetainedContainerDataSource::New(
-            dictKeys.size(), dictKeys.data(), dicts.data());
-}
-
 HdDataSourceBaseHandle 
 HdDataSourceLegacyPrim::Get(const TfToken &name)
 {
@@ -3082,10 +3123,8 @@ HdDataSourceLegacyPrim::Get(const TfToken &name)
             Hd_LegacyDrawTargetContainerDataSource::New(_sceneDelegate, _id));
     } else if (name == HdExtComputationSchemaTokens->extComputation) {
         return Hd_DataSourceLegacyExtComputation::New(_id, _sceneDelegate);
-    } else if (name == _tokens->prmanParams) {
-        if (_type == _tokens->prmanParams) {
-            return _GetPrmanParamsDataSource();
-        }
+    } else if (name == HdImageShaderSchemaTokens->imageShader) {
+        return Hd_DataSourceImageShader::New(_id, _sceneDelegate);
     }
 
     return nullptr;

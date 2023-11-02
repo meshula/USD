@@ -43,6 +43,7 @@ pxr_library(hdx
         colorChannelTask
         colorCorrectionTask
         drawTargetTask
+        effectsShader
         freeCameraSceneDelegate
         fullscreenShader
         hgiConversions
@@ -177,7 +178,6 @@ pxr_build_test(testHdxCameraAndLight
         hd
         sdf
         glf
-        garch
         arch
         tf
         ${Boost_PYTHON_LIBRARY}
@@ -191,7 +191,6 @@ pxr_build_test(testHdxDrawTarget
         hd
         sdf
         glf
-        garch
         arch
         tf
         ${Boost_PYTHON_LIBRARY}

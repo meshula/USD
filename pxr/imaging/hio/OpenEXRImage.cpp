@@ -149,7 +149,7 @@ HioFormat Hio_OpenEXRImage::GetFormat() const
         {
         case 1:  return HioFormatFloat16;
         case 2:  return HioFormatFloat16Vec2;
-        case 3:  return HioFormatFloat16Vec4; // promote to 4
+        case 3:  return HioFormatFloat16Vec3;
         case 4:  return HioFormatFloat16Vec4;
         default: return HioFormatInvalid;
         }
@@ -159,7 +159,7 @@ HioFormat Hio_OpenEXRImage::GetFormat() const
         {
         case 1:  return HioFormatFloat32;
         case 2:  return HioFormatFloat32Vec2;
-        case 3:  return HioFormatFloat32Vec4; // promote to 4
+        case 3:  return HioFormatFloat32Vec3;
         case 4:  return HioFormatFloat32Vec4;
         default: return HioFormatInvalid;
         }
@@ -263,15 +263,15 @@ namespace {
             }
         }
     };
-    
+   
 } // anon
 
 bool Hio_OpenEXRImage::ReadCropped(
                 int const cropTop,  int const cropBottom,
                 int const cropLeft, int const cropRight, 
-                StorageSpec const &storage)
+                StorageSpec const& storage)
 {
-    // not opened for read prior to calling ReadCropped.
+	// not opened for read prior to calling ReadCropped.
     if (!_asset)
         return false;
 

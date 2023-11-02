@@ -121,14 +121,16 @@ UsdObjTranslateObjToUsd(const UsdObjStream &objStream)
         // it's valid in this layer for the UV mapping to not be fully defined
         // in the obj data. For example, this layer may just provide the texture
         // coordinates and another layer the indexing, or vice versa.
-        if (usdUVs.size() || faceUVIndices.size()) {
+       if (!usdUVs.empty() || !faceUVIndices.empty()) {
             UsdGeomPrimvar uvPrimVar = UsdGeomPrimvarsAPI(mesh).CreatePrimvar(
             TfToken("uv"), SdfValueTypeNames->TexCoord2fArray,
             UsdGeomTokens->faceVarying);
-            if (usdUVs.size())
+            if (!usdUVs.empty()) {
                 uvPrimVar.GetAttr().Set(usdUVs);
-            if (faceUVIndices.size())
+            }
+            if (!faceUVIndices.empty()) {
                 uvPrimVar.CreateIndicesAttr().Set(faceUVIndices); // indexed
+            }
         }
 
         // Set extent.

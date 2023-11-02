@@ -86,16 +86,15 @@ pxr_plugin(${PXR_PACKAGE}
         integrator
         light
         lightFilter
-        lightFilterUtils
         material
         matfiltConvertPreviewMaterial
         matfiltResolveVstructs
         mesh
         renderTerminalOutputInvalidatingSceneIndexPlugin
-        paramsSetter
         points
         renderDelegate
         renderSettings
+        rileyRenderOutputSchema
         rixStrings
         sampleFilter
         sphere
@@ -119,6 +118,9 @@ pxr_plugin(${PXR_PACKAGE}
         renderSettingsFilteringSceneIndexPlugin
         renderViewContext
         resourceRegistry
+        rileyPrimBase
+        rileyPrimFactory
+        rileyRenderOutputPrim
         terminalSceneIndexObserver
         utils
         velocityMotionBlurSceneIndexPlugin
@@ -129,6 +131,7 @@ pxr_plugin(${PXR_PACKAGE}
 
     PRIVATE_HEADERS
         prmanArchDefs.h
+        sceneIndexObserverApi.h
         virtualStructConditionalGrammar.tab.h
 
     CPPFILES

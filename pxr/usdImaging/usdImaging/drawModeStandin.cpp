@@ -35,6 +35,7 @@
 #include "pxr/imaging/hd/materialConnectionSchema.h"
 #include "pxr/imaging/hd/materialNetworkSchema.h"
 #include "pxr/imaging/hd/materialNodeSchema.h"
+#include "pxr/imaging/hd/materialNodeParameterSchema.h"
 #include "pxr/imaging/hd/materialSchema.h"
 #include "pxr/imaging/hd/meshTopologySchema.h"
 #include "pxr/imaging/hd/meshSchema.h"
@@ -923,6 +924,7 @@ TF_DEFINE_PRIVATE_TOKENS(
     _imageMetadataTokens,
 
     (worldtoscreen)
+    (worldToNDC)
 );
 
 // Helper to produce, e.g., FooXPosBar.
@@ -1146,29 +1148,53 @@ GetWorldToScreenFromImageMetadata(
     //   in row major order.
     // - GfMatrix4f or GfMatrix4d
     VtValue worldtoscreen;
-    if (!img->GetMetadata(_imageMetadataTokens->worldtoscreen, &worldtoscreen)) {
-        return false;
-    }
 
+    // XXX: OpenImageIO >= 2.2 no longer flips 'worldtoscreen' with 'worldToNDC'
+    // on read and write, so assets where 'worldtoscreen' was written with > 2.2
+    // have 'worldToNDC' actually in the metadata, and OIIO < 2.2 would read
+    // and return 'worldToNDC' from the file in response to a request for 
+    // 'worldtoscreen'. OIIO >= 2.2 no longer does either, so 'worldtoscreen'
+    // gets written as 'worldtoscreen' and returned when asked for
+    // 'worldtoscreen'. Issues only arise when trying to read 'worldtoscreen'
+    // from an asset written with OIIO < 2.2, when the authoring program told
+    // OIIO to write it as 'worldtoscreen'. Old OIIO flipped it to 'worldToNDC'.
+    // So new OIIO needs to read 'worldToNDC' to retrieve it.
+    //
+    // See https://github.com/OpenImageIO/oiio/pull/2609
+    //
+    // OIIO's change is correct -- the two metadata matrices have different
+    // semantic meanings, and should not be conflated. Unfortunately, users will
+    // have to continue to conflate them for a while as assets transition into
+    // vfx2022 (which uses OIIO 2.3). So we will need to check for both.
+    
+    if (!img->GetMetadata(_imageMetadataTokens->worldtoscreen, &worldtoscreen)) {
+        if (img->GetMetadata(_imageMetadataTokens->worldToNDC, &worldtoscreen)) {
+            TF_WARN("The texture asset '%s' may have been authored by an "
+            "earlier version of the VFX toolset. To silence this warning, "
+            "please regenerate the asset with the current toolset.",
+            file.c_str());
+        } else {
+            TF_WARN("The texture asset '%s' lacks a worldtoscreen matrix in "
+            "metadata. Cards draw mode may not appear as expected.", 
+            file.c_str());
+            return false;
+        }
+    }
+    
     if (worldtoscreen.IsHolding<std::vector<float>>()) {
         return _ConvertToMatrix(
             worldtoscreen.UncheckedGet<std::vector<float>>(), mat);
-    }
-    if (worldtoscreen.IsHolding<std::vector<double>>()) {
+    } else if (worldtoscreen.IsHolding<std::vector<double>>()) {
         return _ConvertToMatrix(
             worldtoscreen.UncheckedGet<std::vector<double>>(), mat);
-    }
-    if (worldtoscreen.IsHolding<GfMatrix4f>()) {
+    } else if (worldtoscreen.IsHolding<GfMatrix4f>()) {
         *mat = GfMatrix4d(worldtoscreen.UncheckedGet<GfMatrix4f>());
         return true;
-    }
-    if (worldtoscreen.IsHolding<GfMatrix4d>()) {
+    } else if (worldtoscreen.IsHolding<GfMatrix4d>()) {
         *mat = worldtoscreen.UncheckedGet<GfMatrix4d>();
         return true;
     }
-
-    TF_WARN(
-        "worldtoscreen metadata holding unexpected type '%s'",
+    TF_WARN("worldtoscreen metadata holding unexpected type '%s'",
         worldtoscreen.GetTypeName().c_str());
     return false;
 }
@@ -1562,17 +1588,40 @@ _ComputeConnection(const TfToken &nodeName, const TfToken &outputName)
 HdDataSourceBaseHandle
 _CardsTextureNode(const HdAssetPathDataSourceHandle &file,
                   const HdDataSourceBaseHandle &fallback)
-                  
 {
-    const TfToken inputConnectionNames[] = {
-        _UsdUVTextureTokens->st };
-
+    static const TfToken inputConnectionNames[] = { _UsdUVTextureTokens->st };
     const HdDataSourceBaseHandle inputConnections[] = {
         _ComputeConnection(
             _materialNodeNameTokens->cardUvCoords, 
             _UsdPrimvarReaderTokens->result) };
 
-
+    static const TfToken paramsNames[] = {
+        _UsdUVTextureTokens->wrapS,
+        _UsdUVTextureTokens->wrapT,
+        _UsdUVTextureTokens->fallback,
+        _UsdUVTextureTokens->file,
+        _UsdUVTextureTokens->st
+    };
+    const HdDataSourceBaseHandle paramsValues[] = {
+        HdMaterialNodeParameterSchema::Builder()
+            .SetValue(HdRetainedTypedSampledDataSource<TfToken>::New(
+                _UsdUVTextureTokens->clamp))
+            .Build(),
+        HdMaterialNodeParameterSchema::Builder()
+            .SetValue(HdRetainedTypedSampledDataSource<TfToken>::New(
+                _UsdUVTextureTokens->clamp))
+            .Build(),
+        HdMaterialNodeParameterSchema::Builder()
+            .SetValue(HdSampledDataSource::Cast(fallback))
+            .Build(),
+        HdMaterialNodeParameterSchema::Builder()
+            .SetValue(file)
+            .Build(),
+        HdMaterialNodeParameterSchema::Builder()
+            .SetValue(HdRetainedTypedSampledDataSource<TfToken>::New(
+                _primvarNameTokens->cardsUv))
+            .Build()
+    };
 
     return
         HdMaterialNodeSchema::Builder()
@@ -1581,19 +1630,9 @@ _CardsTextureNode(const HdAssetPathDataSourceHandle &file,
                     UsdImagingTokens->UsdUVTexture))
             .SetParameters(
                 HdRetainedContainerDataSource::New(
-                    _UsdUVTextureTokens->wrapS,
-                    HdRetainedTypedSampledDataSource<TfToken>::New(
-                        _UsdUVTextureTokens->clamp),
-                    _UsdUVTextureTokens->wrapT,
-                    HdRetainedTypedSampledDataSource<TfToken>::New(
-                        _UsdUVTextureTokens->clamp),
-                    _UsdUVTextureTokens->fallback,
-                    fallback,
-                    _UsdUVTextureTokens->file,
-                    file,
-                    _UsdUVTextureTokens->st,
-                    HdRetainedTypedSampledDataSource<TfToken>::New(
-                        _primvarNameTokens->cardsUv)))
+                    TfArraySize(paramsNames),
+                    paramsNames,
+                    paramsValues))
             .SetInputConnections(
                 HdRetainedContainerDataSource::New(
                     TfArraySize(inputConnectionNames),
@@ -1609,9 +1648,17 @@ _CardsSurfaceNode(const bool hasTexture, const HdDataSourceBaseHandle& fallback)
         HdRetainedTypedSampledDataSource<TfToken>::New(
             UsdImagingTokens->UsdPreviewSurface);
     static const HdDataSourceBaseHandle one =
-        HdRetainedTypedSampledDataSource<float>::New(1.0f);
+        HdMaterialNodeParameterSchema::Builder()
+            .SetValue(HdRetainedTypedSampledDataSource<float>::New(1.0f))
+            .Build();
     static const HdDataSourceBaseHandle pointOne =
-        HdRetainedTypedSampledDataSource<float>::New(0.1f);
+        HdMaterialNodeParameterSchema::Builder()
+            .SetValue(HdRetainedTypedSampledDataSource<float>::New(0.1f))
+            .Build();
+    static const HdDataSourceBaseHandle fallbackParam = 
+        HdMaterialNodeParameterSchema::Builder()
+            .SetValue(HdSampledDataSource::Cast(fallback))
+            .Build();
 
     std::vector<TfToken> parameterNames;
     std::vector<HdDataSourceBaseHandle> parameters;
@@ -1636,7 +1683,7 @@ _CardsSurfaceNode(const bool hasTexture, const HdDataSourceBaseHandle& fallback)
         parameters.push_back(pointOne);
     } else {
         parameterNames.push_back(_UsdPreviewSurfaceTokens->diffuseColor);
-        parameters.push_back(fallback);
+        parameters.push_back(fallbackParam);
         parameterNames.push_back(_UsdPreviewSurfaceTokens->opacity);
         parameters.push_back(one);
     }
@@ -1659,15 +1706,22 @@ _CardsSurfaceNode(const bool hasTexture, const HdDataSourceBaseHandle& fallback)
 HdDataSourceBaseHandle
 _CardsUVNode()
 {
+    static const TfToken paramsNames[] = { _UsdPrimvarReaderTokens->varname };
+    const HdDataSourceBaseHandle paramsValues[] = {
+        HdMaterialNodeParameterSchema::Builder()
+            .SetValue(HdRetainedTypedSampledDataSource<TfToken>::New(
+                _primvarNameTokens->cardsUv))
+            .Build()
+    };
     return HdMaterialNodeSchema::Builder()
         .SetNodeIdentifier(
             HdRetainedTypedSampledDataSource<TfToken>::New(
                 UsdImagingTokens->UsdPrimvarReader_float2))
         .SetParameters(
             HdRetainedContainerDataSource::New(
-                _UsdPrimvarReaderTokens->varname,
-                HdRetainedTypedSampledDataSource<TfToken>::New(
-                    _primvarNameTokens->cardsUv)))
+                TfArraySize(paramsNames),
+                paramsNames,
+                paramsValues))
         .Build();
 }
 
@@ -1677,8 +1731,8 @@ _CardsDataCache::_CardsData::_ComputeMaterials(const _SchemaValues &values)
     static const std::array<TfToken, 6> materialNameTokens = 
         _AddAxesToNames("subsetMaterial", "");
 
-    const HdDataSourceBaseHandle vec4Fallback = _Vec4fFromVec3fDataSource::New(
-        values.drawModeColor, 1.0f);
+    const HdDataSourceBaseHandle vec4Fallback = 
+        _Vec4fFromVec3fDataSource::New(values.drawModeColor, 1.0f);
 
     _MaterialsDict materials;
     
@@ -1695,12 +1749,17 @@ _CardsDataCache::_CardsData::_ComputeMaterials(const _SchemaValues &values)
                 std::vector<TfToken> networkNames;
                 std::vector<HdDataSourceBaseHandle> networks;
 
+                // Card Surface
                 nodeNames.push_back(_materialNodeNameTokens->cardSurface);
-                nodes.push_back(_CardsSurfaceNode(
-                    values.hasTexture[i], values.drawModeColor));
+                nodes.push_back(
+                    _CardsSurfaceNode(
+                        values.hasTexture[i], values.drawModeColor));
+                // Card Texture
                 nodeNames.push_back(_materialNodeNameTokens->cardTexture);
-                nodes.push_back(_CardsTextureNode(
-                    values.texturePaths[i], vec4Fallback));
+                nodes.push_back(
+                    _CardsTextureNode(
+                        values.texturePaths[i], vec4Fallback));
+                // Card UvCords
                 nodeNames.push_back(_materialNodeNameTokens->cardUvCoords);
                 nodes.push_back(_CardsUVNode());
 
@@ -2067,8 +2126,8 @@ private:
 
 UsdImaging_DrawModeStandinSharedPtr
 UsdImaging_GetDrawModeStandin(const TfToken &drawMode,
-                                const SdfPath &path,
-                                const HdContainerDataSourceHandle &primSource)
+                              const SdfPath &path,
+                              const HdContainerDataSourceHandle &primSource)
 {
     if (drawMode.IsEmpty()) {
         return nullptr;

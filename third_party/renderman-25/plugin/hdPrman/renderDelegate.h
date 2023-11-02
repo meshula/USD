@@ -47,7 +47,6 @@ PXR_NAMESPACE_OPEN_SCOPE
     ((disableMotionBlur,              "disableMotionBlur"))            \
     ((shutterOpen,                    "shutter:open"))                 \
     ((shutterClose,                   "shutter:close"))                \
-    ((experimentalSettingsCameraPath, "experimental:settingsCameraPath"))\
     ((experimentalRenderSpec,         "experimental:renderSpec"))      \
     ((delegateRenderProducts,         "delegateRenderProducts"))       \
     ((batchCommandLine,               "batchCommandLine"))             \
@@ -176,6 +175,9 @@ public:
     HDPRMAN_API 
     TfTokenVector GetRenderSettingsNamespaces() const override;
 #endif
+
+    HDPRMAN_API 
+    void SetRenderSetting(TfToken const &key, VtValue const &value) override;
 
     /// NOTE: RenderMan has no notion of pausing the render threads.
     ///       We don't return true, because otherwise start/stop causes

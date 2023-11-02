@@ -59,6 +59,7 @@
 #include "pxr/base/gf/vec4h.h"
 #include "pxr/base/gf/vec4i.h"
 #include "pxr/base/tf/enum.h"
+#include "pxr/base/tf/preprocessorUtilsLite.h"
 #include "pxr/base/tf/staticTokens.h"
 #include "pxr/base/tf/token.h"
 #include "pxr/base/tf/type.h"
@@ -66,12 +67,7 @@
 #include "pxr/base/vt/dictionary.h"
 #include "pxr/base/vt/value.h"
 
-#include <boost/preprocessor/list/for_each.hpp>
-#include <boost/preprocessor/list/size.hpp>
-#include <boost/preprocessor/selection/max.hpp>
 #include <boost/preprocessor/seq/for_each.hpp>
-#include <boost/preprocessor/seq/seq.hpp>
-#include <boost/preprocessor/tuple/elem.hpp>
 #include <iosfwd>
 #include <list>
 #include <map>
@@ -237,43 +233,34 @@ enum SdfAuthoringError
 
 #define _SDF_UNITS                          \
 ((Length, _SDF_LENGTH_UNITS),               \
-((Angular, _SDF_ANGULAR_UNITS),             \
-((Dimensionless, _SDF_DIMENSIONLESS_UNITS), \
- BOOST_PP_NIL)))
+(Angular, _SDF_ANGULAR_UNITS),              \
+(Dimensionless, _SDF_DIMENSIONLESS_UNITS))
 
-#define _SDF_UNIT_TAG(tup) BOOST_PP_TUPLE_ELEM(3, 0, tup)
-#define _SDF_UNIT_NAME(tup) BOOST_PP_TUPLE_ELEM(3, 1, tup)
-#define _SDF_UNIT_SCALE(tup) BOOST_PP_TUPLE_ELEM(3, 2, tup)
+#define _SDF_UNIT_TAG(tup) TF_PP_TUPLE_ELEM(0, tup)
+#define _SDF_UNIT_NAME(tup) TF_PP_TUPLE_ELEM(1, tup)
+#define _SDF_UNIT_SCALE(tup) TF_PP_TUPLE_ELEM(2, tup)
 
-#define _SDF_UNITSLIST_CATEGORY(tup) BOOST_PP_TUPLE_ELEM(2, 0, tup)
-#define _SDF_UNITSLIST_TUPLES(tup) BOOST_PP_TUPLE_ELEM(2, 1, tup)
-#define _SDF_UNITSLIST_ENUM(elem) BOOST_PP_CAT(BOOST_PP_CAT(Sdf, \
+#define _SDF_UNITSLIST_CATEGORY(tup) TF_PP_TUPLE_ELEM(0, tup)
+#define _SDF_UNITSLIST_TUPLES(tup) TF_PP_TUPLE_ELEM(1, tup)
+#define _SDF_UNITSLIST_ENUM(elem) TF_PP_CAT(TF_PP_CAT(Sdf, \
                                     _SDF_UNITSLIST_CATEGORY(elem)), Unit)
 
 #define _SDF_DECLARE_UNIT_ENUMERANT(r, tag, elem) \
-    BOOST_PP_CAT(Sdf ## tag ## Unit, _SDF_UNIT_TAG(elem)),
+    TF_PP_CAT(Sdf ## tag ## Unit, _SDF_UNIT_TAG(elem)),
 
-#define _SDF_DECLARE_UNIT_ENUM(r, unused, elem)          \
+#define _SDF_DECLARE_UNIT_ENUM(elem)                     \
 enum _SDF_UNITSLIST_ENUM(elem) {                         \
     BOOST_PP_SEQ_FOR_EACH(_SDF_DECLARE_UNIT_ENUMERANT,   \
                           _SDF_UNITSLIST_CATEGORY(elem), \
                           _SDF_UNITSLIST_TUPLES(elem))   \
 };
-BOOST_PP_LIST_FOR_EACH(_SDF_DECLARE_UNIT_ENUM, ~, _SDF_UNITS)
 
-// Compute the max number of enumerants over all unit enums
-#define _SDF_MAX_UNITS_OP(d, state, list) \
-    BOOST_PP_MAX_D(d, state, BOOST_PP_SEQ_SIZE(_SDF_UNITSLIST_TUPLES(list)))
-#define _SDF_UNIT_MAX_UNITS \
-    BOOST_PP_LIST_FOLD_LEFT(_SDF_MAX_UNITS_OP, 0, _SDF_UNITS)
+#define _SDF_FOR_EACH_UNITS_IMPL(macro, ...)             \
+    TF_PP_FOR_EACH(macro, __VA_ARGS__)
+#define _SDF_FOR_EACH_UNITS(macro, args)                 \
+    _SDF_FOR_EACH_UNITS_IMPL(macro, TF_PP_EAT_PARENS(args))
 
-// Compute the number of unit enums
-#define _SDF_UNIT_NUM_TYPES BOOST_PP_LIST_SIZE(_SDF_UNITS)
-
-// Compute the number of bits needed to hold _SDF_UNIT_MAX_UNITS and
-// _SDF_UNIT_NUM_TYPES.
-#define _SDF_UNIT_MAX_UNITS_BITS TF_BITS_FOR_VALUES(_SDF_UNIT_MAX_UNITS)
-#define _SDF_UNIT_TYPES_BITS     TF_BITS_FOR_VALUES(_SDF_UNIT_NUM_TYPES)
+_SDF_FOR_EACH_UNITS(_SDF_DECLARE_UNIT_ENUM, _SDF_UNITS)
 
 /// A map of mapper parameter names to parameter values.
 typedef std::map<std::string, VtValue> SdfMapperParametersMap;
@@ -379,8 +366,8 @@ SDF_API TfToken SdfGetRoleNameForValueTypeName(TfToken const &typeName);
 #define SDF_VALUE_TYPES _SDF_SCALAR_VALUE_TYPES _SDF_DIMENSIONED_VALUE_TYPES
 
 // Accessors for individual elements in the value types tuples.
-#define SDF_VALUE_CPP_TYPE(tup) BOOST_PP_TUPLE_ELEM(4, 2, tup)
-#define SDF_VALUE_CPP_ARRAY_TYPE(tup) VtArray<BOOST_PP_TUPLE_ELEM(4, 2, tup)> 
+#define SDF_VALUE_CPP_TYPE(tup) TF_PP_TUPLE_ELEM(2, tup)
+#define SDF_VALUE_CPP_ARRAY_TYPE(tup) VtArray<TF_PP_TUPLE_ELEM(2, tup)>
 
 template <class T>
 struct SdfValueTypeTraits {

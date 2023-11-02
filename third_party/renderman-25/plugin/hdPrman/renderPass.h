@@ -34,6 +34,8 @@
 PXR_NAMESPACE_OPEN_SCOPE
 
 class HdPrman_RenderParam;
+class HdPrman_CameraContext;
+class HdPrman_RenderSettings;
 
 class HdPrman_RenderPass final : public HdRenderPass
 {
@@ -47,19 +49,32 @@ public:
     bool IsConverged() const override;
 
 protected:
-    void _Execute(HdRenderPassStateSharedPtr const& renderPassState,
+    void _Execute(HdRenderPassStateSharedPtr const &renderPassState,
                   TfTokenVector const &renderTags) override;
 
 private:
     void _RenderInMainThread();
-    void _RestartRenderIfNecessary(HdRenderDelegate * renderDelegate);
+    void _RestartRenderIfNecessary(HdRenderDelegate *renderDelegate);
+
+    // Helpers to update the Camera Context inside _Execute()
+    void _UpdateCameraPath(
+        const HdRenderPassStateSharedPtr &renderPassState,
+        HdPrman_CameraContext *cameraContext);
+    
+    bool _UpdateCameraFramingAndWindowPolicy(
+        const HdRenderPassStateSharedPtr &renderPassState,
+        HdPrman_CameraContext *cameraContext);
+
+    void _UpdateRprimVisibilityFromTaskRenderTags(
+        TfTokenVector const &renderTags);
+
+    HdPrman_RenderSettings* _GetDrivingRenderSettingsPrim() const;
+
     std::shared_ptr<HdPrman_RenderParam> _renderParam;
     bool _converged;
     int _lastRenderedVersion;
     int _lastTaskRenderTagsVersion;
     int _lastRprimRenderTagVersion;
-
-    SdfPath _lastRenderSettingsPrimPath;
 
     std::chrono::steady_clock::time_point _frameStart;
     float _quickIntegrateTime;

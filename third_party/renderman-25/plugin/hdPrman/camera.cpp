@@ -118,9 +118,10 @@ HdPrmanCamera::Sync(HdSceneDelegate *sceneDelegate,
             // shutter interval is set before any rprims are synced
             // (and the transform of the riley camera is updated).
             //
-            // Thus, we immediately call UpdateRileyShutterInterval
-            // here.
-            param->UpdateRileyShutterInterval(
+            // See SetRileyShutterIntervalFromCameraContextCameraPath
+            // for additional context.
+            //
+            param->SetRileyShutterIntervalFromCameraContextCameraPath(
                 &sceneDelegate->GetRenderIndex());
         }
     }

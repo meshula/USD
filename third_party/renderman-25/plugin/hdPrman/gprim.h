@@ -181,6 +181,18 @@ HdPrman_Gprim<BASE>::Sync(HdSceneDelegate* sceneDelegate,
     HdTimeSampleArray<GfMatrix4d, HDPRMAN_MAX_TIME_SAMPLES> xf;
     sceneDelegate->SampleTransform(id, &xf);
 
+    // If blur is explicitly disabled, use single time 0 sample
+    const bool enableMotionBlur =
+        param->IsMotionBlurEnabled() &&
+        HdPrman_IsMotionBlurPrimvarEnabled(sceneDelegate, id) &&
+        HdPrman_GetNumXformSamples(sceneDelegate, id) >= 2;
+
+    if (!enableMotionBlur) {
+        xf.values[0] = xf.Resample(0.f);
+        xf.times[0] = 0.f;
+        xf.Resize(1);
+    }
+
     // Update visibility so thet rprim->IsVisible() will work in render pass
     if (HdChangeTracker::IsVisibilityDirty(*dirtyBits, id)) {
         BASE::_UpdateVisibility(sceneDelegate, dirtyBits);

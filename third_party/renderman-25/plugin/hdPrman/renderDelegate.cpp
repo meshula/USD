@@ -41,7 +41,6 @@
 #include "hdPrman/lightFilter.h"
 #include "hdPrman/material.h"
 #include "hdPrman/mesh.h"
-#include "hdPrman/paramsSetter.h"
 #include "hdPrman/points.h"
 #include "hdPrman/resourceRegistry.h"
 #include "hdPrman/terminalSceneIndexObserver.h"
@@ -70,8 +69,7 @@ TF_DEFINE_PRIVATE_TOKENS(
     (ri)
     ((outputsRi, "outputs:ri"))
     ((mtlxRenderContext, "mtlx"))
-    (prmanParams) /* XXX currently duplicated whereever used as to not yet */
-                 /* establish a formal convention */
+    (renderCameraPath)
 );
 
 TF_DEFINE_PUBLIC_TOKENS(HdPrmanRenderSettingsTokens,
@@ -124,7 +122,6 @@ const TfTokenVector HdPrmanRenderDelegate::SUPPORTED_SPRIM_TYPES =
     HdPrimTypeTokens->integrator,
     HdPrimTypeTokens->sampleFilter,
     HdPrimTypeTokens->displayFilter,
-    _tokens->prmanParams,
 };
 
 const TfTokenVector HdPrmanRenderDelegate::SUPPORTED_BPRIM_TYPES =
@@ -413,9 +410,6 @@ HdPrmanRenderDelegate::CreateSprim(TfToken const& typeId,
         }
     } else if (typeId == HdPrimTypeTokens->extComputation) {
         sprim = new HdExtComputation(sprimId);
-    
-    } else if (typeId == _tokens->prmanParams) {
-        sprim = new HdPrmanParamsSetter(sprimId);
     } else if (typeId == HdPrimTypeTokens->integrator) {
         sprim = new HdPrman_Integrator(sprimId);
     } else if (typeId == HdPrimTypeTokens->sampleFilter) {
@@ -454,8 +448,6 @@ HdPrmanRenderDelegate::CreateFallbackSprim(TfToken const& typeId)
         return new HdPrmanLight(SdfPath::EmptyPath(), typeId);
     } else if (typeId == HdPrimTypeTokens->extComputation) {
         return new HdExtComputation(SdfPath::EmptyPath());
-    } else if (typeId == _tokens->prmanParams) {
-        return new HdPrmanParamsSetter(SdfPath::EmptyPath());
     } else if (typeId == HdPrimTypeTokens->integrator) {
         return new HdPrman_Integrator(SdfPath::EmptyPath());
     } else if (typeId == HdPrimTypeTokens->sampleFilter) {
@@ -581,6 +573,31 @@ HdPrmanRenderDelegate::GetRenderSettingsNamespaces() const
     return {_tokens->ri, _tokens->outputsRi};
 }
 #endif
+
+void
+HdPrmanRenderDelegate::SetRenderSetting(TfToken const &key, 
+                                        VtValue const &value)
+{
+    HdRenderDelegate::SetRenderSetting(key, value);
+
+    if(key == _tokens->renderCameraPath)
+    {
+        // Need to know the name of the render camera as soon as possible
+        // so that as cameras are processed (directly after render settings),
+        // the shutter of the active camera can be passed to riley,
+        // prior to handling any geometry.
+        SdfPath camPath = value.UncheckedGet<SdfPath>();
+        _renderParam->GetCameraContext().SetCameraPath(camPath);
+        _renderParam->GetCameraContext().MarkCameraInvalid(camPath);
+        HdRenderIndex *renderIndex = GetRenderIndex();
+        if(renderIndex) {
+            renderIndex->GetChangeTracker().MarkSprimDirty(
+                camPath, HdChangeTracker::DirtyParams);
+            renderIndex->GetChangeTracker().MarkAllRprimsDirty(
+                HdChangeTracker::DirtyPoints);
+        }
+    }
+}
 
 bool
 HdPrmanRenderDelegate::IsStopSupported() const

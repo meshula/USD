@@ -273,6 +273,10 @@ HgiVulkanDevice::HgiVulkanDevice(HgiVulkanInstance* instance)
         _capabilities->vkDeviceFeatures.depthClamp;
     features.features.shaderFloat64 =
         _capabilities->vkDeviceFeatures.shaderFloat64;
+    features.features.fillModeNonSolid =
+        _capabilities->vkDeviceFeatures.fillModeNonSolid;
+    features.features.alphaToOne =
+        _capabilities->vkDeviceFeatures.alphaToOne;
 
     // Needed to write to storage buffers from vertex shader (eg. GPU culling).
     features.features.vertexPipelineStoresAndAtomics =

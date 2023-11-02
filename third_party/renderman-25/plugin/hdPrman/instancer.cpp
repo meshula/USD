@@ -45,8 +45,10 @@
 #include "pxr/base/tf/staticTokens.h"
 #include "pxr/base/tf/envSetting.h"
 
+#if PXR_VERSION >= 2211 // VtVisitValue
 #include "pxr/base/vt/typeHeaders.h"
 #include "pxr/base/vt/visitValue.h"
+#endif
 
 #include "RiTypesHelper.h"
 
@@ -75,6 +77,59 @@ void _AccumulateSampleTimes(
         out.Resize(in.count);
         out.times = in.times;
     }
+}
+
+#if PXR_VERSION >= 2211
+// Visitor for VtVisitValue; will retrieve the value at the specified
+// index as a VtValue when the visited value is array-typed. Returns
+// empty VtValue when the visited value is not array-typed, or when the
+// index points beyond the end of the array.
+struct _GetValueAtIndex {
+    _GetValueAtIndex(const size_t index) : _index(index) { }
+    template <class T>
+    const VtValue operator()(const VtArray<T>& array) const
+    {
+        if (array.size() > _index) {
+            return VtValue(array[_index]);
+        }
+        return VtValue();
+    }
+    const VtValue operator()(const VtValue& val) const
+    {
+        return VtValue();
+    }
+private:
+    size_t _index;
+};
+#endif
+
+VtValue
+_ExtractVtValueAtIndex(const VtValue& val, const size_t idx)
+{
+#if PXR_VERSION < 2211
+    if (val.IsHolding<VtArray<float>>()) {
+        return VtValue(val.UncheckedGet<VtArray<float>>()[idx]);
+    } else if (val.IsHolding<VtArray<int>>()) {
+        return VtValue(val.UncheckedGet<VtArray<int>>()[idx]);
+    } else if (val.IsHolding<VtArray<GfVec2f>>()) {
+        return VtValue(val.UncheckedGet<VtArray<GfVec2f>>()[idx]);
+    } else if (val.IsHolding<VtArray<GfVec3f>>()) {
+        return VtValue(val.UncheckedGet<VtArray<GfVec3f>>()[idx]);
+    } else if (val.IsHolding<VtArray<GfVec4f>>()) {
+        return VtValue(val.UncheckedGet<VtArray<GfVec4f>>()[idx]);
+    } else if (val.IsHolding<VtArray<GfMatrix4d>>()) {
+        return VtValue(val.UncheckedGet<VtArray<GfMatrix4d>>()[idx]);
+    } else if (val.IsHolding<VtArray<std::string>>()) {
+        return VtValue(val.UncheckedGet<VtArray<std::string>>()[idx]);
+    } else if (val.IsHolding<VtArray<TfToken>>()) {
+        return VtValue(val.UncheckedGet<VtArray<TfToken>>()[idx]);
+    } else {
+        TF_WARN("Unhandled type: %s\n", val.GetTypeName().c_str());
+        return VtValue();
+    }
+#else
+    return VtVisitValue(val, _GetValueAtIndex(idx));
+#endif
 }
 
 template <typename M>
@@ -207,7 +262,6 @@ HdPrmanInstancer::Sync(
         const std::string dbs = HdChangeTracker::StringifyDirtyBits(*dirtyBits);
         const std::string pro = SdfPathVecToString(delegate->
             GetInstancerPrototypes(id));
-        
         std::string dps;
         if (HdChangeTracker::IsAnyPrimvarDirty(*dirtyBits, id)) {
             for (HdInterpolation i = HdInterpolationConstant;
@@ -294,7 +348,7 @@ HdPrmanInstancer::Finalize(HdRenderParam *renderParam)
     
     // Delete all my riley instances
     _protoMap.citerate([riley](const SdfPath& path, const _ProtoMapEntry& entry) {
-        for (const auto rp : entry.map) {
+        for (const auto& rp : entry.map) {
             const _InstanceIdVec& ids = rp.second;
             for (const _RileyInstanceId& ri : ids) {
                 if (ri.lightInstanceId != riley::LightInstanceId::InvalidId()) {
@@ -422,19 +476,41 @@ void HdPrmanInstancer::_SyncPrimvars(
     HdSceneDelegate* delegate = GetDelegate();
     SdfPath const& id = GetId();
 
+    // XXX: When removing these in 24.05, eliminate the variables. Replace
+    // their usages with the appropriate HdInstancerTokens.
+#if HD_API_VERSION < 56
+    TfToken instanceTranslationsToken = HdInstancerTokens->translate;
+    TfToken instanceRotationsToken = HdInstancerTokens->rotate;
+    TfToken instanceScalesToken = HdInstancerTokens->scale;
+    TfToken instanceTransformsToken = HdInstancerTokens->instanceTransform;
+#else
+    TfToken instanceTranslationsToken = HdInstancerTokens->instanceTranslations;
+    TfToken instanceRotationsToken = HdInstancerTokens->instanceRotations;
+    TfToken instanceScalesToken = HdInstancerTokens->instanceScales;
+    TfToken instanceTransformsToken = HdInstancerTokens->instanceTransforms;
+
+    if (TfGetEnvSetting(HD_USE_DEPRECATED_INSTANCER_PRIMVAR_NAMES)) {
+        instanceTranslationsToken = HdInstancerTokens->translate;
+        instanceRotationsToken = HdInstancerTokens->rotate;
+        instanceScalesToken = HdInstancerTokens->scale;
+        instanceTransformsToken = HdInstancerTokens->instanceTransform;
+    }
+#endif
+
     if (HdChangeTracker::IsAnyPrimvarDirty(*dirtyBits, id)) {
         // Get list of USD primvar names for each interp mode and cache each one
-        for (HdInterpolation i = HdInterpolationVarying;
+        // Solaris allows constant primvars so we need to be able to access them.
+        for (HdInterpolation i = HdInterpolationConstant;
             i != HdInterpolationCount; i = HdInterpolation(i+1)) {
             for (const HdPrimvarDescriptor& primvar :
                 delegate->GetPrimvarDescriptors(id, i)) {
                 // Skip primvars that have special handling elsewhere.
                 // The transform primvars are all handled in
                 // _SyncTransforms.
-                if (primvar.name == HdInstancerTokens->instanceTransform ||
-                    primvar.name == HdInstancerTokens->rotate ||
-                    primvar.name == HdInstancerTokens->scale ||
-                    primvar.name == HdInstancerTokens->translate) {
+                if (primvar.name == instanceTransformsToken ||
+                    primvar.name == instanceRotationsToken ||
+                    primvar.name == instanceScalesToken ||
+                    primvar.name == instanceTranslationsToken) {
                     continue;
                 }
                 if (HdChangeTracker::IsPrimvarDirty(*dirtyBits, id, primvar.name)) {
@@ -457,6 +533,28 @@ HdPrmanInstancer::_SyncTransforms(
     HdSceneDelegate* delegate = GetDelegate();
     const SdfPath& id = GetId();
 
+    // XXX: When removing these in 24.05, eliminate the variables. Replace
+    // their usages with the appropriate HdInstancerTokens. Don't forget to
+    // reformat the "not ... expected type" warning messages, too!
+#if HD_API_VERSION < 56
+    TfToken instanceTranslationsToken = HdInstancerTokens->translate;
+    TfToken instanceRotationsToken = HdInstancerTokens->rotate;
+    TfToken instanceScalesToken = HdInstancerTokens->scale;
+    TfToken instanceTransformsToken = HdInstancerTokens->instanceTransform;
+#else
+    TfToken instanceTranslationsToken = HdInstancerTokens->instanceTranslations;
+    TfToken instanceRotationsToken = HdInstancerTokens->instanceRotations;
+    TfToken instanceScalesToken = HdInstancerTokens->instanceScales;
+    TfToken instanceTransformsToken = HdInstancerTokens->instanceTransforms;
+
+    if (TfGetEnvSetting(HD_USE_DEPRECATED_INSTANCER_PRIMVAR_NAMES)) {
+        instanceTranslationsToken = HdInstancerTokens->translate;
+        instanceRotationsToken = HdInstancerTokens->rotate;
+        instanceScalesToken = HdInstancerTokens->scale;
+        instanceTransformsToken = HdInstancerTokens->instanceTransform;
+    }
+#endif
+
     // Only include this instancer's own transform if it has no parent. When
     // there is a parent instancer, the parent instancer will apply this
     // instancer's transform to the instances it creates of this instancer's
@@ -465,51 +563,53 @@ HdPrmanInstancer::_SyncTransforms(
 
     if (HdChangeTracker::IsTransformDirty(*dirtyBits, id) ||
         HdChangeTracker::IsPrimvarDirty(*dirtyBits, id,
-            HdInstancerTokens->instanceTransform) ||
+            instanceTransformsToken) ||
         HdChangeTracker::IsPrimvarDirty(*dirtyBits, id,
-            HdInstancerTokens->translate) ||
+            instanceTranslationsToken) ||
         HdChangeTracker::IsPrimvarDirty(*dirtyBits, id,
-            HdInstancerTokens->rotate) ||
+            instanceRotationsToken) ||
         HdChangeTracker::IsPrimvarDirty(*dirtyBits, id,
-            HdInstancerTokens->scale)) {
+            instanceScalesToken)) {
 
         HdTimeSampleArray<GfMatrix4d, HDPRMAN_MAX_TIME_SAMPLES> instancerXform;
-        HdTimeSampleArray<VtValue, HDPRMAN_MAX_TIME_SAMPLES> boxedInstanceXforms;
+        HdTimeSampleArray<VtValue, HDPRMAN_MAX_TIME_SAMPLES>
+            boxedInstanceXforms;
         HdTimeSampleArray<VtValue, HDPRMAN_MAX_TIME_SAMPLES> boxedTranslates;
         HdTimeSampleArray<VtValue, HDPRMAN_MAX_TIME_SAMPLES> boxedRotates;
         HdTimeSampleArray<VtValue, HDPRMAN_MAX_TIME_SAMPLES> boxedScales;
         if (includeInstancerXform) {
             delegate->SampleInstancerTransform(id, &instancerXform);
         }
-        delegate->SamplePrimvar(id, HdInstancerTokens->instanceTransform,
+        delegate->SamplePrimvar(id, instanceTransformsToken,
                                 &boxedInstanceXforms);
-        delegate->SamplePrimvar(id, HdInstancerTokens->translate,
+        delegate->SamplePrimvar(id, instanceTranslationsToken,
                                 &boxedTranslates);
-        delegate->SamplePrimvar(id, HdInstancerTokens->scale,
+        delegate->SamplePrimvar(id, instanceScalesToken,
                                 &boxedScales);
-        delegate->SamplePrimvar(id, HdInstancerTokens->rotate,
+        delegate->SamplePrimvar(id, instanceRotationsToken,
                                 &boxedRotates);
 
         // Unbox samples held as VtValues
-        HdTimeSampleArray<VtMatrix4dArray, HDPRMAN_MAX_TIME_SAMPLES> instanceXforms;
+        HdTimeSampleArray<VtMatrix4dArray, HDPRMAN_MAX_TIME_SAMPLES>
+            instanceXforms;
         HdTimeSampleArray<VtVec3fArray, HDPRMAN_MAX_TIME_SAMPLES> translates;
         HdTimeSampleArray<VtQuathArray, HDPRMAN_MAX_TIME_SAMPLES> rotates;
         HdTimeSampleArray<VtVec3fArray, HDPRMAN_MAX_TIME_SAMPLES> scales;
         if (!instanceXforms.UnboxFrom(boxedInstanceXforms)) {
-            TF_WARN("<%s> instanceTransform did not have expected type matrix4d[]",
-                    id.GetText());
+            TF_WARN("<%s> %s did not have expected type matrix4d[]",
+                instanceTransformsToken.GetText(), id.GetText());
         }
         if (!translates.UnboxFrom(boxedTranslates)) {
-            TF_WARN("<%s> translate did not have expected type vec3f[]",
-                    id.GetText());
+            TF_WARN("<%s> %s did not have expected type vec3f[]",
+                instanceTranslationsToken.GetText(), id.GetText());
         }
         if (!rotates.UnboxFrom(boxedRotates)) {
-            TF_WARN("<%s> rotate did not have expected type quath[]",
-                    id.GetText());
+            TF_WARN("<%s> %s did not have expected type quath[]",
+                instanceRotationsToken.GetText(), id.GetText());
         }
         if (!scales.UnboxFrom(boxedScales)) {
-            TF_WARN("<%s> scale did not have expected type vec3f[]",
-                    id.GetText());
+            TF_WARN("<%s> %s did not have expected type vec3f[]",
+                instanceScalesToken.GetText(), id.GetText());
         }
 
         // As a simple resampling strategy, find the input with the max #
@@ -727,12 +827,6 @@ HdPrmanInstancer::_PopulateInstances(
     //
     // Further complicating issues, this method may be called concurrently from
     // multiple threads, so some actions must be gated behind mutex locks.
-
-#if PXR_VERSION <= 2011
-    // Sync hydra instancer primvars
-    // XXX: Does this still go here?
-    SyncPrimvars();
-#endif
 
     HdPrman_RenderParam* param = static_cast<HdPrman_RenderParam*>(renderParam);
     riley::Riley* riley = param->AcquireRiley();
@@ -1351,7 +1445,6 @@ HdPrmanInstancer::_ComposePrototypeData(
             flats.params.SetInteger(RtUString("__light"), 1);
         }
         // XXX: End of RMAN-20703 workaround
-
     };
 
     // Make at least one set, even when there are no prototype ids,
@@ -1369,15 +1462,15 @@ HdPrmanInstancer::_ComposePrototypeData(
         // of light linking and thus have categories to deal with. They may also
         // receive visibility params as part of Hydra's handling of invisible
         // faces, even though visibility cannot be authored on them in USD.
-        if (subProtoPaths.size() > 0 && subProtoPaths[i] != protoPath) {
-            RtParamList subParams;
-            _FlattenData subFlats;
-            SetProtoParams(subProtoPaths[i], subParams, subFlats);
-            protoParams[i].Update(subParams);
-            protoFlats[i].Update(subFlats);
+        if (i < subProtoPaths.size() && subProtoPaths[i] != protoPath) {
+            RtParamList subsetParams;
+            _FlattenData subsetFlats;
+            SetProtoParams(subProtoPaths[i], subsetParams, subsetFlats);
+            protoParams[i].Update(subsetParams);
+            protoFlats[i].Update(subsetFlats);
         }
 
-        // Combine any flats received from below for this prototype
+        // Combine any flats received from below for this prototype.
         if (i < subProtoFlats.size()) {
             protoFlats[i].Update(subProtoFlats[i]);
         }
@@ -1586,7 +1679,7 @@ HdPrmanInstancer::_GetInstanceParams(
         // If the interpolation is not constant or uniform and the value is
         // an array, extract just the value of interest.
         if ((!isConstantRate) && val.IsArrayValued()) {
-            val = VtVisitValue(val, _GetValueAtIndex(instanceIndex));
+            val = _ExtractVtValueAtIndex(val, instanceIndex);
         }
 
         const RtUString name = _FixupParamName(entry.first);
@@ -1600,9 +1693,8 @@ HdPrmanInstancer::_GetInstanceParams(
             params.HasParam(name)) {
             continue;
         }
-        
-        if (!HdPrman_Utils::SetParamFromVtValue(name, val, 
-            primvar.role, &params)) {
+        if (!HdPrman_Utils::SetParamFromVtValue(
+                name, val, primvar.role, &params)) {
             TF_WARN("Unrecognized USD primvar value type at %s.%s",
                 GetId().GetText(), entry.first.GetText());
         }
@@ -1637,8 +1729,8 @@ HdPrmanInstancer::_GetPrototypeParams(
                 continue;
             }
             const VtValue& val = delegate->Get(protoPath, primvar.name);
-            if (!HdPrman_Utils::SetParamFromVtValue(name, val,
-                primvar.role, &params)) {
+            if (!HdPrman_Utils::SetParamFromVtValue(
+                name, val, primvar.role, &params)) {
                 TF_WARN("Unrecognized USD primvar value type at %s.%s",
                     protoPath.GetText(), primvar.name.GetText());
             }

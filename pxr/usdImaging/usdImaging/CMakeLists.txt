@@ -31,6 +31,7 @@ pxr_library(usdImaging
         adapterRegistry
         collectionCache
         dataSourceAttribute
+        dataSourceAttributeColorSpace
         dataSourceBasisCurves
         dataSourceCamera
         dataSourceGprim
@@ -77,6 +78,7 @@ pxr_library(usdImaging
         diskLightAdapter
         distantLightAdapter
         domeLightAdapter
+        domeLight_1Adapter
         fieldAdapter
         flattenedDataSourceProviders
         flattenedModelDataSourceProvider

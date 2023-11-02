@@ -23,6 +23,7 @@
    :maxdepth: 1
 
    Rendering with USD <user_guides/render_user_guide>
+   USD Variable Expressions <user_guides/variable_expressions>
 
 .. toctree::
    :hidden:
@@ -41,7 +42,7 @@
    :hidden:
    :caption: Collaborate
 
-   Source Code @ GitHub <https://github.com/PixarAnimationStudios/USD>
+   Source Code @ GitHub <https://github.com/PixarAnimationStudios/OpenUSD>
    OpenUSD Forum <https://forum.openusd.org>
    Contributing <contributing_to_usd>
    Contributors <contributors>
