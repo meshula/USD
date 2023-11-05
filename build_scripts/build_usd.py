@@ -1509,9 +1509,14 @@ def InstallMaterialX(context, force, buildArgs):
                     [("#include <MaterialXGenMsl/MslShaderGenerator.h>",
                      "#include <cctype>\n" + 
                      "#include <MaterialXGenMsl/MslShaderGenerator.h>")])
-        cmakeOptions = ['-DMATERIALX_BUILD_SHARED_LIBS=ON',
-                        '-DMATERIALX_BUILD_TESTS=OFF'
-        ]
+
+        if context.buildMonolithic:
+            cmakeOptions = ['-DMATERIALX_BUILD_SHARED_LIBS=OFF',
+                            '-DMATERIALX_BUILD_TESTS=OFF']
+        else:
+            cmakeOptions = ['-DMATERIALX_BUILD_SHARED_LIBS=ON',
+                '-DMATERIALX_BUILD_TESTS=OFF']
+
         cmakeOptions += buildArgs
         RunCMake(context, force, cmakeOptions)
 
