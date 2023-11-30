@@ -171,6 +171,8 @@ HdSt_ImageShaderRenderPass::_Execute(
     if (!TF_VERIFY(gfxCmds)) {
         return;
     }
+    
+    gfxCmds->PushDebugGroup(__ARCH_PRETTY_FUNCTION__);
 
     const GfVec4i viewport = stRenderPassState->ComputeViewport();
     gfxCmds->SetViewport(viewport);
@@ -178,7 +180,8 @@ HdSt_ImageShaderRenderPass::_Execute(
     // Camera state needs to be updated once per pass (not per batch).
     stRenderPassState->ApplyStateFromCamera();
 
-    _drawBatch->ExecuteDraw(gfxCmds.get(), stRenderPassState, resourceRegistry);
+    _drawBatch->ExecuteDraw(gfxCmds.get(), stRenderPassState, resourceRegistry,
+        /*firstDrawBatch*/true);
 
     gfxCmds->PopDebugGroup();
     _hgi->SubmitCmds(gfxCmds.get());

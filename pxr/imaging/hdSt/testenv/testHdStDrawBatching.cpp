@@ -494,7 +494,8 @@ IndirectDrawBatchTest()
         (*batchIt)->PrepareDraw(nullptr, renderPassState, registry);
     }
     TF_FOR_ALL(batchIt, drawBatches) {
-        (*batchIt)->ExecuteDraw(nullptr, renderPassState, registry);
+        (*batchIt)->ExecuteDraw(nullptr, renderPassState, registry,
+            /*firstDrawBatch*/*batchIt == *drawBatches.begin());
     }
     dict = registry->GetResourceAllocation();
     Dump("----- executed -----\n", dict, perfLog);
@@ -526,6 +527,7 @@ IndirectDrawBatchMigrationTest()
 
     HdSt_TestDriver driver;
     HdUnitTestDelegate &delegate = driver.GetDelegate();
+    driver.SetupAovs(256, 256);
 
     HdStResourceRegistrySharedPtr const& resourceRegistry = 
         std::static_pointer_cast<HdStResourceRegistry>(
@@ -753,7 +755,8 @@ EmptyDrawBatchTest()
     HdStRenderPassStateSharedPtr const renderPassState =
         std::make_shared<HdStRenderPassState>();
     batch->PrepareDraw(nullptr, renderPassState, registry);
-    batch->ExecuteDraw(nullptr, renderPassState, registry);
+    batch->ExecuteDraw(nullptr, renderPassState, registry,
+        /*firstDrawBatch*/true);
 
     // ---------------------------------------------------
 

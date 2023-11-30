@@ -52,7 +52,10 @@ public:
 
     ~HdPrman_RileyRenderOutputPrim() override;
 
-    const riley::RenderOutputId &GetRileyId() const { return _rileyId; }
+    using RileyId = riley::RenderOutputId;
+    using RileyIdList = riley::RenderOutputList;
+
+    const RileyId &GetRileyId() const { return _rileyId; }
 
 protected:
     void _Dirty(
@@ -60,7 +63,7 @@ protected:
         const HdsiPrimManagingSceneIndexObserver * observer) override;
 
 private:
-    riley::RenderOutputId _rileyId;
+    const RileyId _rileyId;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

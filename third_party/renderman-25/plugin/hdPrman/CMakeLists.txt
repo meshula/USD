@@ -95,6 +95,7 @@ pxr_plugin(${PXR_PACKAGE}
         renderDelegate
         renderSettings
         rileyRenderOutputSchema
+        rileyRenderTargetSchema
         rixStrings
         sampleFilter
         sphere
@@ -121,9 +122,10 @@ pxr_plugin(${PXR_PACKAGE}
         rileyPrimBase
         rileyPrimFactory
         rileyRenderOutputPrim
+        rileyRenderTargetPrim
         terminalSceneIndexObserver
         utils
-        velocityMotionBlurSceneIndexPlugin
+        motionBlurSceneIndexPlugin
         virtualStructResolvingSceneIndex
 
     PUBLIC_HEADERS
@@ -131,6 +133,7 @@ pxr_plugin(${PXR_PACKAGE}
 
     PRIVATE_HEADERS
         prmanArchDefs.h
+        rileyPrimUtil.h
         sceneIndexObserverApi.h
         virtualStructConditionalGrammar.tab.h
 

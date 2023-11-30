@@ -65,13 +65,14 @@ TF_DECLARE_PUBLIC_TOKENS(HdPrmanTokens, HDPRMAN_API, HD_PRMAN_TOKENS);
 /// camera  <------------------------*
 ///
 #define HD_PRMAN_RILEY_PRIM_TYPE_TOKENS         \
-    ((renderOutput, "riley:renderOutput"))
+    ((renderOutput, "riley:renderOutput"))      \
+    ((renderTarget, "riley:renderTarget"))
 
 TF_DECLARE_PUBLIC_TOKENS(HdPrmanRileyPrimTypeTokens, HDPRMAN_API,
                          HD_PRMAN_RILEY_PRIM_TYPE_TOKENS);
 
 #define HD_PRMAN_PLUGIN_TOKENS \
-    ((velocityBlur,     "HdPrman_VelocityMotionBlurSceneIndexPlugin")) \
+    ((motionBlur,       "HdPrman_MotionBlurSceneIndexPlugin")) \
     ((extComp,          "HdPrman_ExtComputationPrimvarPruningSceneIndexPlugin"))
 
 TF_DECLARE_PUBLIC_TOKENS(HdPrmanPluginTokens, HD_PRMAN_PLUGIN_TOKENS);

@@ -55,6 +55,7 @@ pxr_library(usdImaging
         drawModeSceneIndex
         extentResolvingSceneIndex
         extentsHintSchema
+        geomModelSchema
         indexProxy
         materialParamUtils
         modelSchema
@@ -81,7 +82,7 @@ pxr_library(usdImaging
         domeLight_1Adapter
         fieldAdapter
         flattenedDataSourceProviders
-        flattenedModelDataSourceProvider
+        flattenedGeomModelDataSourceProvider
         geometryLightAdapter
         geomModelAPIAdapter
         gprimAdapter
