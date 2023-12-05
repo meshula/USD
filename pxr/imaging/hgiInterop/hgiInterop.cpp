@@ -28,12 +28,12 @@
 
 #if defined(PXR_METAL_SUPPORT_ENABLED)
     #include "pxr/imaging/hgiMetal/hgi.h"
-    #if defined(ARCH_OS_OSX)
-        #include "pxr/imaging/hgiInterop/opengl.h"
-    #endif
+    #include "pxr/imaging/hgiInterop/metal.h"
 #elif defined(PXR_VULKAN_SUPPORT_ENABLED)
     #include "pxr/imaging/hgiVulkan/hgi.h"
     #include "pxr/imaging/hgiInterop/vulkan.h"
+#else
+    #include "pxr/imaging/hgiInterop/opengl.h"
 #endif
 
 PXR_NAMESPACE_OPEN_SCOPE
