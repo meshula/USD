@@ -54,6 +54,7 @@
 #include "pxr/base/gf/vec4i.h"
 #include "pxr/base/tf/envSetting.h"
 #include "pxr/base/tf/errorMark.h"
+#include "pxr/base/tf/exception.h"
 #include "pxr/base/tf/fastCompression.h"
 #include "pxr/base/tf/getenv.h"
 #include "pxr/base/tf/hash.h"
@@ -188,6 +189,21 @@ WriteToAsset(ArWritableAsset* asset,
     return nwritten;
 }
 
+/// \class UsdReadOutOfBoundsError
+///
+/// Usd throws this exception when code attempts to read
+/// memory outside of the allocated range.
+class UsdReadOutOfBoundsError : public TfBaseException
+{
+public:
+    using TfBaseException::TfBaseException;
+    USD_API virtual ~UsdReadOutOfBoundsError() override;
+};
+
+UsdReadOutOfBoundsError::~UsdReadOutOfBoundsError()
+{
+}
+
 namespace Usd_CrateFile
 {
 // Metafunction that determines if a T instance can be read/written by simple
@@ -320,13 +336,10 @@ namespace Usd_CrateFile {
 
 // XXX: These checks ensure VtValue can hold ValueRep in the lightest
 // possible way -- WBN not to rely on internal knowledge of that.
-static_assert(std::is_trivially_constructible<ValueRep>::value, "");
-static_assert(std::is_trivially_copyable<ValueRep>::value, "");
-// In C++17, std::is_trivially_copy_assignable<T> could be used in place of
-// std::is_trivially_assignable
-static_assert(std::is_trivially_assignable<ValueRep&, const ValueRep&>::value,
-              "");
-static_assert(std::is_trivially_destructible<ValueRep>::value, "");
+static_assert(std::is_trivially_constructible_v<ValueRep>);
+static_assert(std::is_trivially_copyable_v<ValueRep>);
+static_assert(std::is_trivially_copy_assignable_v<ValueRep>);
+static_assert(std::is_trivially_destructible_v<ValueRep>);
 
 using namespace Usd_CrateValueInliners;
 
@@ -596,12 +609,10 @@ struct _MmapStream {
             
             if (ARCH_UNLIKELY(!inRange)) {
                 ptrdiff_t offset = _cur - mapStart;
-                TF_RUNTIME_ERROR(
+                TF_THROW(UsdReadOutOfBoundsError, TfStringPrintf(
                     "Read out-of-bounds: %zd bytes at offset %td in "
                     "a mapping of length %zd",
-                    nBytes, offset, mapLen);
-                memset(dest, 0x99, nBytes);
-                return;
+                    nBytes, offset, mapLen));
             }
         }
 
@@ -2328,8 +2339,9 @@ CrateFile::_InitMMap() {
             _MakeMmapStream(&_mmapSrc, _debugPageMap.get()).DisablePrefetch());
         TfErrorMark m;
         _ReadStructuralSections(reader, mapSize);
-        if (!m.IsClean())
+        if (!m.IsClean()){
             _assetPath.clear();
+        }
 
         // Restore default prefetch behavior if we're not doing custom prefetch.
         if (!_GetMMapPrefetchKB()) {
@@ -3244,15 +3256,23 @@ void
 CrateFile::_ReadStructuralSections(Reader reader, int64_t fileSize)
 {
     TfErrorMark m;
-    _boot = _ReadBootStrap(reader.src, fileSize);
-    if (m.IsClean()) _toc = _ReadTOC(reader, _boot);
-    if (m.IsClean()) _PrefetchStructuralSections(reader);
-    if (m.IsClean()) _ReadTokens(reader);
-    if (m.IsClean()) _ReadStrings(reader);
-    if (m.IsClean()) _ReadFields(reader);
-    if (m.IsClean()) _ReadFieldSets(reader);
-    if (m.IsClean()) _ReadPaths(reader);
-    if (m.IsClean()) _ReadSpecs(reader);
+    try{
+        _boot = _ReadBootStrap(reader.src, fileSize);
+        if (m.IsClean()) _toc = _ReadTOC(reader, _boot);
+        if (m.IsClean()) _PrefetchStructuralSections(reader);
+        if (m.IsClean()) _ReadTokens(reader);
+        if (m.IsClean()) _ReadStrings(reader);
+        if (m.IsClean()) _ReadFields(reader);
+        if (m.IsClean()) _ReadFieldSets(reader);
+        if (m.IsClean()) _ReadPaths(reader);
+        if (m.IsClean()) _ReadSpecs(reader);
+    } catch (const std::exception &e){
+        TF_RUNTIME_ERROR("Encountered: %s, while reading @%s@", 
+            e.what(), _assetPath.c_str());
+        _specs.clear();
+        _fieldSets.clear();
+        _fields.clear();
+    }
 
 #ifdef PXR_PREFER_SAFETY_OVER_SPEED
     if (m.IsClean()) {

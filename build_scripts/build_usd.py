@@ -1651,10 +1651,7 @@ OPENCOLORIO = Dependency(
 ############################################################
 # OpenSubdiv
 
-OPENSUBDIV_URL = (
-    "https://github.com/PixarAnimationStudios/OpenSubdiv/archive/v3_5_1.zip"
-)
-
+OPENSUBDIV_URL = "https://github.com/PixarAnimationStudios/OpenSubdiv/archive/v3_6_0.zip"
 
 def InstallOpenSubdiv(context, force, buildArgs):
     srcOSDDir = DownloadURL(OPENSUBDIV_URL, context, force)
@@ -1903,21 +1900,15 @@ def InstallMaterialX(context, force, buildArgs):
         # should be removed when underlying issue is resolved.
         # https://github.com/AcademySoftwareFoundation/MaterialX/issues/1401
         if IsVisualStudio2017OrGreater() and not IsVisualStudio2019OrGreater():
-            PatchFile(
-                "source\\MaterialXGenMsl\\MslShaderGenerator.cpp",
-                [
-                    (
-                        "#include <MaterialXGenMsl/MslShaderGenerator.h>",
-                        "#include <cctype>\n"
-                        + "#include <MaterialXGenMsl/MslShaderGenerator.h>",
-                    )
-                ],
-            )
+            PatchFile("source\\MaterialXGenMsl\\MslShaderGenerator.cpp",
+                [("#include <MaterialXGenMsl/MslShaderGenerator.h>",
+                  "#include <cctype>\n" +
+                  "#include <MaterialXGenMsl/MslShaderGenerator.h>")])
 
         cmakeOptions = [
             "-DMATERIALX_BUILD_TESTS=OFF",
         ]
-        if context.targetIos:
+        if context.targetIos or context.buildMonolithic:
             cmakeOptions += ["-DMATERIALX_BUILD_GEN_OSL=OFF",
                              "-DMATERIALX_BUILD_SHARED_LIBS=OFF"]
         else:
@@ -2029,6 +2020,16 @@ def InstallUSD(context, force, buildArgs):
         else:
             extraArgs.append("-DPXR_BUILD_DOCUMENTATION=OFF")
 
+        if context.buildHtmlDocs:
+            extraArgs.append('-DPXR_BUILD_HTML_DOCUMENTATION=ON')
+        else:
+            extraArgs.append('-DPXR_BUILD_HTML_DOCUMENTATION=OFF')
+
+        if context.buildPythonDocs:
+            extraArgs.append('-DPXR_BUILD_PYTHON_DOCUMENTATION=ON')
+        else:
+            extraArgs.append('-DPXR_BUILD_PYTHON_DOCUMENTATION=OFF')
+
         if context.buildTests:
             extraArgs.append("-DPXR_BUILD_TESTS=ON")
         else:
@@ -2131,11 +2132,6 @@ def InstallUSD(context, force, buildArgs):
             extraArgs.append("-DPXR_ENABLE_MATERIALX_SUPPORT=ON")
         else:
             extraArgs.append("-DPXR_ENABLE_MATERIALX_SUPPORT=OFF")
-
-        if context.buildPythonDocs:
-            extraArgs.append("-DPXR_BUILD_PYTHON_DOCUMENTATION=ON")
-        else:
-            extraArgs.append("-DPXR_BUILD_PYTHON_DOCUMENTATION=OFF")
 
         if Windows():
             # Increase the precompiled header buffer limit.
@@ -2838,13 +2834,17 @@ class InstallContext:
 
         # Optional components
         self.buildTests = args.build_tests
-        self.buildDocs = args.build_docs
         self.buildPython = args.build_python
         if MacOS() and args.build_target == apple_utils.TARGET_IOS:
             self.buildPython = False
         self.buildExamples = args.build_examples
         self.buildTutorials = args.build_tutorials
         self.buildTools = args.build_tools
+
+        # - Documentation
+        self.buildDocs = args.build_docs or args.build_python_docs
+        self.buildHtmlDocs = args.build_docs
+        self.buildPythonDocs = args.build_python_docs
 
         # - Imaging
         self.buildImaging = (
@@ -3125,7 +3125,7 @@ summaryMsg += """\
     Python support              {buildPython}
       Python Debug:             {debugPython}
       Python docs:              {buildPythonDocs}
-    Documentation               {buildDocs}
+    Documentation               {buildHtmlDocs}
     Tests                       {buildTests}
     Examples                    {buildExamples}
     Tutorials                   {buildTutorials}
@@ -3199,7 +3199,7 @@ summaryMsg = summaryMsg.format(
     buildPython=("On" if context.buildPython else "Off"),
     debugPython=("On" if context.debugPython else "Off"),
     buildPythonDocs=("On" if context.buildPythonDocs else "Off"),
-    buildDocs=("On" if context.buildDocs else "Off"),
+    buildHtmlDocs=("On" if context.buildHtmlDocs else "Off"),
     buildTests=("On" if context.buildTests else "Off"),
     buildExamples=("On" if context.buildExamples else "Off"),
     buildTutorials=("On" if context.buildTutorials else "Off"),

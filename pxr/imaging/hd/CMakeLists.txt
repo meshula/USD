@@ -109,6 +109,7 @@ pxr_library(hd
         materialNetworkSchema
         materialNetwork2Interface
         materialNodeSchema
+        materialNodeParameterSchema
         materialSchema
         mergingSceneIndex
         mesh
@@ -134,6 +135,7 @@ pxr_library(hd
         purposeSchema
         renderBuffer
         renderBufferSchema
+        renderCapabilitiesSchema
         renderDelegate
         rendererPlugin
         rendererPluginHandle

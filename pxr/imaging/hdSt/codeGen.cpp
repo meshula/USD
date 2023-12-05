@@ -49,7 +49,7 @@
 #include "pxr/base/tf/iterator.h"
 #include "pxr/base/tf/staticTokens.h"
 
-#include <boost/functional/hash.hpp>
+#include "pxr/base/tf/hash.h"
 
 #include <sstream>
 #include <unordered_map>
@@ -205,12 +205,12 @@ HdSt_CodeGen::ComputeHash() const
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
-    ID hash = _geometricShader ? _geometricShader->ComputeHash() : 0;
-    boost::hash_combine(hash, _metaData.ComputeHash());
-    boost::hash_combine(hash, HdStShaderCode::ComputeHash(_shaders));
-    boost::hash_combine(hash, _materialTag.Hash());
-
-    return hash;
+    return TfHash::Combine(
+        _geometricShader ? _geometricShader->ComputeHash() : 0,
+        _metaData.ComputeHash(),
+        HdStShaderCode::ComputeHash(_shaders),
+        _materialTag.Hash()
+    );
 }
 
 static
@@ -1586,6 +1586,23 @@ _GetOSDCommonShaderSource()
     // forward declarations needed by the OpenSubdiv shaders.
     std::stringstream ss;
 
+#if OPENSUBDIV_VERSION_NUMBER >= 30600
+#if defined(__APPLE__)
+    ss << OpenSubdiv::Osd::MTLPatchShaderSource::GetPatchDrawingShaderSource();
+#else
+    ss << "FORWARD_DECL(MAT4 GetProjectionMatrix());\n"
+          "FORWARD_DECL(float GetTessLevel());\n"
+          "mat4 OsdModelViewMatrix() { return mat4(1); }\n"
+          "mat4 OsdProjectionMatrix() { return mat4(GetProjectionMatrix()); }\n"
+          "float OsdTessLevel() { return GetTessLevel(); }\n"
+          "\n";
+
+    ss << OpenSubdiv::Osd::GLSLPatchShaderSource::GetPatchDrawingShaderSource();
+#endif
+
+#else // OPENSUBDIV_VERSION_NUMBER
+    // Additional declarations are needed for older OpenSubdiv versions.
+
 #if defined(__APPLE__)
     ss << "#define CONTROL_INDICES_BUFFER_INDEX 0\n"
        << "#define OSD_PATCHPARAM_BUFFER_INDEX 0\n"
@@ -1616,6 +1633,7 @@ _GetOSDCommonShaderSource()
 
     ss << OpenSubdiv::Osd::GLSLPatchShaderSource::GetCommonShaderSource();
 #endif
+#endif // OPENSUBDIV_VERSION_NUMBER
 
     return ss.str();
 }
@@ -1952,7 +1970,7 @@ HdSt_CodeGen::Compile(HdStResourceRegistry*const registry)
     // Barycentric coordinates
     if (builtinBarycentricsEnabled) {
         _genFS << "vec3 GetBarycentricCoord() {\n"
-                  "  return gl_BaryCoordNoPerspNV;\n"
+                  "  return hd_BaryCoordNoPersp;\n"
                   "}\n";
     } else {
         if (_hasGS) {
@@ -2471,6 +2489,15 @@ HdSt_CodeGen::_CompileWithGeneratedGLSLResources(
         desc.shaderCode = source.c_str();
         desc.generatedShaderCodeOut = &_fsSource;
 
+        const bool builtinBarycentricsEnabled =
+            registry->GetHgi()->GetCapabilities()->IsSet(
+                HgiDeviceCapabilitiesBitsBuiltinBarycentrics);
+        if (builtinBarycentricsEnabled) {
+            HgiShaderFunctionAddStageInput(
+                &desc, "hd_BaryCoordNoPersp", "vec3",
+                HgiShaderKeywordTokens->hdBaryCoordNoPersp);
+        }
+
         if (!glslProgram->CompileShader(desc)) {
             return nullptr;
         }
@@ -2677,11 +2704,6 @@ HdSt_CodeGen::_CompileWithGeneratedHgiResources(
         fsDesc.generatedShaderCodeOut = &_fsSource;
 
         // builtins
-
-        HgiShaderFunctionAddStageInput(
-            &fsDesc, "gl_BaryCoordNoPerspNV", "vec3",
-            HgiShaderKeywordTokens->hdBaryCoordNoPerspNV);
-
         HgiShaderFunctionAddStageInput(
             &fsDesc, "gl_PrimitiveID", "uint",
             HgiShaderKeywordTokens->hdPrimitiveID);
@@ -2691,6 +2713,14 @@ HdSt_CodeGen::_CompileWithGeneratedHgiResources(
         HgiShaderFunctionAddStageInput(
             &fsDesc, "gl_FragCoord", "vec4",
             HgiShaderKeywordTokens->hdPosition);
+        const bool builtinBarycentricsEnabled =
+            registry->GetHgi()->GetCapabilities()->IsSet(
+                HgiDeviceCapabilitiesBitsBuiltinBarycentrics);
+        if (builtinBarycentricsEnabled) {
+            HgiShaderFunctionAddStageInput(
+                &fsDesc, "hd_BaryCoordNoPersp", "vec3",
+                HgiShaderKeywordTokens->hdBaryCoordNoPersp);
+        }
 
         if (!glslProgram->CompileShader(fsDesc)) {
             return nullptr;

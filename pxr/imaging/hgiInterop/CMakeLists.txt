@@ -27,7 +27,7 @@ if (PXR_ENABLE_METAL_SUPPORT AND PXR_ENABLE_GL_SUPPORT)
     list(APPEND optionalPrivateHeaders metal.h)
 elseif(PXR_ENABLE_VULKAN_SUPPORT)
     list(APPEND optionalLibraries hgiVulkan)
-    list(APPEND optionalCppFiles vulkan.mm)
+    list(APPEND optionalCppFiles vulkan.cpp)
     list(APPEND optionalPrivateHeaders vulkan.h)
 elseif(PXR_ENABLE_GL_SUPPORT)
     # No OpenGL-to-OpenGL interop when using Metal.

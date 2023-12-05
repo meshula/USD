@@ -20,8 +20,8 @@ pxr_library(hgiMetal
         hgi
         tf
         trace
-        ${METAL_LIBRARY}
-        ${APPUIKIT_LIBRARY}
+        "-framework Metal"
+        "-framework AppKit"
 
     PUBLIC_HEADERS
         api.h
