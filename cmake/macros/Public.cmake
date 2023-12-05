@@ -1352,7 +1352,9 @@ function(pxr_create_apple_framework)
     # Copy headers, libraries, and plugins during install
     install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/include/" DESTINATION "${FRAMEWORK_HEADERS_DIR}")
     install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/lib/" DESTINATION "${FRAMEWORK_LIBS_DIR}")
-    install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/plugin/" DESTINATION "${FRAMEWORK_DIR}/Versions/A/Resources/plugin")
+    if (EXISTS "${CMAKE_INSTALL_PREFIX}/plugin/")
+        install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/plugin/" DESTINATION "${FRAMEWORK_DIR}/Versions/A/Resources/plugin")
+    endif()
 
     # install the MaterialX libraries, if they exist
     if (EXISTS "${CMAKE_INSTALL_PREFIX}/libraries/")
