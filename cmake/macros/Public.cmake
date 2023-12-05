@@ -1338,8 +1338,10 @@ function(pxr_create_apple_framework)
     install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/lib/" DESTINATION "${FRAMEWORK_LIBS_DIR}")
     install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/plugin/" DESTINATION "${FRAMEWORK_DIR}/Versions/A/Resources/plugin")
 
-    # MaterialX libraries
-    install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/libraries/" DESTINATION "${FRAMEWORK_DIR}/Versions/A/Resources/libraries")
+    # install the MaterialX libraries, if they exist
+    if (EXISTS "${CMAKE_INSTALL_PREFIX}/libraries/")
+        install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/libraries/" DESTINATION "${FRAMEWORK_DIR}/Versions/A/Resources/libraries")
+    endif()
 
     # Generate Info.plist during install
     file(WRITE ${FRAMEWORK_PLIST} ${FRAMEWORK_INFO_PLIST})

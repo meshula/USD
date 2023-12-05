@@ -11,6 +11,7 @@ pxr_library(usdAppUtils
     LIBRARIES
         garch
         gf
+        hdx
         hio
         sdf
         tf
@@ -27,7 +28,7 @@ pxr_library(usdAppUtils
 
     PUBLIC_CLASSES
         camera
-        frameRecorder
+        # frameRecorder --- should be PUBLIC, but UsdImagingGL uses hdx headers, elided on ios
 
     PYTHON_CPPFILES
         moduleDeps.cpp

@@ -35,20 +35,21 @@ import os
 import platform
 import shlex
 import subprocess
+import re
 
 TARGET_NATIVE = "native"
 TARGET_X86 = "x86_64"
 TARGET_ARM64 = "arm64"
 TARGET_UNIVERSAL = "universal"
+TARGET_IOS = "ios"
+
 
 def GetBuildTargets():
-    return [TARGET_NATIVE,
-            TARGET_X86,
-            TARGET_ARM64,
-            TARGET_UNIVERSAL]
+    return [TARGET_NATIVE, TARGET_X86, TARGET_ARM64, TARGET_UNIVERSAL, TARGET_IOS]
+
 
 def GetBuildTargetDefault():
-    return TARGET_NATIVE;
+    return TARGET_NATIVE
 
 def MacOS():
     return platform.system() == "Darwin"
@@ -57,22 +58,64 @@ def GetLocale():
     return sys.stdout.encoding or locale.getdefaultlocale()[1] or "UTF-8"
 
 def GetCommandOutput(command):
-    """Executes the specified command and returns output or None."""
+    """Executes the specified command and returns output or None.
+    If command contains pipes (i.e '|'s), creates a subprocess for
+    each pipe in command, returning the output from the last subcommand
+    or None if any of the subcommands result in a CalledProcessError"""
+
+    result = None
+
+    args = shlex.split(command)
+    commands = []
+    cmd_args = []
+    while args:
+        arg = args.pop(0)
+        if arg == "|":
+            commands.append((cmd_args))
+            cmd_args = []
+        else:
+            cmd_args.append(arg)
+    commands.append((cmd_args))
+
+    pipes = []
+    while len(commands) > 1:
+        # We have some pipes
+        command = commands.pop(0)
+        stdin = pipes[-1].stdout if pipes else None
+        try:
+            pipe = subprocess.Popen(
+                command, stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+            pipes.append(pipe)
+        except subprocess.CalledProcessError:
+            return None
+
+    # The last command actually returns a result
+    command = commands[0]
     try:
-        return subprocess.check_output(
-            shlex.split(command),
-            stderr=subprocess.STDOUT).decode(GetLocale(), 'replace').strip()
+        stdin = pipes[-1].stdout if pipes else None
+        result = (
+            subprocess.check_output(command, stdin=stdin, stderr=subprocess.STDOUT)
+            .decode("utf-8")
+            .strip()
+        )
     except subprocess.CalledProcessError:
         pass
-    return None
+
+    # clean-up
+    for pipe in pipes:
+        pipe.wait()
+
+    return result
+
 
 def GetTargetArmArch():
     # Allows the arm architecture string to be overridden by
     # setting MACOS_ARM_ARCHITECTURE
-    return os.environ.get('MACOS_ARM_ARCHITECTURE') or TARGET_ARM64
+    return os.environ.get("MACOS_ARM_ARCHITECTURE") or TARGET_ARM64
 
 def GetHostArch():
-    macArch = GetCommandOutput('arch').strip()
+    macArch = GetCommandOutput("arch").strip()
     if macArch == "i386" or macArch == TARGET_X86:
         macArch = TARGET_X86
     else:
@@ -85,7 +128,7 @@ def GetTargetArch(context):
     else:
         if context.targetX86:
             macTargets = TARGET_X86
-        if context.targetARM64:
+        if context.targetARM64 or context.targetIos:
             macTargets = GetTargetArmArch()
         if context.targetUniversal:
             macTargets = TARGET_X86 + ";" + GetTargetArmArch()
@@ -106,9 +149,11 @@ def GetTargetArchPair(context):
         primaryArch = TARGET_X86
     if context.targetARM64:
         primaryArch = GetTargetArmArch()
+    if context.targetIos:
+        primaryArch = TARGET_IOS
     if context.targetUniversal:
         primaryArch = GetHostArch()
-        if (primaryArch == TARGET_X86):
+        if primaryArch == TARGET_X86:
             secondaryArch = GetTargetArmArch()
         else:
             secondaryArch = TARGET_X86
@@ -118,57 +163,117 @@ def GetTargetArchPair(context):
 def SupportsMacOSUniversalBinaries():
     if not MacOS():
         return False
-    XcodeOutput = GetCommandOutput('/usr/bin/xcodebuild -version')
-    XcodeFind = XcodeOutput.rfind('Xcode ', 0, len(XcodeOutput))
-    XcodeVersion = XcodeOutput[XcodeFind:].split(' ')[1]
-    return (XcodeVersion > '11.0')
+    XcodeOutput = GetCommandOutput("/usr/bin/xcodebuild -version")
+    XcodeFind = XcodeOutput.rfind("Xcode ", 0, len(XcodeOutput))
+    XcodeVersion = XcodeOutput[XcodeFind:].split(" ")[1]
+    return XcodeVersion > "11.0"
 
 def SetTarget(context, targetName):
-    context.targetNative = (targetName == TARGET_NATIVE)
-    context.targetX86 = (targetName == TARGET_X86)
-    context.targetARM64 = (targetName == GetTargetArmArch())
-    context.targetUniversal = (targetName == TARGET_UNIVERSAL)
+    context.targetNative = targetName == TARGET_NATIVE
+    context.targetX86 = targetName == TARGET_X86
+    context.targetARM64 = targetName == GetTargetArmArch()
+    context.targetUniversal = targetName == TARGET_UNIVERSAL
+    context.targetIos = targetName == TARGET_IOS
+    if context.targetIos:
+        sdkStr = GetCommandOutput("xcodebuild -showsdks")
+        sdkStrSpl = sdkStr.split()
+        for s in sdkStrSpl:
+            if s.startswith("iphoneos"):
+                s = s.replace("iphoneos", "")
+                context.iosVersion = s
+                break
+    else:
+        context.iosVersion = None
     if context.targetUniversal and not SupportsMacOSUniversalBinaries():
         self.targetUniversal = False
-        raise ValueError(
-                "Universal binaries only supported in macOS 11.0 and later.")
+        raise ValueError("Universal binaries only supported in macOS 11.0 and later.")
 
 def GetTargetName(context):
-    return (TARGET_NATIVE if context.targetNative else
-            TARGET_X86 if context.targetX86 else
-            GetTargetArmArch() if context.targetARM64 else
-            TARGET_UNIVERSAL if context.targetUniversal else
-            "")
+    return (
+        TARGET_NATIVE
+        if context.targetNative
+        else TARGET_X86
+        if context.targetX86
+        else GetTargetArmArch()
+        if context.targetARM64
+        else TARGET_UNIVERSAL
+        if context.targetUniversal
+        else TARGET_IOS
+        if context.targetIos
+        else ""
+    )
 
-devout = open(os.devnull, 'w')
+devout = open(os.devnull, "w")
 
 def ExtractFilesRecursive(path, cond):
     files = []
     for r, d, f in os.walk(path):
         for file in f:
-            if cond(os.path.join(r,file)):
+            if cond(os.path.join(r, file)):
                 files.append(os.path.join(r, file))
     return files
 
-def CodesignFiles(files):
-    SDKVersion  = subprocess.check_output(
-        ['xcodebuild', '-version']).strip()[6:10]
+def _GetCodeSignStringFromTerminal():
     codeSignIDs = subprocess.check_output(
-        ['security', 'find-identity', '-vp', 'codesigning'])
+        ["security", "find-identity", "-vp", "codesigning"]
+    )
+    return codeSignIDs
 
-    codeSignID = "-"
-    if os.environ.get('CODE_SIGN_ID'):
-        codeSignID = os.environ.get('CODE_SIGN_ID')
-    elif float(SDKVersion) >= 11.0 and \
-                codeSignIDs.find(b'Apple Development') != -1:
-        codeSignID = "Apple Development"
-    elif codeSignIDs.find(b'Mac Developer') != -1:
-        codeSignID = "Mac Developer"
+def GetCodeSignID():
+    codeSignIDs = _GetCodeSignStringFromTerminal()
+    if os.environ.get("CODE_SIGN_ID"):
+        codeSignID = os.environ.get("CODE_SIGN_ID")
+    else:
+        try:
+            codeSignIDs = codeSignIDs.decode("utf-8").splitlines()
+            for codeSignID in codeSignIDs:
+                if "CSSMERR_TP_CERT_REVOKED" in codeSignID:
+                    continue
+                if ")" not in codeSignID:
+                    continue
+
+                codeSignID = codeSignID.split()[1]
+                break
+            else:
+                raise RuntimeError("Could not find a valid codesigning ID")
+        except:
+            raise Exception("Unable to parse codesign ID")
+    return codeSignID
+
+def GetCodeSignIDHash():
+    codeSignIDs = _GetCodeSignStringFromTerminal()
+    try:
+        return re.findall(r"\(.*?\)", codeSignIDs.decode("utf-8"))[0][1:-1]
+    except:
+        raise Exception("Unable to parse codesign ID hash")
+
+def GetDevelopmentTeamID():
+    if os.environ.get("DEVELOPMENT_TEAM"):
+        return os.environ.get("DEVELOPMENT_TEAM")
+    codesignID = GetCodeSignIDHash()
+    x509subject = GetCommandOutput(
+        "security find-certificate -c {}"
+        " -p | openssl x509 -subject | head -1".format(codesignID)
+    ).strip()
+    # Extract the Organizational Unit (OU field) from the cert
+    elements_result = x509subject.split("/")
+    for elements in elements_result:
+        for elm in elements.split(","):
+            if elm.strip().startswith("OU"):
+                #print("team is \"" + elm.split("=")[1].strip() + "\"")
+                return elm.split("=")[1].strip()
+    #print("No development team found")
+    raise Exception("No development team found")
+
+def CodesignFiles(files):
+    codeSignID = GetCodeSignID()
 
     for f in files:
-        subprocess.call(['codesign', '-f', '-s', '{codesignid}'
-                              .format(codesignid=codeSignID), f],
-                        stdout=devout, stderr=devout)
+        subprocess.call(
+            ["codesign", "-f", "-s", "{codesignid}".format(codesignid=codeSignID), f],
+            stdout=devout,
+            stderr=devout,
+        )
 
 def Codesign(install_path, verbose_output=False):
     if not MacOS():
@@ -177,43 +282,56 @@ def Codesign(install_path, verbose_output=False):
         global devout
         devout = sys.stdout
 
-    files = ExtractFilesRecursive(install_path,
-                 (lambda file: '.so' in file or '.dylib' in file))
+    files = ExtractFilesRecursive(
+        install_path, (lambda file: ".so" in file or ".dylib" in file)
+    )
     CodesignFiles(files)
 
 def CreateUniversalBinaries(context, libNames, x86Dir, armDir):
     if not MacOS():
         return False
     lipoCommands = []
-    xcodeRoot = subprocess.check_output(
-        ["xcode-select", "--print-path"]).decode('utf-8').strip()
-    lipoBinary = \
-        "{XCODE_ROOT}/Toolchains/XcodeDefault.xctoolchain/usr/bin/lipo".format(
-                XCODE_ROOT=xcodeRoot)
+    xcodeRoot = (
+        subprocess.check_output(["xcode-select", "--print-path"])
+        .decode("utf-8")
+        .strip()
+    )
+    lipoBinary = "{XCODE_ROOT}/Toolchains/XcodeDefault.xctoolchain/usr/bin/lipo".format(
+        XCODE_ROOT=xcodeRoot
+    )
     for libName in libNames:
         outputName = os.path.join(context.instDir, "lib", libName)
-        if not os.path.islink("{x86Dir}/{libName}".format(
-                                x86Dir=x86Dir, libName=libName)):
+        if not os.path.islink(
+            "{x86Dir}/{libName}".format(x86Dir=x86Dir, libName=libName)
+        ):
             if os.path.exists(outputName):
                 os.remove(outputName)
-            lipoCmd = "{lipo} -create {x86Dir}/{libName} {armDir}/{libName} " \
-                      "-output {outputName}".format(
-                                lipo=lipoBinary,
-                                x86Dir=x86Dir, armDir=armDir,
-                                libName=libName, outputName=outputName)
+            lipoCmd = (
+                "{lipo} -create {x86Dir}/{libName} {armDir}/{libName} "
+                "-output {outputName}".format(
+                    lipo=lipoBinary,
+                    x86Dir=x86Dir,
+                    armDir=armDir,
+                    libName=libName,
+                    outputName=outputName,
+                )
+            )
             lipoCommands.append(lipoCmd)
             p = subprocess.Popen(shlex.split(lipoCmd))
             p.wait()
     for libName in libNames:
-        if os.path.islink("{x86Dir}/{libName}".format(
-                                x86Dir=x86Dir, libName=libName)):
+        if os.path.islink("{x86Dir}/{libName}".format(x86Dir=x86Dir, libName=libName)):
             outputName = os.path.join(context.instDir, "lib", libName)
             if os.path.exists(outputName):
                 os.unlink(outputName)
-            targetName = os.readlink("{x86Dir}/{libName}".format(
-                                x86Dir=x86Dir, libName=libName))
+            targetName = os.readlink(
+                "{x86Dir}/{libName}".format(x86Dir=x86Dir, libName=libName)
+            )
             targetName = os.path.basename(targetName)
-            os.symlink("{instDir}/lib/{libName}".format(
-                                instDir=context.instDir, libName=targetName),
-                       outputName)
+            os.symlink(
+                "{instDir}/lib/{libName}".format(
+                    instDir=context.instDir, libName=targetName
+                ),
+                outputName,
+            )
     return lipoCommands

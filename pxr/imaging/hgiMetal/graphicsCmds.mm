@@ -410,6 +410,7 @@ void
 HgiMetalGraphicsCmds::_SyncArgumentBuffer()
 {
     if (_argumentBuffer) {
+#if defined(ARCH_OS_OSX)
         if (_argumentBuffer.storageMode != MTLStorageModeShared &&
             [_argumentBuffer respondsToSelector:@selector(didModifyRange:)]) {
 
@@ -418,6 +419,7 @@ HgiMetalGraphicsCmds::_SyncArgumentBuffer()
             [_argumentBuffer didModifyRange:{0, _argumentBuffer.length}];
             ARCH_PRAGMA_POP
         }
+#endif
         _argumentBuffer = nil;
     }
 }
@@ -817,6 +819,7 @@ HgiMetalGraphicsCmds::InsertMemoryBarrier(HgiMemoryBarrier barrier)
 {
     TF_VERIFY(barrier==HgiMemoryBarrierAll, "Unknown barrier");
     
+#if defined(ARCH_OS_OSX)
     // Apple Silicon only support memory barriers between vertex stages after
     // macOS 12.3.
     if (@available(macOS 12.3, *)) {
@@ -830,6 +833,7 @@ HgiMetalGraphicsCmds::InsertMemoryBarrier(HgiMemoryBarrier barrier)
                                beforeStages:dstStages];
         }
     }
+#endif
 }
 
 static

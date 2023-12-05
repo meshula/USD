@@ -39,6 +39,13 @@ HgiMetalTexture::HgiMetalTexture(HgiMetal *hgi, HgiTextureDesc const & desc)
 {
     MTLResourceOptions resourceOptions = MTLResourceStorageModePrivate;
     MTLTextureUsage usage = MTLTextureUsageShaderRead;
+    if (desc.initialData && desc.pixelsByteSize > 0) {
+#if defined(ARCH_OS_OSX)
+        resourceOptions = MTLResourceStorageModeManaged;
+#else
+        resourceOptions = MTLResourceStorageModeShared;
+#endif
+    }
 
     MTLPixelFormat mtlFormat = HgiMetalConversions::GetPixelFormat(
         desc.format, desc.usage);
@@ -121,7 +128,11 @@ HgiMetalTexture::HgiMetalTexture(HgiMetal *hgi, HgiTextureDesc const & desc)
         // to our original, private texture.
 
         // Modify texture descriptor to describe the temp texture.
+#if defined(ARCH_OS_OSX)
         texDesc.resourceOptions = MTLResourceStorageModeManaged;
+#else
+        texDesc.resourceOptions = MTLResourceStorageModeShared;
+#endif
         texDesc.sampleCount = 1;
         if (desc.type == HgiTextureType3D) {
             texDesc.textureType = MTLTextureType3D;
