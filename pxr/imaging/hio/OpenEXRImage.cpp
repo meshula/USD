@@ -770,6 +770,9 @@ bool Hio_OpenEXRImage::_OpenForReading(std::string const &filename,
         return false;
     }
     
+    _exrReader.width >>= mip;
+    _exrReader.height >>= mip;
+    
     return true;
 }
 
