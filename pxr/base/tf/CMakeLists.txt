@@ -161,7 +161,6 @@ pxr_library(tf
         pyObjWrapper
         pyTracing
         refBase
-        refCount
         refPtr
         refPtrTracker
         regTest
@@ -172,6 +171,7 @@ pxr_library(tf
         setenv
         singleton
         smallVector
+        spinMutex
         spinRWMutex
         stackTrace
         stacked
@@ -260,6 +260,7 @@ pxr_library(tf
         atomicRenameUtil
         debugCodes
         noticeRegistry
+        unicodeCharacterClasses
 
     PYTHON_PRIVATE_CLASSES
         pyErrorInternal

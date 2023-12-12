@@ -38,6 +38,7 @@ pxr_library(hd
         command
         coneSchema
         containerDataSourceEditor
+        containerSchema
         coordSys
         coordSysSchema
         coordSysBindingSchema
@@ -106,6 +107,7 @@ pxr_library(hd
         materialBindingsSchema
         materialConnectionSchema
         materialFilteringSceneIndexBase
+        materialInterfaceMappingSchema
         materialNetworkSchema
         materialNetwork2Interface
         materialNodeSchema
@@ -174,6 +176,7 @@ pxr_library(hd
         splitDiopterSchema
         sprim
         subdivisionTagsSchema
+        systemMessages
         systemSchema
         task
         timeSampleArray

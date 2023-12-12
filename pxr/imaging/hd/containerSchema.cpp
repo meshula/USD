@@ -1,5 +1,5 @@
 //
-// Copyright 2016 Pixar
+// Copyright 2022 Pixar
 //
 // Licensed under the Apache License, Version 2.0 (the "Apache License")
 // with the following modification; you may not use this file except in
@@ -21,4 +21,18 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#include "pxr/base/tf/refCount.h"
+
+#include "pxr/imaging/hd/containerSchema.h"
+
+PXR_NAMESPACE_OPEN_SCOPE
+
+TfTokenVector
+HdContainerSchema::GetNames() const
+{
+    if (_container) {
+        return _container->GetNames();
+    }
+    return {};
+}
+
+PXR_NAMESPACE_CLOSE_SCOPE
