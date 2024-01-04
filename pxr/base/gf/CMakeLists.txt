@@ -12,6 +12,7 @@ pxr_library(gf
     PUBLIC_CLASSES
         bbox3d
         camera
+        color3f
         dualQuatd
         dualQuatf
         dualQuath
@@ -76,10 +77,14 @@ pxr_library(gf
 
     PRIVATE_CLASSES
         ostreamHelpers
+        nc/Nanocolor.cpp
+        nc/NanocolorUtils.cpp
 
     PRIVATE_HEADERS
         ilmbase_eLut.h
         ilmbase_toFloat.h
+        nc/Nanocolor.h
+        nc/NanocolorUtils.h
 
     PYTHON_CPPFILES
         moduleDeps.cpp
