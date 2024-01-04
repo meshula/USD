@@ -61,3 +61,4 @@ NCAPI NcCIEXYZ NcCIE1931ColorFromWavelength(float lambda, bool approx);
 #endif
 
 #endif /* nanocolor_extras_h */
+ 
