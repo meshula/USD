@@ -29,7 +29,10 @@
 
 #include "pxr/pxr.h"
 #include "pxr/base/gf/vec2d.h"
+#include "pxr/base/gf/matrix3f.h"
 #include "pxr/base/gf/api.h"
+#include "pxr/base/tf/span.h"
+#include "pxr/base/tf/staticTokens.h"
 
 #include <float.h>
 
@@ -59,25 +62,78 @@ PXR_NAMESPACE_OPEN_SCOPE
 /// sRGB_DisplayP3:   sRGB color space adapted to the Display P3 primaries
 /// Linear_Rec2020:   Rec2020 gamut, and linear gamma
 
-enum GfColorSpace {
-    GfColorSpaceIdentity,
-    GfColorSpaceCIEXYZ,
-    GfColorSpaceACEScg,
-    GfColorSpaceLinearAP1,
-    GfColorSpaceG18AP1,
-    GfColorSpaceG22AP1,
-    GfColorSpaceG18Rec709,
-    GfColorSpaceG22Rec709,
-    GfColorSpaceLinearRec709,
-    GfColorSpaceAdobeRGB,
-    GfColorSpaceLinearAdobeRGB,
-    GfColorSpaceLinearDisplayP3,
-    GfColorSpaceLinearSRGB,
-    GfColorSpaceSRGBTexture,
-    GfColorSpaceSRGBDisplayP3,
-    GfColorSpaceLinearRec2020,
-    GfColorSpaceCustom,
-    GfColorSpaceLast=GfColorSpaceLinearRec2020;
+// Note that the quoted names here are not regular, but they do correspond to
+// the canonical names found in MaterialX.
+#define GF_COLORSPACE_CANONICAL_NAME_TOKENS  \
+    ((Identity, "identity"))                 \
+    ((ACEScg, "acescg"))                     \
+    ((AdobeRGB, "adobergb"))                 \
+    ((LinearAdobeRGB, "lin_adobergb"))       \
+    ((CIEXYZ, "CIEXYZ"))                     \
+    ((LinearAP0, "lin_ap0"))                 \
+    ((LinearAP1, "lin_ap1"))                 \
+    ((G18AP1, "g18_ap1"))                    \
+    ((G22AP1, "g22_ap1"))                    \
+    ((LinearRec2020, "lin_rec2020"))         \
+    ((LinearRec709, "lin_rec709"))           \
+    ((G18Rec709, "g18_rec709"))              \
+    ((G22Rec709, "g18_rec709"))              \
+    ((LinearDisplayP3, "lin_displayp3"))     \
+    ((LinearSRGB, "lin_srgb"))               \
+    ((SRGBTexture, "srgb_texture"))          \
+    ((SRGBDisplayP3, "srgb_displayp3"))      \
+    ((Custom, "custom"))
+
+TF_DECLARE_PUBLIC_TOKENS(GfColorspaceCanonicalName, GF_API, GF_COLORSPACE_CANONICAL_NAME_TOKENS);
+
+
+/// \class GfColorSpace
+/// \ingroup group_gf_BasicGeometry
+///
+/// Basic type: ColorSpace
+///
+/// This class represents a colorspace. Color spaces may be created by
+/// name, parameterization, or by a 3x3 matrix and a gamma operator.
+///
+/// The parameters used to construct the color space are not available for
+/// introspection ~ the color space object is intended for color conversion
+/// operations on a GfColor3f.
+///
+/// The color spaces supported by Gf are listed in GfColorspaceCanonicalName
+
+class GfColorSpace {
+    friend class GfColor3f;
+public:
+    ~GfColorSpace() = default;
+    
+    // construct from a GfColorspaceCanonicalName token
+    GF_API explicit GfColorSpace(TfToken name);
+    
+    // construct a custom colorspace from raw values
+    GF_API explicit GfColorSpace(const std::string& name,
+                                 const GfVec2f &redChroma,
+                                 const GfVec2f &greenChroma,
+                                 const GfVec2f &blueChroma,
+                                 const GfVec2f &whitePoint,
+                                 float gamma,
+                                 float linearBias,
+                                 float K0,
+                                 float phi);
+    
+    // construct a custom colorspace from a 3x3 matrix and linearization parameters
+    GF_API explicit GfColorSpace(const std::string& name,
+                                 const GfMatrix3f &rgbToXYZ,
+                                 float gamma,
+                                 float linearBias,
+                                 float K0,
+                                 float phi);
+    
+    GF_API bool operator ==(const GfColorSpace &lh) const;
+    bool operator !=(const GfColorSpace &lh) const { return !(*this == lh); }
+
+private:
+    struct Data;
+    std::shared_ptr<Data> _data;
 };
 
 /// \class GfColor
@@ -95,62 +151,51 @@ enum GfColorSpace {
 /// The color spaces supported by Gf are enumerated in GfColorSpace.
 
 class GfColor3f {
-  public:
-
-    /// The default constructor leaves the color undefined
+public:
+    /// The default constructor creates white, in the "lin_rec709" space
     GF_API GfColor3f();
+    ~GfColor3f() = default;
 
-    GF_API ~GfColor3f() = default;
+    /// Construct from an rgb tuple and colorspace
+    GF_API
+    GfColor3f(const GfVec3f &rgb, GfColorSpace colorSpace);
 
-    /// Construct a color from a GfVec3f, and a color space
-    GfColor3f(const GfVec3f &color, GfColorSpace colorSpace = GfColorSpaceLinearSRGB) {
-        Set( color, colorSpace );
-    }
+    /// Construct from a color from the input color,
+    GF_API
+    GfColor3f(const GfColor3f&);
+
+    /// Replace the color with the contents of the input
+    GF_API
+    GfColor3f(GfColor3f&&) noexcept = default;
 
     /// Construct a color from another color into the specified color space
-    GfColor3f(const GfColor3f &color, GfColorSpace colorSpace) {
-        Set( {0,0,0}, colorSpace );
-        SetWithAdaptation(color);
-    }
+    GfColor3f(const GfColor3f &color, GfColorSpace colorSpace);
 
-    /// Construct a color from a GfVec3f, chromaticities, whitepoint, gamma, 
-    /// linear bias for the gamma section, a break point for a linear section,
-    /// and the slope of the linear section.
+    /// Replace the color with the contents of the input
     GF_API
-    GfColor3f(const GfVec3f &color,
-              const GfVec2f &redChroma,
-              const GfVec2f &greenChroma,
-              const GfVec2f &blueChroma,
-              const GfVec2f &whitePoint,
-              float gamma,
-              float linearBias,
-              float K0,
-              float phi);
+    GfColor3f& operator=(const GfColor3f&);
 
+    /// Replace the color with the contents of the input
     GF_API
-    void Set(const GfVec3f &color, GfColorSpace colorSpace);
-
-    /// Set the color from the input color, adapting to the existing color space
-    GF_API
-    void SetWithAdaptation(const GfColor3f&);
-
+    GfColor3f& operator=(GfColor3f&&) noexcept;
+    
     /// Set the color from a CIEXYZ coordinate, adapting to the existing color space
     GF_API
-    void SetFromCIEXYZ(const GfVec3f&);
+    void SetFromCIEXYZ(const GfVec3f& xyz);
 
     /// Set the color from blackbody temperature in Kelvin, adapting to the existing color space
     GF_API
-    void SetFromBlackbodyKelvin(float);
+    void SetFromBlackbodyKelvin(float kelvin, float luminosity);
 
     // Set the color from a wavelength in nanometers, adapting to the existing color space
     GF_API
-    void SetFromWavelengthNM(float);
+    void SetFromWavelengthNM(float nm);
 
     /// Get the RGB tuple
     GfVec3f GetRGB() const { return _rgb; }
 
     /// Get the color space
-    GfColorSpace GetColorSpace() const { return _colorSpace; }
+    std::shared_ptr<GfColorSpace> GetColorSpace() const { return _colorSpace; }
 
     /// Get the CIEXYZ coordinate of the color
     GF_API
@@ -165,26 +210,24 @@ class GfColor3f {
     GfVec3f NormalizeLuminance(float);
 
     bool operator ==(const GfColor3f &l) const {
-        return _color == l._color && _colorSpace == l._colorSpace;
+        return _rgb == l._rgb && *_colorSpace == *l._colorSpace;
     }
     bool operator !=(const GfColor3f &r) const {
 	    return ! (*this == r);
     }
+    
+    /// Convert an array of RGB values from one color space to another
+    GF_API static
+    void ConvertRGB(const GfColorSpace& from, const GfColorSpace& to, TfSpan<const float> rgb);
+
+    /// Convert an array of RGBA values from one color space to another
+    GF_API static
+    void ConvertRGBA(const GfColorSpace& from, const GfColorSpace& to, TfSpan<const float> rgba);
 
   private:
     GfVec3f _rgb;
-    GfColorSpace _colorSpace;
-    struct Data;
-    const std::shared_ptr<Data> _data;
+    std::shared_ptr<GfColorSpace> _colorSpace;
 };
-
-/// return a color space's enumeration from its name
-GF_API
-GfColorSpace GetGfColorSpaceFromName(const std::string& name);
-
-/// return a color space's name from its enumeration
-GF_API
-std::string GetGfColorSpaceName(GfColorSpace colorSpace);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 

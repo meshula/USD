@@ -19,14 +19,12 @@
 #include <string.h>
 #include <math.h>
 
-#define HAVE_SSE2 1
-#define HAVE_NEON 1
-
-#ifdef HAVE_SSE2
+#ifdef __SSE2__
 #include <xmmintrin.h>
 #include <smmintrin.h>
 #endif
-#ifdef HAVE_NEON
+
+#ifdef __ARM_NEON
 #include <arm_neon.h>
 #endif
 

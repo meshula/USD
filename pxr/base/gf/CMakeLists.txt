@@ -75,10 +75,12 @@ pxr_library(gf
         limits.h
         traits.h
 
-    PRIVATE_CLASSES
-        ostreamHelpers
+    CPPFILES
         nc/Nanocolor.cpp
         nc/NanocolorUtils.cpp
+
+    PRIVATE_CLASSES
+        ostreamHelpers
 
     PRIVATE_HEADERS
         ilmbase_eLut.h
