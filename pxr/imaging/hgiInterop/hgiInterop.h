@@ -35,10 +35,9 @@
 PXR_NAMESPACE_OPEN_SCOPE
 
 class Hgi;
-class HgiInteropMetal;
-class HgiInteropOpenGL;
-class HgiInteropVulkan;
 class VtValue;
+
+struct HgiInteropImpl;
 
 /// \class HgiInterop
 ///

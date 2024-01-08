@@ -1115,11 +1115,17 @@ exr_result_t nanoexr_read_exr(const char* filename,
     uint16_t oneValue = float_to_half(1.0f);
     uint16_t zeroValue = float_to_half(0.0f);
     
-    // if the image is rgba, and any of the channels are missing, fill them in
-    // by propagating the channel to the left if possible. If not, fill with
-    // zero or one. Alpha is always filled with one.
-    if (img->channelCount == 4) {
-        if (rgbaIndex[3] == -1) {
+    // if the image has more channels than actually read, and any of the channels 
+    // is missing, fill them in by propagating the channel to the left if 
+    // possible. If not, fill with zero or one. Alpha is always filled with one.
+    int readChannelCount = 0;
+    for (int i = 0; i < 4; ++i) {
+        if (rgbaIndex[i] >= 0) {
+            readChannelCount++;
+        }
+    }
+    if (img->channelCount > readChannelCount) {
+        if (img->channelCount == 4 && rgbaIndex[3] == -1) {
             // fill the alpha channel with 1.0
             if (img->pixelType == EXR_PIXEL_HALF) {
                 fill_channel_u16(img, 3, oneValue);
