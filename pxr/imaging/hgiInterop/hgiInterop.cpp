@@ -34,8 +34,8 @@
 #endif
 
 #if defined(PXR_METAL_SUPPORT_ENABLED)
-#include "pxr/imaging/hgiMetal/hgi.h"
-#include "pxr/imaging/hgiInterop/metal.h"
+    #include "pxr/imaging/hgiMetal/hgi.h"
+    #include "pxr/imaging/hgiInterop/metal.h"
 #endif
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -69,31 +69,15 @@ void HgiInterop::TransferToApp(
 {
     TfToken const& srcApi = srcHgi->GetAPIName();
 
-#if defined(PXR_METAL_SUPPORT_ENABLED) && !defined(ARCH_OS_IOS)
-    if (srcApi==HgiTokens->Metal && dstApi==HgiTokens->OpenGL) {
-        // Transfer Metal textures to OpenGL application
-        if (!_metalToOpenGL) {
-            _metalToOpenGL = std::make_unique<HgiInteropMetal>(srcHgi);
-        }
-        _metalToOpenGL->CompositeToInterop(
-            srcColor, srcDepth, dstFramebuffer, dstRegion);
-    } else {
-        TF_CODING_ERROR("Unsupported Hgi backend: %s", srcApi.GetText());
+    if (dstApi != HgiTokens->OpenGL) {
+        TF_CODING_ERROR("Unsupported destination Hgi backend: %s",
+                        dstApi.GetText());
+        return;
     }
-#elif defined(PXR_VULKAN_SUPPORT_ENABLED)
-    if (srcApi==HgiTokens->Vulkan && dstApi==HgiTokens->OpenGL) {
-        // Transfer Vulkan textures to OpenGL application
-        if (!_vulkanToOpenGL) {
-            _vulkanToOpenGL = std::make_unique<HgiInteropVulkan>(srcHgi);
-        }
-        _vulkanToOpenGL->CompositeToInterop(
-            srcColor, srcDepth, dstFramebuffer, dstRegion);
-    } else {
-        TF_CODING_ERROR("Unsupported Hgi backend: %s", srcApi.GetText());
-    }
-#elif !defined(ARCH_OS_IOS)
-    if (srcApi==HgiTokens->OpenGL && dstApi==HgiTokens->OpenGL) {
-       // Transfer OpenGL textures to OpenGL application
+
+#if defined(PXR_GL_SUPPORT_ENABLED)
+    if (srcApi == HgiTokens->OpenGL) {
+        // Transfer OpenGL textures to OpenGL application
         if (!_hgiInteropImpl->_openGLToOpenGL) {
             _hgiInteropImpl->_openGLToOpenGL =
                 std::make_unique<HgiInteropOpenGL>();

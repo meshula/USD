@@ -3,7 +3,7 @@ set(PXR_PACKAGE hdSt)
 
 # XXX We tmp check for PXR_ENABLE_GL_SUPPORT since Storm currently still only
 # runs on OpenGL. Once Storm uses only Hgi, remove GL_SUPPORT check.
-if (NOT ${PXR_BUILD_GPU_SUPPORT} OR NOT (${PXR_ENABLE_GL_SUPPORT} OR APPLEIOS))
+if (NOT ${PXR_BUILD_GPU_SUPPORT} OR NOT ${PXR_ENABLE_GL_SUPPORT})
     message(STATUS
         "Skipping ${PXR_PACKAGE} because PXR_BUILD_GPU_SUPPORT is OFF")
     return()
@@ -13,10 +13,6 @@ set(optionalLibs "")
 set(optionalIncludeDirs "")
 set(optionalPublicClasses "")
 set(optionalPrivateClasses "")
-if (NOT (APPLEIOS))
-    list(APPEND optionalLibs hgiGL)
-    list(APPEND optionalPublicClasses unitTestGLDrawing)
-endif()
 if (${PXR_ENABLE_MATERIALX_SUPPORT})
     list(APPEND optionalLibs
         MaterialXGenShader
@@ -49,6 +45,7 @@ pxr_library(hdSt
         glf
         hd
         hdsi
+        hgiGL
         hgiInterop
         sdr
         tf
@@ -135,6 +132,7 @@ pxr_library(hdSt
         textureUtils
         tokens
         udimTextureObject
+        unitTestGLDrawing
         vboMemoryManager
         vboSimpleMemoryManager
         volume
