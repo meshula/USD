@@ -21,26 +21,34 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef PXR_IMAGING_HD_FLATTENED_MATERIAL_BINDINGS_DATA_SOURCE_PROVIDER_H
-#define PXR_IMAGING_HD_FLATTENED_MATERIAL_BINDINGS_DATA_SOURCE_PROVIDER_H
 
-#include "pxr/imaging/hd/api.h"
+#include "pxr/pxr.h"
+#include "pxr/base/ts/tsTest_Evaluator.h"
+#include "pxr/base/tf/pyResultConversions.h"
 
-#include "pxr/imaging/hd/flattenedDataSourceProvider.h"
+#include <boost/python.hpp>
 
-PXR_NAMESPACE_OPEN_SCOPE
+PXR_NAMESPACE_USING_DIRECTIVE
 
-class HdFlattenedMaterialBindingsDataSourceProvider : public HdFlattenedDataSourceProvider
+using namespace boost::python;
+
+using This = TsTest_Evaluator;
+
+
+void wrapTsTest_Evaluator()
 {
-    HD_API
-    HdContainerDataSourceHandle GetFlattenedDataSource(
-        const Context&) const override;
-
-    HD_API
-    void ComputeDirtyLocatorsForDescendants(
-        HdDataSourceLocatorSet * locators) const override;
-};
-
-PXR_NAMESPACE_CLOSE_SCOPE
-
-#endif // PXR_IMAGING_HD_FLATTENED_MATERIAL_BINDINGS_DATA_SOURCE_PROVIDER_H
+    // TsTest_Evaluator is an abstract base class, so wrap without constructors.
+    // Concrete classes need their own wrapping, declaring this class as a base.
+    class_<This, boost::noncopyable>("TsTest_Evaluator", no_init)
+        .def("Eval", &This::Eval,
+            (arg("splineData"),
+             arg("sampleTimes")),
+            return_value_policy<TfPySequenceToList>())
+        .def("Sample", &This::Sample,
+            (arg("splineData"),
+             arg("tolerance")),
+            return_value_policy<TfPySequenceToList>())
+        .def("BakeInnerLoops", &This::BakeInnerLoops,
+            (arg("splineData")))
+        ;
+}

@@ -21,9 +21,11 @@ if a color property or attribute on a layer is overridden from another layer, re
 property or attribute will occur through a transformation from the originating
 layer to the layer being interrorgated.
 
+If a color is overridden, reading the value will involve a transformation from the originating color space to the color space of the value being interrogated.
 
-
-applied api schema allows applying the attribute that names the colors pace and
+ the key thing is that if the stronger layer direclty overrides the property's colorSpace metadata, then the weaker layer's value is not considered at all.  If the stronger layer sets colorSpace on the prim (or an ancestor prim) then the colorSpace metadata on the property is still considered the colorspace for the property, because it is "closer".  But we never need to walk through the PropertyStack to find all colorSpace opinions for a property.
+ 
+applied api schema allows applying the attribute that names the color space and
 it inherits down the naemspace
 
 example
