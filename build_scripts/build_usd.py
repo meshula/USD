@@ -517,6 +517,11 @@ def RunCMake(context, force, extraArgs=None):
             )
         )
 
+    if context.ignorePaths:
+        ignoredPaths = ";".join(context.ignorePaths)
+        extraArgs.append("-DCMAKE_IGNORE_PATH={0}".format(ignoredPaths))
+        extraArgs.append("-DCMAKE_IGNORE_PREFIX_PATH={0}".format(ignoredPaths))
+
     # We use -DCMAKE_BUILD_TYPE for single-configuration generators
     # (Ninja, make), and --config for multi-configuration generators
     # (Visual Studio); technically we don't need BOTH at the same
@@ -851,7 +856,7 @@ BOOST_VERSION_FILES = [
     "include/boost/version.hpp",
     "include/boost-1_76/boost/version.hpp",
     "include/boost-1_78/boost/version.hpp",
-    "include/boost-1_82/boost/version.hpp"
+    "include/boost-1_82/boost/version.hpp",
 ]
 
 
@@ -869,7 +874,7 @@ def InstallBoost_Helper(context, force, buildArgs):
     # - Building on MacOS requires boost 1.81.0 or newer to resolve Python 3
     #   compatibility issues on Big Sur and Monterey.
     pyInfo = GetPythonInfo(context)
-    pyVer = (int(pyInfo[3].split('.')[0]), int(pyInfo[3].split('.')[1]))
+    pyVer = (int(pyInfo[3].split(".")[0]), int(pyInfo[3].split(".")[1]))
     if context.buildPython and pyVer >= (3, 11):
         BOOST_URL = "https://archives.boost.org/release/1.82.0/source/boost_1_82_0.zip"
     elif context.buildPython and pyVer >= (3, 10):
@@ -1654,7 +1659,10 @@ OPENCOLORIO = Dependency(
 ############################################################
 # OpenSubdiv
 
-OPENSUBDIV_URL = "https://github.com/PixarAnimationStudios/OpenSubdiv/archive/v3_6_0.zip"
+OPENSUBDIV_URL = (
+    "https://github.com/PixarAnimationStudios/OpenSubdiv/archive/v3_6_0.zip"
+)
+
 
 def InstallOpenSubdiv(context, force, buildArgs):
     srcOSDDir = DownloadURL(OPENSUBDIV_URL, context, force)
@@ -1903,23 +1911,32 @@ def InstallMaterialX(context, force, buildArgs):
         # should be removed when underlying issue is resolved.
         # https://github.com/AcademySoftwareFoundation/MaterialX/issues/1401
         if IsVisualStudio2017OrGreater() and not IsVisualStudio2019OrGreater():
-            PatchFile("source\\MaterialXGenMsl\\MslShaderGenerator.cpp",
-                [("#include <MaterialXGenMsl/MslShaderGenerator.h>",
-                  "#include <cctype>\n" +
-                  "#include <MaterialXGenMsl/MslShaderGenerator.h>")])
+            PatchFile(
+                "source\\MaterialXGenMsl\\MslShaderGenerator.cpp",
+                [
+                    (
+                        "#include <MaterialXGenMsl/MslShaderGenerator.h>",
+                        "#include <cctype>\n"
+                        + "#include <MaterialXGenMsl/MslShaderGenerator.h>",
+                    )
+                ],
+            )
 
         cmakeOptions = [
             "-DMATERIALX_BUILD_TESTS=OFF",
         ]
         if context.targetIos or context.buildMonolithic:
-            cmakeOptions += ["-DMATERIALX_BUILD_GEN_OSL=OFF",
-                             "-DMATERIALX_BUILD_SHARED_LIBS=OFF"]
+            cmakeOptions += [
+                "-DMATERIALX_BUILD_GEN_OSL=OFF",
+                "-DMATERIALX_BUILD_SHARED_LIBS=OFF",
+            ]
         else:
             cmakeOptions += ["-DMATERIALX_BUILD_SHARED_LIBS=ON"]
 
         cmakeOptions += buildArgs
 
         RunCMake(context, force, cmakeOptions)
+
 
 MATERIALX = Dependency("MaterialX", InstallMaterialX, "include/MaterialXCore/Library.h")
 
@@ -1948,6 +1965,7 @@ def InstallEmbree(context, force, buildArgs):
 
         RunCMake(context, force, extraArgs)
 
+
 EMBREE = Dependency("Embree", InstallEmbree, "include/embree3/rtcore.h")
 
 ############################################################
@@ -1957,20 +1975,23 @@ EMBREE = Dependency("Embree", InstallEmbree, "include/embree3/rtcore.h")
 # As of 2023, there have been no commits since 2018.
 ANIMX_URL = "https://github.com/Autodesk/animx/archive/refs/heads/master.zip"
 
+
 def InstallAnimX(context, force, buildArgs):
     with CurrentWorkingDirectory(DownloadURL(ANIMX_URL, context, force)):
         # AnimX strangely installs its output to the inst root, rather than the
         # lib subdirectory.  Fix.
-        PatchFile("src/CMakeLists.txt",
-                  [("LIBRARY DESTINATION .", "LIBRARY DESTINATION lib")])
+        PatchFile(
+            "src/CMakeLists.txt", [("LIBRARY DESTINATION .", "LIBRARY DESTINATION lib")]
+        )
 
         extraArgs = [
-            '-DANIMX_BUILD_MAYA_TESTSUITE=OFF',
-            '-DMAYA_64BIT_TIME_PRECISION=ON',
-            '-DANIMX_BUILD_SHARED=ON',
-            '-DANIMX_BUILD_STATIC=OFF'
+            "-DANIMX_BUILD_MAYA_TESTSUITE=OFF",
+            "-DMAYA_64BIT_TIME_PRECISION=ON",
+            "-DANIMX_BUILD_SHARED=ON",
+            "-DANIMX_BUILD_STATIC=OFF",
         ]
         RunCMake(context, force, extraArgs)
+
 
 ANIMX = Dependency("AnimX", InstallAnimX, "include/animx.h")
 
@@ -2047,14 +2068,14 @@ def InstallUSD(context, force, buildArgs):
             extraArgs.append("-DPXR_BUILD_DOCUMENTATION=OFF")
 
         if context.buildHtmlDocs:
-            extraArgs.append('-DPXR_BUILD_HTML_DOCUMENTATION=ON')
+            extraArgs.append("-DPXR_BUILD_HTML_DOCUMENTATION=ON")
         else:
-            extraArgs.append('-DPXR_BUILD_HTML_DOCUMENTATION=OFF')
+            extraArgs.append("-DPXR_BUILD_HTML_DOCUMENTATION=OFF")
 
         if context.buildPythonDocs:
-            extraArgs.append('-DPXR_BUILD_PYTHON_DOCUMENTATION=ON')
+            extraArgs.append("-DPXR_BUILD_PYTHON_DOCUMENTATION=ON")
         else:
-            extraArgs.append('-DPXR_BUILD_PYTHON_DOCUMENTATION=OFF')
+            extraArgs.append("-DPXR_BUILD_PYTHON_DOCUMENTATION=OFF")
 
         if context.buildTests:
             extraArgs.append("-DPXR_BUILD_TESTS=ON")
@@ -2160,16 +2181,19 @@ def InstallUSD(context, force, buildArgs):
             extraArgs.append("-DPXR_ENABLE_MATERIALX_SUPPORT=OFF")
 
         if context.buildMayapyTests:
-            extraArgs.append('-DPXR_BUILD_MAYAPY_TESTS=ON')
-            extraArgs.append('-DMAYAPY_LOCATION="{mayapyLocation}"'
-                             .format(mayapyLocation=context.mayapyLocation))
+            extraArgs.append("-DPXR_BUILD_MAYAPY_TESTS=ON")
+            extraArgs.append(
+                '-DMAYAPY_LOCATION="{mayapyLocation}"'.format(
+                    mayapyLocation=context.mayapyLocation
+                )
+            )
         else:
-            extraArgs.append('-DPXR_BUILD_MAYAPY_TESTS=OFF')
+            extraArgs.append("-DPXR_BUILD_MAYAPY_TESTS=OFF")
 
         if context.buildAnimXTests:
-            extraArgs.append('-DPXR_BUILD_ANIMX_TESTS=ON')
+            extraArgs.append("-DPXR_BUILD_ANIMX_TESTS=ON")
         else:
-            extraArgs.append('-DPXR_BUILD_ANIMX_TESTS=OFF')
+            extraArgs.append("-DPXR_BUILD_ANIMX_TESTS=OFF")
 
         if Windows():
             # Increase the precompiled header buffer limit.
@@ -2313,6 +2337,13 @@ group.add_argument(
     ),
 )
 
+group.add_argument(
+    "--ignore-paths",
+    type=str,
+    nargs="*",
+    default=[],
+    help="Paths for CMake to ignore when configuring projects.",
+)
 if MacOS():
     group.add_argument(
         "--build-target",
@@ -2324,6 +2355,14 @@ if MacOS():
             )
         ),
     )
+    if apple_utils.IsHostArm():
+        # Intel Homebrew stores packages in /usr/local which unfortunately can
+        # be where a lot of other things are too. So we only add this flag on arm macs.
+        group.add_argument(
+            "--ignore-homebrew",
+            action="store_true",
+            help="Specify that CMake should ignore Homebrew packages.",
+        )
 
 group.add_argument(
     "--build-args",
@@ -2762,23 +2801,36 @@ subgroup.add_argument(
 
 group = parser.add_argument_group(title="Spline Test Options")
 subgroup = group.add_mutually_exclusive_group()
-subgroup.add_argument("--mayapy-tests",
-                      dest="build_mayapy_tests", action="store_true",
-                      default=False,
-                      help="Build mayapy spline tests")
-subgroup.add_argument("--no-mayapy-tests",
-                      dest="build_mayapy_tests", action="store_false",
-                      help="Do not build mayapy spline tests (default)")
-group.add_argument("--mayapy-location", type=str,
-                   help="Directory where mayapy is installed")
+subgroup.add_argument(
+    "--mayapy-tests",
+    dest="build_mayapy_tests",
+    action="store_true",
+    default=False,
+    help="Build mayapy spline tests",
+)
+subgroup.add_argument(
+    "--no-mayapy-tests",
+    dest="build_mayapy_tests",
+    action="store_false",
+    help="Do not build mayapy spline tests (default)",
+)
+group.add_argument(
+    "--mayapy-location", type=str, help="Directory where mayapy is installed"
+)
 subgroup = group.add_mutually_exclusive_group()
-subgroup.add_argument("--animx-tests",
-                      dest="build_animx_tests", action="store_true",
-                      default=False,
-                      help="Build AnimX spline tests")
-subgroup.add_argument("--no-animx-tests",
-                      dest="build_animx_tests", action="store_false",
-                      help="Do not build AnimX spline tests (default)")
+subgroup.add_argument(
+    "--animx-tests",
+    dest="build_animx_tests",
+    action="store_true",
+    default=False,
+    help="Build AnimX spline tests",
+)
+subgroup.add_argument(
+    "--no-animx-tests",
+    dest="build_animx_tests",
+    action="store_false",
+    help="Do not build AnimX spline tests (default)",
+)
 
 args = parser.parse_args()
 
@@ -2869,6 +2921,7 @@ class InstallContext:
         self.buildShared = args.build_type == SHARED_LIBS
         self.buildMonolithic = args.build_type == MONOLITHIC_LIB
 
+        self.ignorePaths = args.ignore_paths or []
         # Build target and code signing
         if MacOS():
             self.buildTarget = args.build_target
@@ -2877,6 +2930,8 @@ class InstallContext:
             self.macOSCodesign = (
                 args.macos_codesign if hasattr(args, "macos_codesign") else False
             )
+            if apple_utils.IsHostArm() and args.ignore_homebrew:
+                self.ignorePaths.append("/opt/homebrew")
         else:
             self.buildTarget = ""
             self.targetIos = False
@@ -3074,7 +3129,7 @@ if not isPython64Bit:
 if which("cmake"):
     # Check cmake minimum version requirements
     pyInfo = GetPythonInfo(context)
-    pyVer = (int(pyInfo[3].split('.')[0]), int(pyInfo[3].split('.')[1]))
+    pyVer = (int(pyInfo[3].split(".")[0]), int(pyInfo[3].split(".")[1]))
     if context.buildPython and pyVer >= (3, 11):
         # Python 3.11 requires boost 1.82.0, which is not supported prior
         # to 3.27
@@ -3294,7 +3349,8 @@ summaryMsg = summaryMsg.format(
     buildMaterialX=("On" if context.buildMaterialX else "Off"),
     buildMayapyTests=("On" if context.buildMayapyTests else "Off"),
     buildAnimXTests=("On" if context.buildAnimXTests else "Off"),
-    enableHDF5=("On" if context.enableHDF5 else "Off"))
+    enableHDF5=("On" if context.enableHDF5 else "Off"),
+)
 
 Print(summaryMsg)
 
