@@ -599,9 +599,22 @@ NcRGB NcXYZToRGB(NcColorSpace* ct, NcCIEXYZ xyz)
     return rgb;
 }
 
-NcColorSpace NcGetNamedColorSpace(const char* name) 
+NcColorSpace NcGetNamedColorSpace(const char* name_) 
 {
-    if (name) {
+    if (name_) {
+        const char* name = name_;
+        if (!strcmp(name, "raw")) {
+            // USD files may name "raw" to mean identity
+            name = "identity";
+        }
+        else if (!strcmp(name, "auto")) {
+            // what acutally is the intent of "auto"?
+            name = "identity";
+        }
+        else if (!strcmp(name, "sRGB")) {
+            // USD files may name "sRGB" to mean srgb_texture
+            name = "srgb_texture";
+        }
         for (int i = 0; i < sizeof(_colorSpaces) / sizeof(_colorSpaces[0]); i++) {
             if (strcmp(name, _colorSpaces[i].name) == 0) {
                 return _colorSpaces[i];

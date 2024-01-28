@@ -53,6 +53,22 @@ TF_REGISTRY_FUNCTION(TfType)
     t.SetFactory<HgiFactory<HgiMetal>>();
 }
 
+namespace {
+    id<MTLDevice> defaultPrimaryDevice = nil;
+    id<MTLCommandQueue> defaultCommandQueue = nil;
+}
+
+void HgiMetal::SetDefaultPrimaryDevice(id<MTLDevice> device)
+{
+    defaultPrimaryDevice = device;
+}
+
+void HgiMetal::SetDefaultCommandQueue(id<MTLCommandQueue> queue)
+{
+    defaultCommandQueue = queue;
+}
+
+
 HgiMetal::HgiMetal(id<MTLDevice> device)
 : _device(device)
 , _currentCmds(nullptr)
@@ -60,8 +76,11 @@ HgiMetal::HgiMetal(id<MTLDevice> device)
 , _workToFlush(false)
 {
     if (!_device) {
+        if (defaultPrimaryDevice) {
+            _device = defaultPrimaryDevice;
+        }
 #if defined(ARCH_OS_OSX)
-        if( TfGetenvBool("HGIMETAL_USE_INTEGRATED_GPU", false)) {
+        else if( TfGetenvBool("HGIMETAL_USE_INTEGRATED_GPU", false)) {
             auto devices = MTLCopyAllDevices();
             for (id<MTLDevice> d in devices) {
                 if ([d isLowPower]) {
@@ -79,8 +98,13 @@ HgiMetal::HgiMetal(id<MTLDevice> device)
 
     static int const commandBufferPoolSize = 256;
 
-    _commandQueue = [_device newCommandQueueWithMaxCommandBufferCount:
-                     commandBufferPoolSize];
+    if (defaultCommandQueue) {
+        _commandQueue = defaultCommandQueue;
+    }
+    else {
+        _commandQueue = [_device newCommandQueueWithMaxCommandBufferCount:
+                        commandBufferPoolSize];
+    }
     _commandBuffer = [_commandQueue commandBuffer];
     [_commandBuffer retain];
 

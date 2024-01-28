@@ -165,6 +165,12 @@ public:
     HGIMETAL_API
     id<MTLCommandQueue> GetQueue() const;
 
+    HGIMETAL_API
+    static void SetDefaultPrimaryDevice(id<MTLDevice> device);
+
+    HGIMETAL_API
+    static void SetDefaultCommandQueue(id<MTLCommandQueue> queue);
+
     // Metal Command buffers are heavy weight, while encoders are lightweight.
     // But we cannot have more than one active encoder at a time per cmd buf.
     // (Ideally we would have created on encoder for each HgiCmds)
