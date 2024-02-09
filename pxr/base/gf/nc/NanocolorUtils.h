@@ -22,8 +22,8 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#ifndef nanocolor_extras_h
-#define nanocolor_extras_h
+#ifndef nanocolor_utils_h
+#define nanocolor_utils_h
 
 #include "Nanocolor.h"
 
@@ -32,11 +32,15 @@ extern "C" {
 #endif
 
 #define NcKelvinToXYZ                NCCONCAT(NCNAMESPACE, KelvinToXYZ)
-#define NcISO17321_AP0_ColorChips    NCCONCAT(NCNAMESPACE, ISO17321_ap0_24)
+#define NcISO17321_ColorChips_AP0    NCCONCAT(NCNAMESPACE, ISO17321_ColorChips_AP0)
+#define NcISO17321_ColorChips_Names  NCCONCAT(NCNAMESPACE, ISO17321_ColorChips_Names)
+#define NcISO17321_ColorChips_SRGB   NCCONCAT(NCNAMESPACE, ISO17321_ColorChips_SRGB)
+#define NcISO17321_ColorChips_xyY    NCCONCAT(NCNAMESPACE, ISONcISO17321_ColorChips_xyY17321_ColorChips_SRGB)
 #define NcProjectToChromaticities    NCCONCAT(NCNAMESPACE, ProjectToChromaticities)
 #define NcNormalizeXYZ               NCCONCAT(NCNAMESPACE, NormalizeXYZ)
 #define NcRGBFromYxy                 NCCONCAT(NCNAMESPACE, RGBFromYxy)
 #define NcCIE1931ColorFromWavelength NCCONCAT(NCNAMESPACE, CIE1931ColorFromWavelength)
+#define NcMatchLinearColorSpace      NCCONCAT(NCNAMESPACE, MatchLinearColorSpace)
 
 // returns an XYZ coordinate for the blackbody emission spectrum
 // for values between 1667 and 25000K
@@ -44,7 +48,10 @@ NCAPI NcCIEXYZ NcKelvinToXYZ(float temperature, float luminosity);
 
 // return a pointer to 24 color values in ap0 corresponding to
 // the 24 color chips in ISO standard chart 17321
-NCAPI NcRGB* NcISO17321_AP0_ColorChips();
+NCAPI NcRGB* NcISO17321_ColorChips_AP0(void);
+NCAPI const char** NcISO17321_ColorChips_Names(void);
+NCAPI NcRGB* NcISO17321_ColorChips_SRGB(void);
+NCAPI NcCIEXYZ* NcISO17321_ColorChips_xyY(void);
 
 // given a CIEXYZ 1931 color coordinate, project it to the
 // regularized chromaticity coordinate
@@ -55,6 +62,13 @@ NCAPI NcCIEXYZ NcNormalizeXYZ(NcCIEXYZ c);
 NCAPI NcRGB NcRGBFromYxy(NcColorSpace* cs, NcCIEXYZ c);
 
 NCAPI NcCIEXYZ NcCIE1931ColorFromWavelength(float lambda, bool approx);
+
+// a reasonable threshold is 1e-4.
+NCAPI const char* NcMatchLinearColorSpace(NcCIEXYZ redPrimary, 
+                                          NcCIEXYZ greenPrimary,
+                                          NcCIEXYZ bluePrimary,
+                                          NcXYChromaticity  whitePoint, 
+                                          float epsilon);
 
 #ifdef __cplusplus
 }

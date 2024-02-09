@@ -60,12 +60,20 @@ namespace {
 
 void HgiMetal::SetDefaultPrimaryDevice(id<MTLDevice> device)
 {
+    if (defaultPrimaryDevice) {
+        [defaultPrimaryDevice release];
+    }
     defaultPrimaryDevice = device;
+    [defaultCommandQueue retain];
 }
 
 void HgiMetal::SetDefaultCommandQueue(id<MTLCommandQueue> queue)
 {
+    if (defaultCommandQueue) {
+        [defaultCommandQueue release];
+    }
     defaultCommandQueue = queue;
+    [defaultCommandQueue retain];
 }
 
 

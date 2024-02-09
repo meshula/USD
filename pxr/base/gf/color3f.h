@@ -62,8 +62,9 @@ PXR_NAMESPACE_OPEN_SCOPE
 /// sRGB_DisplayP3:   sRGB color space adapted to the Display P3 primaries
 /// Linear_Rec2020:   Rec2020 gamut, and linear gamma
 
-// Note that the quoted names here are not regular, but they do correspond to
-// the canonical names found in MaterialX.
+// Note that the quoted names here correspond to the canonical names defined
+// by the OpenColorIO project
+
 #define GF_COLORSPACE_CANONICAL_NAME_TOKENS  \
     ((Identity, "identity"))                 \
     ((ACEScg, "acescg"))                     \
@@ -84,7 +85,8 @@ PXR_NAMESPACE_OPEN_SCOPE
     ((SRGBDisplayP3, "srgb_displayp3"))      \
     ((Custom, "custom"))
 
-TF_DECLARE_PUBLIC_TOKENS(GfColorspaceCanonicalName, GF_API, GF_COLORSPACE_CANONICAL_NAME_TOKENS);
+TF_DECLARE_PUBLIC_TOKENS(GfColorspaceCanonicalName, GF_API, 
+                                        GF_COLORSPACE_CANONICAL_NAME_TOKENS);
 
 
 /// \class GfColorSpace
@@ -100,6 +102,8 @@ TF_DECLARE_PUBLIC_TOKENS(GfColorspaceCanonicalName, GF_API, GF_COLORSPACE_CANONI
 /// operations on a GfColor3f.
 ///
 /// The color spaces supported by Gf are listed in GfColorspaceCanonicalName
+/// For historical compatibility, "raw" is treated as a synonym for "identity",
+/// and "sRGB" is treated as a synonym for "srgb_texture"
 
 class GfColorSpace {
     friend class GfColor3f;
@@ -120,7 +124,7 @@ public:
                                  float K0,
                                  float phi);
     
-    // construct a custom colorspace from a 3x3 matrix and linearization parameters
+    // construct a colorspace from a 3x3 matrix and linearization parameters
     GF_API explicit GfColorSpace(const std::string& name,
                                  const GfMatrix3f &rgbToXYZ,
                                  float gamma,
@@ -156,20 +160,21 @@ public:
     GF_API GfColor3f();
     ~GfColor3f() = default;
 
+    /// Construct from a color from another color
+    GF_API
+    GfColor3f(const GfColor3f&);
+
     /// Construct from an rgb tuple and colorspace
     GF_API
     GfColor3f(const GfVec3f &rgb, GfColorSpace colorSpace);
 
-    /// Construct from a color from the input color,
+    /// Construct a color from another color into the specified color space
     GF_API
-    GfColor3f(const GfColor3f&);
+    GfColor3f(const GfColor3f &color, GfColorSpace colorSpace);
 
     /// Replace the color with the contents of the input
     GF_API
     GfColor3f(GfColor3f&&) noexcept = default;
-
-    /// Construct a color from another color into the specified color space
-    GfColor3f(const GfColor3f &color, GfColorSpace colorSpace);
 
     /// Replace the color with the contents of the input
     GF_API
@@ -192,9 +197,11 @@ public:
     void SetFromWavelengthNM(float nm);
 
     /// Get the RGB tuple
+    GF_API
     GfVec3f GetRGB() const { return _rgb; }
 
     /// Get the color space
+    GF_API
     std::shared_ptr<GfColorSpace> GetColorSpace() const { return _colorSpace; }
 
     /// Get the CIEXYZ coordinate of the color
@@ -216,13 +223,15 @@ public:
 	    return ! (*this == r);
     }
     
-    /// Convert an array of RGB values from one color space to another
+    /// Convert a packed array of RGB values from one color space to another
     GF_API static
-    void ConvertRGB(const GfColorSpace& from, const GfColorSpace& to, TfSpan<const float> rgb);
+    void ConvertRGB(const GfColorSpace& from, const GfColorSpace& to, 
+                   TfSpan<const float> rgb);
 
-    /// Convert an array of RGBA values from one color space to another
+    /// Convert a packed array of RGBA values from one color space to another
     GF_API static
-    void ConvertRGBA(const GfColorSpace& from, const GfColorSpace& to, TfSpan<const float> rgba);
+    void ConvertRGBA(const GfColorSpace& from, const GfColorSpace& to, 
+                     TfSpan<const float> rgba);
 
   private:
     GfVec3f _rgb;

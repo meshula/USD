@@ -36,7 +36,7 @@ static const NcXYChromaticity _WpACES = { 0.32168, 0.33767 };
 
 static const NcColorSpace _colorSpaces[] = {
     {
-        "acescg",
+        "acescg",                       // same as lin_ap1
         { 0.713, 0.293 },
         { 0.165, 0.830 },
         { 0.128, 0.044 },
@@ -124,7 +124,7 @@ static const NcColorSpace _colorSpaces[] = {
          { 0,0,0, 0,0,0, 0,0,0 }}       // transform - zero must be computed
     },
     {
-        "lin_ap1",              // same as acescg
+        "lin_ap1",                      // same as acescg
         { 0.713, 0.293 },
         { 0.165, 0.830 },
         { 0.128, 0.044 },
@@ -213,27 +213,41 @@ static const NcColorSpace _colorSpaces[] = {
     }
 };
 
-static NcM33f NcM3ffInvert(NcM33f m) 
+const char** NcRegisteredColorSpaceNames()
 {
+    const int colorspaces = sizeof(_colorSpaces) / sizeof(NcColorSpace);
+    static const char* colorspaceNames[colorspaces + 1];
+    static int registeredColorSpaces = 0;
+    if (!registeredColorSpaces) {
+        for (int i = 0; i < colorspaces; ++i)
+            colorspaceNames[i] = _colorSpaces[i].name;
+        colorspaceNames[colorspaces] = nullptr;
+        registeredColorSpaces = colorspaces;
+    }
+    return colorspaceNames;
+}
+
+
+static NcM33f NcM3ffInvert(NcM33f m) {
     NcM33f inv;
-    float det = m.m[0] * (m.m[4] * m.m[8] - m.m[5] * m.m[7]) -
-                m.m[1] * (m.m[3] * m.m[8] - m.m[5] * m.m[6]) +
-                m.m[2] * (m.m[3] * m.m[7] - m.m[4] * m.m[6]);
+    const int M0 = 0, M1 = 3, M2 = 6, M3 = 1, M4 = 4, M5 = 7, M6 = 2, M7 = 5, M8 = 8;
+    float det = m.m[M0] * (m.m[M4] * m.m[M8] - m.m[M5] * m.m[M7]) -
+    m.m[M1] * (m.m[M3] * m.m[M8] - m.m[M5] * m.m[M6]) +
+    m.m[M2] * (m.m[M3] * m.m[M7] - m.m[M4] * m.m[M6]);
     float invdet = 1.0 / det;
-    inv.m[0] = (m.m[4] * m.m[8] - m.m[5] * m.m[7]) * invdet;
-    inv.m[1] = (m.m[2] * m.m[7] - m.m[1] * m.m[8]) * invdet;
-    inv.m[2] = (m.m[1] * m.m[5] - m.m[2] * m.m[4]) * invdet;
-    inv.m[3] = (m.m[5] * m.m[6] - m.m[3] * m.m[8]) * invdet;
-    inv.m[4] = (m.m[0] * m.m[8] - m.m[2] * m.m[6]) * invdet;
-    inv.m[5] = (m.m[2] * m.m[3] - m.m[0] * m.m[5]) * invdet;
-    inv.m[6] = (m.m[3] * m.m[7] - m.m[4] * m.m[6]) * invdet;
-    inv.m[7] = (m.m[1] * m.m[6] - m.m[0] * m.m[7]) * invdet;
-    inv.m[8] = (m.m[0] * m.m[4] - m.m[1] * m.m[3]) * invdet;
+    inv.m[M0] = (m.m[M4] * m.m[M8] - m.m[M5] * m.m[M7]) * invdet;
+    inv.m[M1] = (m.m[M2] * m.m[M7] - m.m[M1] * m.m[M8]) * invdet;
+    inv.m[M2] = (m.m[M1] * m.m[M5] - m.m[M2] * m.m[M4]) * invdet;
+    inv.m[M3] = (m.m[M5] * m.m[M6] - m.m[M3] * m.m[M8]) * invdet;
+    inv.m[M4] = (m.m[M0] * m.m[M8] - m.m[M2] * m.m[M6]) * invdet;
+    inv.m[M5] = (m.m[M2] * m.m[M3] - m.m[M0] * m.m[M5]) * invdet;
+    inv.m[M6] = (m.m[M3] * m.m[M7] - m.m[M4] * m.m[M6]) * invdet;
+    inv.m[M7] = (m.m[M1] * m.m[M6] - m.m[M0] * m.m[M7]) * invdet;
+    inv.m[M8] = (m.m[M0] * m.m[M4] - m.m[M1] * m.m[M3]) * invdet;
     return inv;
 }
 
-static NcM33f NcM33fMultiply(NcM33f lh, NcM33f rh) 
-{
+static NcM33f NcM33fMultiply(NcM33f lh, NcM33f rh) {
     NcM33f m;
     m.m[0] = lh.m[0] * rh.m[0] + lh.m[1] * rh.m[3] + lh.m[2] * rh.m[6];
     m.m[1] = lh.m[0] * rh.m[1] + lh.m[1] * rh.m[4] + lh.m[2] * rh.m[7];
@@ -249,8 +263,7 @@ static NcM33f NcM33fMultiply(NcM33f lh, NcM33f rh)
 
 #if 0
 /// @TODO move to test suite
-void checkInvertAndMultiply() 
-{
+void checkInvertAndMultiply() {
     // this gives the correct result per Annex C
     NcM33f s = { 0.56711181859, 0.2793268677, 0, 0.1903210663, 0.6434664624, 0.0725032634, 0.1930166748, 0.0772066699, 1.0165544874 };
     NcM33f d = { 0.4123907993, 0.2126390059, 0.0193308187, 0.3575843394, 0.7151686788, 0.1191947798, 0.1804807884, 0.0721923154, 0.9505321522 };
@@ -259,24 +272,33 @@ void checkInvertAndMultiply()
 }
 #endif
 
-void NcInitColorSpace(NcColorSpace* cs) 
-{
+void NcInitColorSpace(NcColorSpace* cs) {
     if (!cs || cs->colorTransform.transform.m[8] != 0.0)
         return;
     
     const float a = cs->linearBias;
     const float gamma = cs->gamma;
+    
+    cs->colorTransform.transfer.linearBias = a;
+    cs->colorTransform.transfer.K0 = 0.f;
+    cs->colorTransform.transfer.gamma = cs->gamma;
+    
     if (gamma == 1.f) {
         cs->colorTransform.transfer.K0 = 1.e9f;
         cs->colorTransform.transfer.phi = 1.f;
     }
     else {
-        cs->colorTransform.transfer.K0 = a / (gamma - 1.f);
-        /// @TODO this phi calc yields NaN for a = 0 and gamma = 2.2; should be ???
-        cs->colorTransform.transfer.phi = (a /
-                               expf(logf(gamma * a /
-                                         (gamma + gamma * a - 1.f - a)) * gamma)) /
-                               (gamma - 1.f);
+        if (a <= 0.f) {
+            cs->colorTransform.transfer.K0 = 0.f;
+            cs->colorTransform.transfer.phi = 1.f;
+        }
+        else {
+            cs->colorTransform.transfer.K0 = a / (gamma - 1.f);
+            cs->colorTransform.transfer.phi = (a /
+                                               expf(logf(gamma * a /
+                                                         (gamma + gamma * a - 1.f - a)) * gamma)) /
+            (gamma - 1.f);
+        }
     }
     
     NcM33f m;
@@ -343,7 +365,7 @@ NcM33f NcGetCIEXYZToRGBMatrix(NcColorSpace* cs) {
 
 NcColorTransform GetRGBtoRGBTransform(NcColorSpace* src, NcColorSpace* dst) {
     NcColorTransform t;
-    t.transform = NcM33fMultiply(NcGetRGBToCIEXYZMatrix(src),
+    t.transform = NcM33fMultiply(NcM3ffInvert(NcGetRGBToCIEXYZMatrix(src)),
                                  NcGetCIEXYZToRGBMatrix(dst));
     return t;
 }
@@ -356,8 +378,7 @@ inline float nc_ToLinear(NcColorSpace* cs, float t) {
     return powf((t + a) / (1.f + a), gamma);
 }
 
-inline float nc_FromLinear(NcColorSpace* cs, float t) 
-{
+inline float nc_FromLinear(NcColorSpace* cs, float t) {
     if (t < cs->colorTransform.transfer.K0 / cs->colorTransform.transfer.phi)
         return t * cs->colorTransform.transfer.phi;
     const float a = cs->colorTransform.transfer.linearBias;
@@ -365,8 +386,24 @@ inline float nc_FromLinear(NcColorSpace* cs, float t)
     return (1.f + a) * powf(t, 1.f / gamma) - a;
 }
 
-NcRGB NcTransformColor(NcColorSpace* dst, NcColorSpace* src, NcRGB rgb) 
-{
+NcColorTransform NcGetRGBToRGBTransform(NcColorSpace* src, NcColorSpace* dst) {
+    if (!dst || !src) {
+        return {};
+    }
+    NcInitColorSpace(dst);
+    NcInitColorSpace(src);
+    
+    NcM33f toXYZ = NcGetRGBToCIEXYZMatrix(src);
+    NcM33f fromXYZ = NcGetCIEXYZToRGBMatrix(dst);
+    
+    NcM33f tx = NcM33fMultiply(fromXYZ, toXYZ);
+    
+    NcColorTransform nct;
+    nct.transform = tx;
+    return nct;
+}
+
+NcRGB NcTransformColor(NcColorSpace* dst, NcColorSpace* src, NcRGB rgb) {
     if (!dst || !src) {
         return rgb;
     }
@@ -392,7 +429,7 @@ NcRGB NcTransformColor(NcColorSpace* dst, NcColorSpace* src, NcRGB rgb)
     return out;
 }
 
-void NcTransformColors(NcColorSpace* dst, NcColorSpace* src, NcRGB* rgb, int count) 
+void NcTransformColors(NcColorSpace* dst, NcColorSpace* src, NcRGB* rgb, int count)
 {
     if (!dst || !src || !rgb)
         return;
@@ -412,59 +449,59 @@ void NcTransformColors(NcColorSpace* dst, NcColorSpace* src, NcRGB* rgb, int cou
     }
     
     int start = 0;
-    #if HAVE_SSE2
-        __m128 m0 = _mm_set_ps(tx.m[0], tx.m[1], tx.m[2], 0);
-        __m128 m1 = _mm_set_ps(tx.m[3], tx.m[4], tx.m[5], 0);
-        __m128 m2 = _mm_set_ps(tx.m[6], tx.m[7], tx.m[8], 0);
-        __m128 m3 = _mm_set_ps(0, 0, 0, 1);
-
-        for (int i = 0; i < count - 1; i++) {
-            __m128 rgba = _mm_loadu_ps(&rgb[i].r);   // load rgbr
-
-            // Set alpha component to 1.0 before multiplication
-            rgba = _mm_add_ps(rgba, m3);
-
-            // Perform the matrix multiplication
-            __m128 rout = _mm_mul_ps(m0, rgba);
-                   rout = _mm_add_ps(rout, _mm_mul_ps(m1, rgba));
-                   rout = _mm_add_ps(rout, _mm_mul_ps(m2, rgba));
-                   rout = _mm_add_ps(rout, _mm_mul_ps(m3, rgba));
-
-            // Store the result
-            _mm_storeu_ps(&rgb[i].r, rout);
-        }
-
-        // transform the last value separately, because _mm_storeu_ps
-        // writes 4 floats, and we may not have 4 floats left
-        start = count - 2;
-        count = 1;
-    #elif HAVE_NEON
-        float32x4_t m0 = { tx.m[0], tx.m[1], tx.m[2], 0 };
-        float32x4_t m1 = { tx.m[3], tx.m[4], tx.m[5], 0 };
-        float32x4_t m2 = { tx.m[6], tx.m[7], tx.m[8], 0 };
-        float32x4_t m3 = { 0, 0, 0, 1 };
-
-        for (int i = 0; i < count - 1; i++) {
-            float32x4_t rgba = vld1q_f32(&rgb[i].r);   // load rgbr
-
-            // Set alpha component to 1.0 before multiplication
-            rgba = vsetq_lane_f32(1.0f, rgba, 3);
+#if HAVE_SSE2
+    __m128 m0 = _mm_set_ps(tx.m[0], tx.m[1], tx.m[2], 0);
+    __m128 m1 = _mm_set_ps(tx.m[3], tx.m[4], tx.m[5], 0);
+    __m128 m2 = _mm_set_ps(tx.m[6], tx.m[7], tx.m[8], 0);
+    __m128 m3 = _mm_set_ps(0, 0, 0, 1);
     
-            // Perform the matrix multiplication
-            float32x4_t rout = vmulq_f32(m0, rgba);
-                        rout = vmlaq_f32(rout, m1, rgba);
-                        rout = vmlaq_f32(rout, m2, rgba);
-                        rout = vmlaq_f32(rout, m3, rgba);
-
-            // Store the result
-            vst1q_f32(&rgb[i].r, rout);
-        }
-        // transform the last value separately, because _mm_storeu_ps
-        // writes 4 floats, and we may not have 4 floats left
-        start = count - 2;
-        count = 1;
-    #endif
-
+    for (int i = 0; i < count - 1; i++) {
+        __m128 rgba = _mm_loadu_ps(&rgb[i].r);   // load rgbr
+        
+        // Set alpha component to 1.0 before multiplication
+        rgba = _mm_add_ps(rgba, m3);
+        
+        // Perform the matrix multiplication
+        __m128 rout = _mm_mul_ps(m0, rgba);
+        rout = _mm_add_ps(rout, _mm_mul_ps(m1, rgba));
+        rout = _mm_add_ps(rout, _mm_mul_ps(m2, rgba));
+        rout = _mm_add_ps(rout, _mm_mul_ps(m3, rgba));
+        
+        // Store the result
+        _mm_storeu_ps(&rgb[i].r, rout);
+    }
+    
+    // transform the last value separately, because _mm_storeu_ps
+    // writes 4 floats, and we may not have 4 floats left
+    start = count - 2;
+    count = 1;
+#elif HAVE_NEON
+    float32x4_t m0 = { tx.m[0], tx.m[1], tx.m[2], 0 };
+    float32x4_t m1 = { tx.m[3], tx.m[4], tx.m[5], 0 };
+    float32x4_t m2 = { tx.m[6], tx.m[7], tx.m[8], 0 };
+    float32x4_t m3 = { 0, 0, 0, 1 };
+    
+    for (int i = 0; i < count - 1; i++) {
+        float32x4_t rgba = vld1q_f32(&rgb[i].r);   // load rgbr
+        
+        // Set alpha component to 1.0 before multiplication
+        rgba = vsetq_lane_f32(1.0f, rgba, 3);
+        
+        // Perform the matrix multiplication
+        float32x4_t rout = vmulq_f32(m0, rgba);
+        rout = vmlaq_f32(rout, m1, rgba);
+        rout = vmlaq_f32(rout, m2, rgba);
+        rout = vmlaq_f32(rout, m3, rgba);
+        
+        // Store the result
+        vst1q_f32(&rgb[i].r, rout);
+    }
+    // transform the last value separately, because _mm_storeu_ps
+    // writes 4 floats, and we may not have 4 floats left
+    start = count - 2;
+    count = 1;
+#endif
+    
     for (int i = start; i < count; i++) {
         NcRGB out = rgb[i];
         out.r = tx.m[0] * out.r + tx.m[1] * out.g + tx.m[2] * out.b;
@@ -472,7 +509,7 @@ void NcTransformColors(NcColorSpace* dst, NcColorSpace* src, NcRGB* rgb, int cou
         out.r = tx.m[6] * out.r + tx.m[7] * out.g + tx.m[8] * out.b;
         rgb[i] = out;
     }
-
+    
     for (int i = 0; i < count; i++) {
         NcRGB out = rgb[i];
         out.r = nc_FromLinear(dst, out.r);
@@ -483,7 +520,7 @@ void NcTransformColors(NcColorSpace* dst, NcColorSpace* src, NcRGB* rgb, int cou
 }
 
 // same as NcTransformColor, but preserve alpha in the transformation
-void NcTransformColorsWithAlpha(NcColorSpace* dst, NcColorSpace* src, float* rgba, int count) 
+void NcTransformColorsWithAlpha(NcColorSpace* dst, NcColorSpace* src, float* rgba, int count)
 {
     if (!dst || !src || !rgba)
         return;
@@ -504,52 +541,52 @@ void NcTransformColorsWithAlpha(NcColorSpace* dst, NcColorSpace* src, float* rgb
         rgba[i * 4 + 2] = out.b;
     }
     
-    #if HAVE_SSE2
-        __m128 m0 = _mm_set_ps(tx.m[0], tx.m[1], tx.m[2], 0);
-        __m128 m1 = _mm_set_ps(tx.m[3], tx.m[4], tx.m[5], 0);
-        __m128 m2 = _mm_set_ps(tx.m[6], tx.m[7], tx.m[8], 0);
-        __m128 m3 = _mm_set_ps(0,0,0,1);
-
-        for (int i = 0; i < count; i += 4) {
-            __m128 rgbaVec = _mm_loadu_ps(&rgba[i * 4]);  // Load all components (r, g, b, a)
-
-            __m128  rout = _mm_mul_ps(m0, rgbaVec);
-                    rout = _mm_add_ps(rout, _mm_mul_ps(m1, rgbaVec));
-                    rout = _mm_add_ps(rout, _mm_mul_ps(m2, rgbaVec));
-                    rout = _mm_add_ps(rout, _mm_mul_ps(m3, rgbaVec));
-
-            _mm_storeu_ps(&rgba[i * 4], rout);  // Store the result
-        }
-   #elif HAVE_NEON
-        float32x4x4_t matrix = {
-            {tx.m[0], tx.m[1], tx.m[2], 0},
-            {tx.m[3], tx.m[4], tx.m[5], 0},
-            {tx.m[6], tx.m[7], tx.m[8], 0},
-            {0, 0, 0, 1}
-        };
-
-        for (int i = 0; i < count; i += 4) {
-            float32x4x4_t rgba_values = vld4q_f32(&rgba[i * 4]);
-
-            float32x4_t rout = vmulq_f32(matrix.val[0], rgba_values.val[0]);
-                        rout = vmlaq_f32(rout, matrix.val[1], rgba_values.val[1]);
-                        rout = vmlaq_f32(rout, matrix.val[2], rgba_values.val[2]);
-                        rout = vmlaq_f32(rout, matrix.val[3], rgba_values.val[3]);
-
-            vst1q_f32(&rgba[i * 4], rout);
-        }
-    #else
-        for (int i = 0; i < count; i++) {
-            NcRGB out = { rgba[i * 4 + 0], rgba[i * 4 + 1], rgba[i * 4 + 2] };
-            out.r = tx.m[0] * out.r + tx.m[1] * out.g + tx.m[2] * out.b;
-            out.r = tx.m[3] * out.r + tx.m[4] * out.g + tx.m[5] * out.b;
-            out.r = tx.m[6] * out.r + tx.m[7] * out.g + tx.m[8] * out.b;
-            rgba[i * 4 + 0] = out.r;
-            rgba[i * 4 + 1] = out.g;
-            rgba[i * 4 + 2] = out.b;
-            // leave alpha alone
-        }
-    #endif
+#if HAVE_SSE2
+    __m128 m0 = _mm_set_ps(tx.m[0], tx.m[1], tx.m[2], 0);
+    __m128 m1 = _mm_set_ps(tx.m[3], tx.m[4], tx.m[5], 0);
+    __m128 m2 = _mm_set_ps(tx.m[6], tx.m[7], tx.m[8], 0);
+    __m128 m3 = _mm_set_ps(0,0,0,1);
+    
+    for (int i = 0; i < count; i += 4) {
+        __m128 rgbaVec = _mm_loadu_ps(&rgba[i * 4]);  // Load all components (r, g, b, a)
+        
+        __m128  rout = _mm_mul_ps(m0, rgbaVec);
+        rout = _mm_add_ps(rout, _mm_mul_ps(m1, rgbaVec));
+        rout = _mm_add_ps(rout, _mm_mul_ps(m2, rgbaVec));
+        rout = _mm_add_ps(rout, _mm_mul_ps(m3, rgbaVec));
+        
+        _mm_storeu_ps(&rgba[i * 4], rout);  // Store the result
+    }
+#elif HAVE_NEON
+    float32x4x4_t matrix = {
+        {tx.m[0], tx.m[1], tx.m[2], 0},
+        {tx.m[3], tx.m[4], tx.m[5], 0},
+        {tx.m[6], tx.m[7], tx.m[8], 0},
+        {0, 0, 0, 1}
+    };
+    
+    for (int i = 0; i < count; i += 4) {
+        float32x4x4_t rgba_values = vld4q_f32(&rgba[i * 4]);
+        
+        float32x4_t rout = vmulq_f32(matrix.val[0], rgba_values.val[0]);
+        rout = vmlaq_f32(rout, matrix.val[1], rgba_values.val[1]);
+        rout = vmlaq_f32(rout, matrix.val[2], rgba_values.val[2]);
+        rout = vmlaq_f32(rout, matrix.val[3], rgba_values.val[3]);
+        
+        vst1q_f32(&rgba[i * 4], rout);
+    }
+#else
+    for (int i = 0; i < count; i++) {
+        NcRGB out = { rgba[i * 4 + 0], rgba[i * 4 + 1], rgba[i * 4 + 2] };
+        out.r = tx.m[0] * out.r + tx.m[1] * out.g + tx.m[2] * out.b;
+        out.r = tx.m[3] * out.r + tx.m[4] * out.g + tx.m[5] * out.b;
+        out.r = tx.m[6] * out.r + tx.m[7] * out.g + tx.m[8] * out.b;
+        rgba[i * 4 + 0] = out.r;
+        rgba[i * 4 + 1] = out.g;
+        rgba[i * 4 + 2] = out.b;
+        // leave alpha alone
+    }
+#endif
     for (int i = 0; i < count; i++) {
         NcRGB out = { rgba[i * 4 + 0], rgba[i * 4 + 1], rgba[i * 4 + 2] };
         out.r = nc_FromLinear(dst, out.r);
@@ -561,8 +598,7 @@ void NcTransformColorsWithAlpha(NcColorSpace* dst, NcColorSpace* src, float* rgb
     }
 }
 
-NcCIEXYZ NcRGBToXYZ(NcColorSpace* ct, NcRGB rgb) 
-{
+NcCIEXYZ NcRGBToXYZ(NcColorSpace* ct, NcRGB rgb) {
     if (!ct)
         return (NcCIEXYZ
                 ) {0,0,0};
@@ -580,8 +616,7 @@ NcCIEXYZ NcRGBToXYZ(NcColorSpace* ct, NcRGB rgb)
     };
 }
 
-NcRGB NcXYZToRGB(NcColorSpace* ct, NcCIEXYZ xyz) 
-{
+NcRGB NcXYZToRGB(NcColorSpace* ct, NcCIEXYZ xyz) {
     if (!ct)
         return (NcRGB) {0,0,0};
     
@@ -599,7 +634,7 @@ NcRGB NcXYZToRGB(NcColorSpace* ct, NcCIEXYZ xyz)
     return rgb;
 }
 
-NcColorSpace NcGetNamedColorSpace(const char* name_) 
+NcColorSpace NcGetNamedColorSpace(const char* name_)
 {
     if (name_) {
         const char* name = name_;
@@ -625,6 +660,40 @@ NcColorSpace NcGetNamedColorSpace(const char* name_)
     NcColorSpace ret = NcColorSpace();
     memset(&ret, 0, sizeof(ret));
     return ret;
+}
+
+// Note: This routine is exposed via NanocolorUtils, but the tables aren't
+// exported so the implementation is here.
+
+static bool CompareCIEXYZ(const NcCIEXYZ& a, const NcCIEXYZ& b, float threshold) {
+    return fabsf(a.x - b.x) < threshold &&
+    fabsf(a.y - b.y) < threshold &&
+    fabsf(a.z - b.z) < threshold;
+}
+
+static bool CompareCIEXYChromaticity(const NcXYChromaticity& a, const NcXYChromaticity& b, float threshold) {
+    return fabsf(a.x - b.x) < threshold &&
+    fabsf(a.y - b.y) < threshold;
+}
+
+// The main reason this exists is that OpenEXR encodes colorspaces via primaries
+// and white point, and it would be good to be able to match an EXR file to a
+// known colorspace, rather than setting up unique transforms for each image.
+// Therefore constructing the namespaced name here via macro, to avoid including
+// utils itself.
+
+const char*
+NCCONCAT(NCNAMESPACE, MatchLinearColorSpace)
+(NcCIEXYZ redPrimary, NcCIEXYZ greenPrimary, NcCIEXYZ bluePrimary,
+ NcXYChromaticity  whitePoint, float threshold) {
+    for (int i = 0; i < sizeof(_colorSpaces) / sizeof(NcColorSpace); ++i) {
+        if (CompareCIEXYZ(_colorSpaces[i].redPrimary, redPrimary, threshold) &&
+            CompareCIEXYZ(_colorSpaces[i].greenPrimary, greenPrimary, threshold) &&
+            CompareCIEXYZ(_colorSpaces[i].bluePrimary, bluePrimary, threshold) &&
+            CompareCIEXYChromaticity(_colorSpaces[i].whitePoint, whitePoint, threshold))
+            return _colorSpaces[i].name;
+    }
+    return NULL;
 }
 
 } // extern "C"
