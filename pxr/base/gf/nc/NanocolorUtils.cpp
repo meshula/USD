@@ -14,7 +14,6 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-
 #include "NanocolorUtils.h"
 #include <math.h>
 
@@ -22,8 +21,7 @@
 extern "C" {
 #endif
 
-NcCIEXYZ NcKelvinToXYZ(float temperature, float luminosity) 
-{
+NcCIEXYZ NcKelvinToXYZ(float temperature, float luminosity) {
     if (temperature < 1667 || temperature > 25000)
         return {0,0};
 
@@ -50,54 +48,143 @@ NcCIEXYZ NcKelvinToXYZ(float temperature, float luminosity)
 }
 
 namespace {
-    // ISO 17321-1:2012 Table D.1
-    // ap0 is the aces name for 2065-1
-    /*
-     CIE 1931
-     AP0: ACES 2065-1             White Point  AP1: cg, cc, cct, proxy
-     red     green   blue                 red    green  blue
-     x        0.7347  0.0000  0.0001    0.32168    0.713  0.165  0.128
-     y        0.2653  1.0000 -0.0770    0.33767    0.293  0.830  0.044
-     */
-    
-    static NcRGB _ISO17321_ap0[24] = {
-        { 0.11877f, 0.08709f, 0.05895f }, // patch 1
-        { 0.40003f, 0.31916f, 0.23737f }, // patch 2
-        { 0.18476f, 0.20398f, 0.31310f }, // patch 3
-        { 0.10901f, 0.13511f, 0.06493f }, // patch 4
-        { 0.26684f, 0.24604f, 0.40932f }, // patch 5
-        { 0.32283f, 0.46208f, 0.40606f }, // patch 6
-        { 0.38607f, 0.22744f, 0.05777f }, // patch 7
-        { 0.13822f, 0.13037f, 0.33703f }, // patch 8
-        { 0.30203f, 0.13752f, 0.12758f }, // patch 9
-        { 0.09310f, 0.06347f, 0.13525f },
-        { 0.34877f, 0.43655f, 0.10613f },
-        { 0.48657f, 0.36686f, 0.08061f },
-        { 0.08731f, 0.07443f, 0.27274f },
-        { 0.15366f, 0.25692f, 0.09071f },
-        { 0.21743f, 0.07070f, 0.05130f },
-        { 0.58921f, 0.53944f, 0.09157f },
-        { 0.30904f, 0.14818f, 0.27426f },
-        { 0.14900f, 0.23377f, 0.35939f }, // out of gamut r709, R could be in error
-        { 0.86653f, 0.86792f, 0.85818f },
-        { 0.57356f, 0.57256f, 0.57169f },
-        { 0.35346f, 0.35337f, 0.35391f },
-        { 0.20253f, 0.20243f, 0.20287f },
-        { 0.09467f, 0.09520f, 0.09637f },
-        { 0.03745f, 0.03766f, 0.03895f }, // patch 24
-    };
-}
+// ISO 17321-1:2012 Table D.1
+// ap0 is the aces name for 2065-1
+/*
+ CIE 1931
+ AP0: ACES 2065-1             White Point  AP1: cg, cc, cct, proxy
+ red     green   blue                 red    green  blue
+ x        0.7347  0.0000  0.0001    0.32168    0.713  0.165  0.128
+ y        0.2653  1.0000 -0.0770    0.33767    0.293  0.830  0.044
+ */
 
-NcRGB* NcISO17321_AP0_ColorChips() { return _ISO17321_ap0; }
+static NcRGB _ISO17321_ap0[24] = {
+    { 0.11877f, 0.08709f, 0.05895f }, // patch 1
+    { 0.40003f, 0.31916f, 0.23737f }, // patch 2
+    { 0.18476f, 0.20398f, 0.31310f }, // patch 3
+    { 0.10901f, 0.13511f, 0.06493f }, // patch 4
+    { 0.26684f, 0.24604f, 0.40932f }, // patch 5
+    { 0.32283f, 0.46208f, 0.40606f }, // patch 6
+    { 0.38607f, 0.22744f, 0.05777f }, // patch 7
+    { 0.13822f, 0.13037f, 0.33703f }, // patch 8
+    { 0.30203f, 0.13752f, 0.12758f }, // patch 9
+    { 0.09310f, 0.06347f, 0.13525f },
+    { 0.34877f, 0.43655f, 0.10613f },
+    { 0.48657f, 0.36686f, 0.08061f },
+    { 0.08731f, 0.07443f, 0.27274f },
+    { 0.15366f, 0.25692f, 0.09071f },
+    { 0.21743f, 0.07070f, 0.05130f },
+    { 0.58921f, 0.53944f, 0.09157f },
+    { 0.30904f, 0.14818f, 0.27426f },
+    { 0.14900f, 0.23377f, 0.35939f }, // out of gamut r709, R could be in error
+    { 0.86653f, 0.86792f, 0.85818f },
+    { 0.57356f, 0.57256f, 0.57169f },
+    { 0.35346f, 0.35337f, 0.35391f },
+    { 0.20253f, 0.20243f, 0.20287f },
+    { 0.09467f, 0.09520f, 0.09637f },
+    { 0.03745f, 0.03766f, 0.03895f }, // patch 24
+};
 
-NcCIEXYZ NcProjectToChromaticities(NcCIEXYZ c) 
-{
+// these measurements are under Illuminant C, which is not normative
+// https://home.cis.rit.edu/~cnspci/references/mccamy1976.pdf
+static NcCIEXYZ _ISO17321_xyY[24] = {
+    { 0.400, 0.350, 10.10 },
+    { 0.377, 0.345, 35.80 },
+    { 0.247, 0.251, 19.30 },
+    { 0.337, 0.422, 13.30 },
+    { 0.265, 0.240, 24.30 },
+    { 0.261, 0.343, 43.10 },
+    { 0.506, 0.407, 30.10 },
+    { 0.211, 0.175, 12.00 },
+    { 0.453, 0.306, 19.80 },
+    { 0.285, 0.202,  6.60 },
+    { 0.380, 0.489, 44.30 },
+    { 0.473, 0.438, 43.10 },
+    { 0.187, 0.129,  6.10 },
+    { 0.305, 0.478, 23.40 },
+    { 0.539, 0.313, 12.00 },
+    { 0.448, 0.470, 59.10 },
+    { 0.364, 0.233, 19.80 },
+    { 0.196, 0.252, 19.80 },
+    { 0.310, 0.316, 90.00 },
+    { 0.310, 0.316, 59.10 },
+    { 0.310, 0.316, 36.20 },
+    { 0.310, 0.316, 19.80 },
+    { 0.310, 0.316,  9.00 },
+    { 0.310, 0.316,  3.10 }
+};
+
+// these measurements are under D65 illuminant, and may not match the ISO chart
+// https://xritephoto.com/documents/literature/en/ColorData-1p_EN.pdf
+#define F(r, g, b) (float)(r)/255.f, (float)(g)/255.f, (float(b)/255.f)
+static NcRGB _ISO17321_SRGB[24] = {
+    { F(115, 82, 68) },
+    { F(194, 150, 130) },
+    { F(98, 122, 157) },
+    { F(87, 108, 67) },
+    { F(133, 128, 177) },
+    { F(103, 189, 170) },
+    { F(214, 126, 44) },
+    { F(80, 91, 166) },
+    { F(193, 90, 99) },
+    { F(94, 60, 108) },
+    { F(157, 188, 64) },
+    { F(224, 163, 46) },
+    { F(56, 61, 150) },
+    { F(70, 148, 73) },
+    { F(175, 54, 60) },
+    { F(231, 199, 31) },
+    { F(187, 86, 149) },
+    { F(8, 133, 161) },
+    { F(243, 243, 242) },
+    { F(200, 200, 200) },
+    { F(160, 160, 160) },
+    { F(122, 122, 121) },
+    { F(85, 85, 85) },
+    { F(52, 52, 52) }
+};
+
+static const char* _ISO17321_names[24] = {
+    "Dark skin",
+    "Light skin",
+    "Blue sky",
+    "Foliage",
+    "Blue flower",
+    "Bluish green",
+    "Orange",
+    "Purplish blue",
+    "Moderate red",
+    "Purple",
+    "Yellow green",
+    "Orange yellow",
+    "Blue",
+    "Green",
+    "Red",
+    "Yellow",
+    "Magenta",
+    "Cyan",
+    "White",
+    "Neutral 8",
+    "Neutral 6.5",
+    "Neutral 5",
+    "Neutral 3.5",
+    "Black"
+};
+
+} // anon
+
+
+NcRGB* NcISO17321_ColorChips_AP0() { return _ISO17321_ap0; }
+const char** NcISO17321_ColorChips_Names() { return _ISO17321_names; }
+NcRGB* NcISO17321_ColorChips_SRGB() { return _ISO17321_SRGB; }
+NcCIEXYZ* NcISO17321_ColorChips_xyY() { return  _ISO17321_xyY; }
+
+NcCIEXYZ NcProjectToChromaticities(NcCIEXYZ c) {
     float n  = c.x + c.y + c.z;
     return { c.x / n, c.y / n, c.z / n };
 }
 
-NcCIEXYZ NcNormalizeXYZ(NcCIEXYZ c) 
-{
+NcCIEXYZ NcNormalizeXYZ(NcCIEXYZ c) {
     // X = Y*x/y
     // Z = Y*(1-x-y)/y
     float Y = c.x;
@@ -110,8 +197,7 @@ NcCIEXYZ NcNormalizeXYZ(NcCIEXYZ c)
     };
 }
 
-NcRGB NcRGBFromYxy(NcColorSpace* cs, NcCIEXYZ c) 
-{
+NcRGB NcRGBFromYxy(NcColorSpace* cs, NcCIEXYZ c) {
     NcCIEXYZ cxyz = NcNormalizeXYZ(c);
     float t = cxyz.x; cxyz.x = cxyz.y; cxyz.y = t;
     NcRGB rgb = NcXYZToRGB(cs, cxyz);
@@ -128,8 +214,8 @@ NcRGB NcRGBFromYxy(NcColorSpace* cs, NcCIEXYZ c)
 /*    sampled at 1 nm intervals, from 360 nm to 830 nm.  This data */
 /*    obtained from:  http://www.cis.rit.edu/mcsl/online/cie.php   */
 
-static float const xyz1931_1nm[471][3] = 
-{
+
+static float const xyz1931_1nm[471][3] = {
     { 0.000130f, 0.000004f, 0.000606f },    // 360 nm
     { 0.000146f, 0.000004f, 0.000681f },    // 361 nm
     { 0.000164f, 0.000005f, 0.000765f },    // 362 nm
@@ -604,15 +690,13 @@ static float const xyz1931_1nm[471][3] =
 };
 
 static
-NcCIEXYZ normalize(NcCIEXYZ c) 
-{
+NcCIEXYZ normalize(NcCIEXYZ c) {
     float n = c.x + c.y + c.z;
     NcCIEXYZ r = { c.x / n, c.y / n, c.z / n };
     return r;
 }
 
-float xFit_1931(float wave)
-{
+float xFit_1931( float wave ) {
     float t1 = (wave-442.0f)*((wave<442.0f)?0.0624f:0.0374f);
     float t2 = (wave-599.8f)*((wave<599.8f)?0.0264f:0.0323f);
     float t3 = (wave-501.1f)*((wave<501.1f)?0.0490f:0.0382f);
@@ -620,22 +704,20 @@ float xFit_1931(float wave)
                                     - 0.065f*expf(-0.5f*t3*t3);
 }
 
-float yFit_1931(float wave)
-{
+float yFit_1931( float wave ) {
     float t1 = (wave-568.8f)*((wave<568.8f)?0.0213f:0.0247f);
     float t2 = (wave-530.9f)*((wave<530.9f)?0.0613f:0.0322f);
     return 0.821f*exp(-0.5f*t1*t1) + 0.286f*expf(-0.5f*t2*t2);
 }
 
-float zFit_1931(float wave)
+float zFit_1931( float wave )
 {
     float t1 = (wave-437.0f)*((wave<437.0f)?0.0845f:0.0278f);
     float t2 = (wave-459.0f)*((wave<459.0f)?0.0385f:0.0725f);
     return 1.217f*exp(-0.5f*t1*t1) + 0.681f*expf(-0.5f*t2*t2);
 }
 
-NcCIEXYZ NcCIE1931ColorFromWavelength(float lambda, bool approx)
-{
+NcCIEXYZ NcCIE1931ColorFromWavelength(float lambda, bool approx) {
     NcCIEXYZ c1931 = {0,0,1};
     if (lambda < 360 || lambda > 830)
         return c1931;
@@ -663,6 +745,7 @@ NcCIEXYZ NcCIE1931ColorFromWavelength(float lambda, bool approx)
     c1931.z = c1931.z * (1.f - a) + c2.z * a;
     return normalize(c1931);
 }
+
 
 #ifdef __cplusplus
 }

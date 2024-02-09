@@ -136,11 +136,13 @@ extern "C" {
 #define NcGetNamedColorSpace   NCCONCAT(NCNAMESPACE, GetNamedColorSpace)
 #define NcGetRGBToCIEXYZMatrix NCCONCAT(NCNAMESPACE, GetRGBtoCIEXYZMatrix)
 #define NcGetCIEXYZToRGBMatrix NCCONCAT(NCNAMESPACE, etCIEXYZtoRGBMatrix)
-#define NcGetRGBToRGBTransform NCCONCAT(NCNAMESPACE, GetRGBtoRGBTransform)
+#define NcGetRGBToRGBTransform NCCONCAT(NCNAMESPACE, GetRGBToRGBTransform)
 #define NcTransformColor       NCCONCAT(NCNAMESPACE, TransformColor)
 #define NcRGBToXYZ             NCCONCAT(NCNAMESPACE, RGBToXYZ)
 #define NcXYZToRGB             NCCONCAT(NCNAMESPACE, XYZToRGB)
 #define NcInitColorSpace       NCCONCAT(NCNAMESPACE, InitColorSpace)
+#define NcRegisteredColorSpaceNames NCCONCAT(NCNAMESPACE, RegisteredColorSpaceNames)
+
 
 // NCAPI may be overridden externally to control symbol visibility.
 #ifndef NCAPI
@@ -155,10 +157,9 @@ NCAPI NcRGB            NcTransformColor(NcColorSpace* dst, NcColorSpace* src, Nc
 NCAPI NcCIEXYZ         NcRGBToXYZ(NcColorSpace* cs, NcRGB rgb);
 NCAPI NcRGB            NcXYZToRGB(NcColorSpace* cs, NcCIEXYZ xyz);
 NCAPI void             NcInitColorSpace(NcColorSpace* cs);
+NCAPI const char**     NcRegisteredColorSpaceNames();
 
 #ifdef __cplusplus
 }
 #endif
-
-
 #endif /* included_nanocolor_h */
