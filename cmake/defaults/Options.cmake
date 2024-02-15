@@ -55,6 +55,7 @@ option(PXR_PREFER_SAFETY_OVER_SPEED
         ON)
 
 if(APPLE)
+    set(PXR_APPLE_CODESIGN_IDENTITY "-" CACHE STRING "The Codesigning identity needed to sign compiled objects")
     # Cross Compilation detection as defined in CMake docs
     # Required to be handled here so it can configure options later on
     # https://cmake.org/cmake/help/latest/manual/cmake-toolchains.7.html#cross-compiling-for-ios-tvos-visionos-or-watchos
@@ -74,6 +75,16 @@ if(APPLE)
             set(PXR_BUILD_IMAGING OFF)
         endif ()
     endif ()
+
+    option(PXR_BUILD_APPLE_FRAMEWORK "Builds an Apple Framework." APPLE_EMBEDDED)
+    set(PXR_APPLE_FRAMEWORK_NAME "OpenUSD" CACHE STRING "Name to provide Apple Framework build")
+    set(PXR_APPLE_IDENTIFIER_DOMAIN "org.openusd" CACHE STRING "Name to provide Apple Framework build")
+    if (${PXR_BUILD_APPLE_FRAMEWORK})
+        if(${PXR_BUILD_USD_TOOLS})
+            MESSAGE(STATUS "Setting PXR_BUILD_USD_TOOLS=OFF because PXR_BUILD_APPLE_FRAMEWORK is enabled.")
+            set(PXR_BUILD_USD_TOOLS OFF)
+        endif()
+    endif()
 endif()
 
 
@@ -145,6 +156,12 @@ set(PXR_LIB_PREFIX ""
 
 option(BUILD_SHARED_LIBS "Build shared libraries." ON)
 option(PXR_BUILD_MONOLITHIC "Build a monolithic library." OFF)
+if (${PXR_BUILD_APPLE_FRAMEWORK})
+    set(BUILD_SHARED_LIBS OFF)
+    set(PXR_BUILD_MONOLITHIC ON)
+    MESSAGE(STATUS "Setting PXR_BUILD_MONOLITHIC=ON for Framework build")
+endif ()
+
 set(PXR_MONOLITHIC_IMPORT ""
     CACHE
     STRING

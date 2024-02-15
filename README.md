@@ -141,6 +141,9 @@ then build and install USD into `/path/to/my_usd_install_dir`.
 > python USD/build_scripts/build_usd.py /path/to/my_usd_install_dir
 ```
 
+Additionally you can provide the `--build-apple-framework` flag to create a framework output, for easier integration
+into an Xcode application. Framework support is currently experimental, and will always build monolithic.
+
 ###### iOS
 
 When building from a macOS system, you can cross compile for iOS based platforms.
@@ -150,6 +153,7 @@ Additionally, they will not support Python bindings or command line tools.
 
 To build for iOS, add the `--build-target iOS` parameter.
 
+iOS builds default to building as a framework.
 
 ##### Windows:
 

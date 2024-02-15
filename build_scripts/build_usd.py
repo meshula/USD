@@ -1789,6 +1789,11 @@ def InstallUSD(context, force, buildArgs):
                 '-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=BOTH',
                 '-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=BOTH'])
 
+        if MacOS():
+            extraArgs.append(f"-DPXR_BUILD_APPLE_FRAMEWORK={'ON' if context.buildAppleFramework else 'OFF'}")
+            if context.macOSCodesign:
+                extraArgs.append(f"-DPXR_APPLE_CODESIGN_IDENTITY={context.macOSCodesign}")
+
         # Make sure to use boost installed by the build script and not any
         # system installed boost
         extraArgs.append('-DBoost_NO_BOOST_CMAKE=On')
@@ -1903,6 +1908,12 @@ if MacOS():
                        help=("Build target for macOS cross compilation. "
                              "(default: {})".format(
                                 apple_utils.GetBuildTargetDefault())))
+    subgroup = group.add_mutually_exclusive_group()
+    subgroup.add_argument("--build-apple-framework", dest="build_apple_framework", action="store_true",
+                          help="Build USD as an Apple Framework (Default if using build)")
+    subgroup.add_argument("--no-build-apple-framework", dest="no_build_apple_framework", action="store_true",
+                          help="Do not build USD as an Apple Framework (Default if macOS)")
+
     if apple_utils.IsHostArm():
         # Intel Homebrew stores packages in /usr/local which unfortunately can
         # be where a lot of other things are too. So we only add this flag on arm macs.
@@ -1938,6 +1949,7 @@ if MacOS():
                        default=codesignDefault, action="store_true",
                        help=("Enable code signing for macOS builds "
                              "(defaults to enabled on Apple Silicon)"))
+    group.add_argument("--codesign-id", dest="macos_codesign_id", type=str)
 
 if Linux():
     group.add_argument("--use-cxx11-abi", type=int, choices=[0, 1],
@@ -2216,16 +2228,24 @@ class InstallContext:
         self.ignorePaths = args.ignore_paths or []
         self.buildTarget = None
         self.macOSCodesign = ""
+        self.buildAppleFramework = False
         # Build target and code signing
         if MacOS():
             self.buildTarget = args.build_target
             apple_utils.SetTarget(self, self.buildTarget)
 
-            self.macOSCodesign = \
-                (args.macos_codesign if hasattr(args, "macos_codesign")
-                 else False)
+            if args.macos_codesign:
+                self.macOSCodesign = args.macos_codesign_id or apple_utils.GetCodeSignID()
             if apple_utils.IsHostArm() and args.ignore_homebrew:
                 self.ignorePaths.append("/opt/homebrew")
+
+            self.buildAppleFramework = ((args.build_apple_framework
+                                         or self.buildTarget in apple_utils.EMBEDDED_PLATFORMS)
+                                        and not args.no_build_apple_framework)
+            if self.buildAppleFramework:
+                self.buildShared = False
+                self.buildMonolithic = True
+
 
         coreOnly = self.buildTarget in apple_utils.EMBEDDED_PLATFORMS
 
@@ -2239,10 +2259,10 @@ class InstallContext:
 
         # Optional components
         self.buildTests = args.build_tests
-        self.buildPython = args.build_python and not coreOnly
+        self.buildPython = args.build_python and not coreOnly and not self.buildAppleFramework
         self.buildExamples = args.build_examples
         self.buildTutorials = args.build_tutorials
-        self.buildTools = args.build_tools and not coreOnly
+        self.buildTools = args.build_tools and not coreOnly and not self.buildAppleFramework
 
         # - Documentation
         self.buildDocs = args.build_docs or args.build_python_docs
@@ -2675,8 +2695,9 @@ if Windows():
     ])
 
 if MacOS():
-    if context.macOSCodesign:
-        apple_utils.Codesign(context.usdInstDir, verbosity > 1)
+    # We don't need to codesign when building a framework because it's handled during framework creation
+    if context.macOSCodesign and not context.buildAppleFramework:
+        apple_utils.Codesign(context, verbosity > 1)
 
 printInstructions = any([context.buildPython, context.buildTools, context.buildPrman])
 if printInstructions:
@@ -2699,3 +2720,12 @@ if context.buildTools:
 if context.buildPrman:
     Print("See documentation at http://openusd.org/docs/RenderMan-USD-Imaging-Plugin.html "
           "for setting up the RenderMan plugin.\n")
+
+if context.buildAppleFramework:
+    Print("""
+        Added the following framework to your Xcode Project, (recommended as Embed Without Signing):
+        OpenUSD.framework
+        
+        Set the following compiler argument, to find the headers:
+        SYSTEM_HEADER_SEARCH_PATHS=$(SRCROOT)/$(TARGET_NAME)/OpenUSD.framework/Headers
+    """)

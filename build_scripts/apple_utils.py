@@ -217,8 +217,9 @@ def GetDevelopmentTeamID():
     except Exception as ex:
         raise Exception("No development team found with exception " + ex)
 
-def CodesignFiles(files):
-    codeSignID = GetCodeSignID()
+def CodesignFiles(files, codeSignID=None):
+    if not codeSignID:
+        codeSignID = GetCodeSignID()
 
     for f in files:
         subprocess.call(['codesign', '-f', '-s', '{codesignid}'
@@ -226,16 +227,17 @@ def CodesignFiles(files):
                         stdout=devout, stderr=devout)
 
 
-def Codesign(install_path, verbose_output=False):
+def Codesign(context, verbose_output=False):
     if not MacOS():
         return False
     if verbose_output:
         global devout
         devout = sys.stdout
 
-    files = ExtractFilesRecursive(install_path,
+    files = ExtractFilesRecursive(context.usdInstDir,
                  (lambda file: '.so' in file or '.dylib' in file))
-    CodesignFiles(files)
+    CodesignFiles(files, context.macOSCodesign)
+
 
 def CreateUniversalBinaries(context, libNames, x86Dir, armDir):
     if not MacOS():
@@ -281,4 +283,5 @@ def ConfigureCMakeExtraArgs(context, args:List[str]) -> List[str]:
 
     if system_name:
         args.append(f"-DCMAKE_SYSTEM_NAME={system_name}")
+
     return args
