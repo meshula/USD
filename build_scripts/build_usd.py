@@ -2321,7 +2321,7 @@ group.add_argument(
 group.add_argument("--ignore-paths", type=str, nargs="*", default=[],
                    help="Paths for CMake to ignore when configuring projects.")
 if MacOS():
-   group.add_argument("--build-target",
+    group.add_argument("--build-target",
                        default=apple_utils.GetBuildTargetDefault(),
                        choices=apple_utils.GetBuildTargets(),
                        help=("Build target for macOS cross compilation. "
