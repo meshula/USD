@@ -228,7 +228,7 @@ public:
     //  - Close the include guard with #endif
     // ===================================================================== //
     // --(BEGIN CUSTOM CODE)--
-    
+
     /// ComputeSurfaceFaces determines the vertex indices of the surface faces 
     /// from tetVertexIndices. The surface faces are the set of faces that occur 
     /// only once when traversing the faces of all the tetrahedra. The algorithm 
@@ -240,7 +240,22 @@ public:
     USDGEOM_API    
     static bool ComputeSurfaceFaces(const UsdGeomTetMesh& tetMesh,
                                     VtVec3iArray* surfaceFaceIndices,
-                                    const UsdTimeCode timeCode = UsdTimeCode::Default());     
+                                    const UsdTimeCode timeCode = UsdTimeCode::Default()); 
+
+    USDGEOM_API
+    static VtVec3iArray ComputeSurfaceFaces(
+        const VtVec4iArray &tetVertexIndices);
+
+    /// FindInvertedElements is used to determine if the tetMesh has inverted 
+    /// tetrahedral elements at the given time code. Inverted elements are 
+    /// determined wrt. the "orientation" attribute of the UsdGeomTetMesh and
+    /// are stored in the invertedElements arg. Method returns true if it 
+    /// succeeds and if invertedElements is empty then all the tetrahedra have  
+    /// the correct orientation.
+    USDGEOM_API    
+    static bool FindInvertedElements(const UsdGeomTetMesh& tetMesh,
+                                     VtIntArray* invertedElements,
+                                     const UsdTimeCode timeCode = UsdTimeCode::Default());
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE
