@@ -861,6 +861,9 @@ def InstallBoost_Helper(context, force, buildArgs):
     # However, there are some cases where a newer version is required.
     # - Building with Python 3.11 requires boost 1.82.0 or newer
     #   (https://github.com/boostorg/python/commit/a218ba)
+    # - Building on MacOS requires v1.82.0 or later for C++17 support starting 
+    #   with Xcode 15. We choose to use this version for all MacOS builds for 
+    #   simplicity."
     # - Building with Python 3.10 requires boost 1.76.0 or newer
     #   (https://github.com/boostorg/python/commit/cbd2d9)
     #   XXX: Due to a typo we've been using 1.78.0 in this case for a while.
@@ -871,13 +874,11 @@ def InstallBoost_Helper(context, force, buildArgs):
     #   compatibility issues on Big Sur and Monterey.
     pyInfo = GetPythonInfo(context)
     pyVer = (int(pyInfo[3].split('.')[0]), int(pyInfo[3].split('.')[1]))
-    if context.buildPython and pyVer >= (3, 11):
-        BOOST_URL = "https://archives.boost.org/release/1.82.0/source/boost_1_82_0.zip"
+    if MacOS() or (context.buildPython and pyVer >= (3,11)):
+        BOOST_URL = "https://boostorg.jfrog.io/artifactory/main/release/1.82.0/source/boost_1_82_0.zip"
     elif context.buildPython and pyVer >= (3, 10):
         BOOST_URL = "https://archives.boost.org/release/1.78.0/source/boost_1_78_0.zip"
     elif IsVisualStudio2022OrGreater():
-        BOOST_URL = "https://archives.boost.org/release/1.81.0/source/boost_1_81_0.zip"
-    elif MacOS():
         BOOST_URL = "https://archives.boost.org/release/1.81.0/source/boost_1_81_0.zip"
     else:
         BOOST_URL = "https://archives.boost.org/release/1.76.0/source/boost_1_76_0.zip"
@@ -1659,32 +1660,20 @@ def InstallOpenSubdiv(context, force, buildArgs):
     srcOSDDir = DownloadURL(OPENSUBDIV_URL, context, force)
     with CurrentWorkingDirectory(srcOSDDir):
         extraArgs = [
-            "-DNO_EXAMPLES=ON",
-            "-DNO_TUTORIALS=ON",
-            "-DNO_REGRESSION=ON",
-            "-DNO_DOC=ON",
-            "-DNO_OMP=ON",
-            "-DNO_CUDA=ON",
-            "-DNO_OPENCL=ON",
-            "-DNO_DX=ON",
-            "-DNO_TESTS=ON",
-            "-DNO_GLEW=ON",
-            "-DNO_GLFW=ON",
+            '-DNO_EXAMPLES=ON',
+            '-DNO_TUTORIALS=ON',
+            '-DNO_REGRESSION=ON',
+            '-DNO_DOC=ON',
+            '-DNO_OMP=ON',
+            '-DNO_CUDA=ON',
+            '-DNO_OPENCL=ON',
+            '-DNO_DX=ON',
+            '-DNO_TESTS=ON',
+            '-DNO_GLEW=ON',
+            '-DNO_GLFW=ON',
+            '-DNO_PTEX=ON',
+            '-DNO_TBB=ON',
         ]
-
-        # If Ptex support is disabled in USD, disable support in OpenSubdiv
-        # as well. This ensures OSD doesn't accidentally pick up a Ptex
-        # library outside of our build.
-        if not context.enablePtex:
-            extraArgs.append("-DNO_PTEX=ON")
-
-        # NOTE: For now, we disable TBB in our OpenSubdiv build.
-        # This avoids an issue where OpenSubdiv will link against
-        # all TBB libraries it finds, including libtbbmalloc and
-        # libtbbmalloc_proxy. On Linux and MacOS, this has the
-        # unwanted effect of replacing the system allocator with
-        # tbbmalloc.
-        extraArgs.append("-DNO_TBB=ON")
 
         # Add on any user-specified extra arguments.
         extraArgs += buildArgs
@@ -1692,68 +1681,7 @@ def InstallOpenSubdiv(context, force, buildArgs):
         if context.targetIos:
             sdkroot = os.environ.get("SDKROOT")
 
-        # OpenSubdiv seems to error when building on windows w/ Ninja...
-        # ...so just use the default generator (ie, Visual Studio on Windows)
-        # until someone can sort it out
-        oldGenerator = context.cmakeGenerator
-        if oldGenerator == "Ninja" and Windows():
-            context.cmakeGenerator = None
-
-        # OpenSubdiv 3.3 and later on MacOS occasionally runs into build
-        # failures with multiple build jobs. Workaround this by using
-        # just 1 job for now. See:
-        # https://github.com/PixarAnimationStudios/OpenSubdiv/issues/1194
-        buildDirmacOS = ""
-
-        if context.targetIos:
-            PatchFile(
-                srcOSDDir + "/cmake/iOSToolchain.cmake",
-                [
-                    (
-                        "set(SDKROOT $ENV{SDKROOT})",
-                        'set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")\n'
-                        "set(SDKROOT $ENV{SDKROOT})",
-                    ),
-                    (
-                        "set(CMAKE_SYSTEM_PROCESSOR arm)",
-                        "set(CMAKE_SYSTEM_PROCESSOR arm64)\n"
-                        "set(NAMED_LANGUAGE_SUPPORT OFF)\n"
-                        'set(PLATFORM "OS64")\n'
-                        "set(ENABLE_BITCODE OFF)",
-                    ),
-                ],
-            )
-            PatchFile(
-                srcOSDDir + "/opensubdiv/CMakeLists.txt",
-                [
-                    (
-                        "if (BUILD_SHARED_LIBS AND NOT WIN32 AND NOT IOS)",
-                        "if (BUILD_SHARED_LIBS AND NOT WIN32)",
-                    )
-                ],
-            )
-
-            extraArgs.append("-DNO_CLEW=ON")
-            extraArgs.append("-DNO_OPENGL=ON")
-            extraArgs.append(
-                "-DCMAKE_TOOLCHAIN_FILE={srcOSDDir}/cmake/iOSToolchain.cmake -DPLATFORM='OS64'".format(
-                    srcOSDDir=srcOSDDir
-                )
-            )
-            extraArgs.append("-DCMAKE_OSX_ARCHITECTURES=arm64")
-            os.environ["SDKROOT"] = GetCommandOutput(
-                "xcrun --sdk iphoneos --show-sdk-path"
-            ).strip()
-        try:
-            RunCMake(context, force, extraArgs)
-        finally:
-            context.cmakeGenerator = oldGenerator
-        if sdkroot is None:
-            os.unsetenv("SDKROOT")
-        else:
-            os.environ["SDKROOT"] = sdkroot
-        if buildDirmacOS != "":
-            shutil.rmtree(buildDirmacOS)
+       RunCMake(context, force, extraArgs)
 
 
 OPENSUBDIV = Dependency("OpenSubdiv", InstallOpenSubdiv, "include/opensubdiv/version.h")
