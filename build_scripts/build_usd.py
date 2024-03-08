@@ -1681,7 +1681,7 @@ def InstallOpenSubdiv(context, force, buildArgs):
         if context.targetIos:
             sdkroot = os.environ.get("SDKROOT")
 
-       RunCMake(context, force, extraArgs)
+        RunCMake(context, force, extraArgs)
 
 
 OPENSUBDIV = Dependency("OpenSubdiv", InstallOpenSubdiv, "include/opensubdiv/version.h")

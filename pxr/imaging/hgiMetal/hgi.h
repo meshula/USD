@@ -210,6 +210,11 @@ public:
     HGIMETAL_API
     id<MTLBuffer> GetArgBuffer();
 
+    /// XXX FB HACK
+    id<MTLTexture> resolvedColorAttachment;
+    id<MTLTexture> resolvedDepthAttachment;
+    /// XXX FB HACK
+
 protected:
     HGIMETAL_API
     bool _SubmitCmds(HgiCmds* cmds, HgiSubmitWaitType wait) override;

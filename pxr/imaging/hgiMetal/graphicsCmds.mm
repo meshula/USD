@@ -252,6 +252,28 @@ HgiMetalGraphicsCmds::HgiMetalGraphicsCmds(
         GetEncoder();
         _CreateArgumentBuffer();
     }
+
+
+    /// XXX FB HACK
+    if (desc.depthResolveTexture) {
+        HgiMetalTexture *resolveTexture =
+            static_cast<HgiMetalTexture*>(desc.depthResolveTexture.Get());
+
+        hgi->resolvedDepthAttachment = resolveTexture->GetTextureId();
+    }
+    if (desc.colorResolveTextures.size() > 0) {
+        for (size_t i=0; i<desc.colorResolveTextures.size(); i++) {
+            HgiMetalTexture *resolveTexture =
+                static_cast<HgiMetalTexture*>(desc.colorResolveTextures[i].Get());
+
+            hgi->resolvedColorAttachment = resolveTexture->GetTextureId();
+            break;
+            //hgi->colorResolveTextures.push_back(resolveTexture->GetTextureId());
+        }
+    }
+   /// XXX FB HACK
+
+
 }
 
 HgiMetalGraphicsCmds::~HgiMetalGraphicsCmds()

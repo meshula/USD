@@ -266,7 +266,7 @@ HdxTaskController::_CreateRenderGraph()
 
         _CreateLightingTask();
         _CreateShadowTask();
-        _renderTaskIds.push_back(_CreateSkydomeTask());
+        //@dp _renderTaskIds.push_back(_CreateSkydomeTask());
         _renderTaskIds.push_back(_CreateRenderTask(
             HdStMaterialTagTokens->defaultMaterialTag));
         _renderTaskIds.push_back(_CreateRenderTask(
@@ -1330,13 +1330,12 @@ HdxTaskController::SetRenderOutputSettings(TfToken const& name,
 
         for (size_t i = 0; i < renderParams.aovBindings.size(); ++i) {
             if (renderParams.aovBindings[i].renderBufferId == renderBufferId) {
+                // Only the first RenderTask should clear the AOV /// @dp
+                const VtValue clearValue = isFirstRenderTask ? desc.clearValue : VtValue(); /// @dp hack
                 if (renderParams.aovBindings[i].clearValue != desc.clearValue ||
                     renderParams.aovBindings[i].aovSettings != desc.aovSettings) 
                 {
-                    // Only the first RenderTask should clear the AOV
-                    renderParams.aovBindings[i].clearValue = isFirstRenderTask ?
-                        desc.clearValue : VtValue();
-
+                    renderParams.aovBindings[i].clearValue = clearValue;
                     renderParams.aovBindings[i].aovSettings = desc.aovSettings;
                     _delegate.SetParameter(renderTaskId, HdTokens->params,
                         renderParams);
