@@ -1308,13 +1308,21 @@ endfunction() # pxr_build_python_documentation
 
 function(pxr_create_apple_framework)
 
+    # documentation:
+    # https://developer.apple.com/documentation/bundleresources/placing_content_in_a_bundle
+
     # Set paths
     set(FRAMEWORK_NAME "OpenUSD")
     set(FRAMEWORK_DIR "${CMAKE_INSTALL_PREFIX}/${FRAMEWORK_NAME}.framework")
-    set(FRAMEWORK_HEADERS_DIR "${FRAMEWORK_DIR}/Headers")
-    set(FRAMEWORK_LIBS_DIR "${FRAMEWORK_DIR}/Libraries")
-    set(FRAMEWORK_PLIST "${FRAMEWORK_DIR}/Versions/A/Resources/Info.plist")
+    set(FRAMEWORK_HEADERS_DIR "${FRAMEWORK_DIR}/Versions/A/Headers")
+    set(FRAMEWORK_LIBS_DIR "${FRAMEWORK_DIR}/Versions/A/Libraries")
     set(FRAMEWORK_VERSION "1.0")
+
+    if (APPLEIOS)
+        set(FRAMEWORK_PLIST "${FRAMEWORK_DIR}/Info.plist")
+    else()
+        set(FRAMEWORK_PLIST "${FRAMEWORK_DIR}/Versions/A/Resources/Info.plist")
+    endif()
 
     # Generate Info.plist
     # Set the encoded Info.plist content
@@ -1359,10 +1367,6 @@ function(pxr_create_apple_framework)
     # Copy directory "${CMAKE_INSTALL_PREFIX}/plugin/usd/" to "${FRAMEWORK_LIBS_DIR}/usd"
     install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/plugin/usd/" DESTINATION "${FRAMEWORK_LIBS_DIR}/usd")
     
-#    if (EXISTS "${CMAKE_INSTALL_PREFIX}/plugin/")
-#        install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/plugin/" DESTINATION "${FRAMEWORK_DIR}/Versions/A/Resources/plugin")
-#    endif()
-
     # install the MaterialX libraries, if they exist
     if (EXISTS "${CMAKE_INSTALL_PREFIX}/libraries/")
         install(DIRECTORY "${CMAKE_INSTALL_PREFIX}/libraries/" DESTINATION "${FRAMEWORK_DIR}/Versions/A/Resources/libraries")
@@ -1371,6 +1375,19 @@ function(pxr_create_apple_framework)
     # Generate Info.plist during install
     file(WRITE ${FRAMEWORK_PLIST} ${FRAMEWORK_INFO_PLIST})
     install(FILES ${FRAMEWORK_PLIST} DESTINATION "${FRAMEWORK_DIR}/Versions/A/Resources")
+
+    if (BUILD_SHARED_LIBS)
+        install(CODE "execute_process(COMMAND ln -s libusd_usd.dylib ${FRAMEWORK_LIBS_DIR}/${FRAMEWORK_NAME} WORKING_DIRECTORY ${FRAMEWORK_LIBS_DIR})")
+    else()
+        install(CODE "execute_process(COMMAND ln -s libusd_ms.a ${FRAMEWORK_LIBS_DIR}/${FRAMEWORK_NAME} WORKING_DIRECTORY ${FRAMEWORK_LIBS_DIR})")    
+    endif()
+
+    # Create symbolic links, starting with the Current directory
+    install(CODE "execute_process(COMMAND ln -s A Current WORKING_DIRECTORY ${FRAMEWORK_DIR}/Versions)")
+    install(CODE "execute_process(COMMAND ln -s Versions/Current/Headers Headers WORKING_DIRECTORY ${FRAMEWORK_DIR})")
+    install(CODE "execute_process(COMMAND ln -s Versions/Current/Libraries Libraries WORKING_DIRECTORY ${FRAMEWORK_DIR})")
+    install(CODE "execute_process(COMMAND ln -s Versions/Current/Resources Resources WORKING_DIRECTORY ${FRAMEWORK_DIR})")
+    install(CODE "execute_process(COMMAND ln -s ${FRAMEWORK_LIBS_DIR}/${FRAMEWORK_NAME} ${FRAMEWORK_NAME} WORKING_DIRECTORY ${FRAMEWORK_DIR})")
 
     # Define custom target for the framework
     add_custom_target(${FRAMEWORK_NAME}_plist ALL DEPENDS ${FRAMEWORK_PLIST})

@@ -42,9 +42,69 @@ pxr_library(hio
         AVIF/src/avif/internal.h
 
     CPPFILES
-        OpenEXRImage.cpp
-        stbImage.cpp
-        OpenEXR/openexr-c.c
+        aom/aom_codec.c
+        aom/aom_decoder.c
+        aom/aom_image.c
+        aom/aom_integer.c
+        aom/aom_dsp/aom_convolve.c
+        aom/aom_dsp/aom_dsp_rtcd.c
+        aom/aom_dsp/binary_codes_reader.c
+        aom/aom_dsp/bitreader.c
+        aom/aom_dsp/bitreader_buffer.c
+        aom/aom_dsp/blend_a64_hmask.c
+        aom/aom_dsp/blend_a64_vmask.c
+        aom/aom_dsp/blend_a64_mask.c
+        aom/aom_dsp/entcode.c
+        aom/aom_dsp/entdec.c
+        aom/aom_dsp/grain_synthesis.c
+        aom/aom_dsp/intrapred.c
+        aom/aom_dsp/loopfilter.c
+        aom/aom_mem/aom_mem.c
+        aom/aom_scale/aom_scale_rtcd.c
+        aom/aom_scale/generic/aom_scale.c
+        aom/aom_scale/generic/gen_scalers.c
+        aom/aom_scale/generic/yv12config.c
+        aom/aom_scale/generic/yv12extend.c
+        aom/aom_util/aom_thread.c
+        aom/av1/av1_dx_iface.c
+        aom/av1/common/alloccommon.c
+        aom/av1/common/av1_inv_txfm1d.c
+        aom/av1/common/av1_inv_txfm2d.c
+        aom/av1/common/av1_loopfilter.c
+        aom/av1/common/av1_txfm.c
+        aom/av1/common/av1_rtcd.c
+        aom/av1/common/blockd.c
+        aom/av1/common/cdef.c
+        aom/av1/common/cdef_block.c
+        aom/av1/common/cfl.c
+        aom/av1/common/convolve.c
+        aom/av1/common/entropymode.c 
+        aom/av1/common/entropy.c
+        aom/av1/common/entropymv.c
+        aom/av1/common/frame_buffers.c
+        aom/av1/common/idct.c
+        aom/av1/common/mvref_common.c
+        aom/av1/common/obu_util.c
+        aom/av1/common/pred_common.c
+        aom/av1/common/quant_common.c        
+        aom/av1/common/reconinter.c
+        aom/av1/common/reconintra.c
+        aom/av1/common/resize.c
+        aom/av1/common/restoration.c
+        aom/av1/common/scale.c
+        aom/av1/common/scan.c
+        aom/av1/common/seg_common.c
+        aom/av1/common/thread_common.c
+        aom/av1/common/timing.c
+        aom/av1/common/txb_common.c
+        aom/av1/common/tile_common.c
+        aom/av1/common/warped_motion.c
+        aom/av1/decoder/decodeframe.c
+        aom/av1/decoder/decodemv.c
+        aom/av1/decoder/decoder.c
+        aom/av1/decoder/decodetxb.c
+        aom/av1/decoder/detokenize.c
+        aom/av1/decoder/obu.c
         AVIF/src/alpha.c
         AVIF/src/avif.c
         AVIF/src/colr.c
@@ -67,7 +127,10 @@ pxr_library(hio
         AVIF/src/src-libyuv/scale.c
         AVIF/src/src-libyuv/scale_any.c
         AVIF/src/src-libyuv/scale_common.c
-
+        AVIFImage.cpp
+        OpenEXRImage.cpp
+        OpenEXR/openexr-c.c
+        stbImage.cpp
 
     RESOURCE_FILES
         plugInfo.json

@@ -35,6 +35,10 @@
 
 #include "pxr/base/tf/diagnostic.h"
 
+/// XXX FB HACK
+#include "pxr/imaging/hgiMetal/texture.h"
+/// XXX FB HACK
+
 PXR_NAMESPACE_OPEN_SCOPE
 
 HgiMetalGraphicsPipeline::HgiMetalGraphicsPipeline(

@@ -323,12 +323,8 @@ def Run(cmd, logCommandOutput=True):
         if verbosity < 3:
             with open("log.txt", "r") as logfile:
                 Print(logfile.read())
-        raise RuntimeError(
-            "Failed to run '{cmd}'\nSee {log} for more details.".format(
-                cmd=cmd, log=os.path.abspath("log.txt")
-            )
-        )
-
+        raise RuntimeError("Failed to run '{cmd}' in {path}.\nSee {log} for more details."
+                           .format(cmd=cmd, path=os.getcwd(), log=os.path.abspath("log.txt")))
 
 @contextlib.contextmanager
 def CurrentWorkingDirectory(dir):
@@ -865,6 +861,9 @@ def InstallBoost_Helper(context, force, buildArgs):
     # However, there are some cases where a newer version is required.
     # - Building with Python 3.11 requires boost 1.82.0 or newer
     #   (https://github.com/boostorg/python/commit/a218ba)
+    # - Building on MacOS requires v1.82.0 or later for C++17 support starting 
+    #   with Xcode 15. We choose to use this version for all MacOS builds for 
+    #   simplicity."
     # - Building with Python 3.10 requires boost 1.76.0 or newer
     #   (https://github.com/boostorg/python/commit/cbd2d9)
     #   XXX: Due to a typo we've been using 1.78.0 in this case for a while.
@@ -874,14 +873,12 @@ def InstallBoost_Helper(context, force, buildArgs):
     # - Building on MacOS requires boost 1.81.0 or newer to resolve Python 3
     #   compatibility issues on Big Sur and Monterey.
     pyInfo = GetPythonInfo(context)
-    pyVer = (int(pyInfo[3].split(".")[0]), int(pyInfo[3].split(".")[1]))
-    if context.buildPython and pyVer >= (3, 11):
-        BOOST_URL = "https://archives.boost.org/release/1.82.0/source/boost_1_82_0.zip"
+    pyVer = (int(pyInfo[3].split('.')[0]), int(pyInfo[3].split('.')[1]))
+    if MacOS() or (context.buildPython and pyVer >= (3,11)):
+        BOOST_URL = "https://boostorg.jfrog.io/artifactory/main/release/1.82.0/source/boost_1_82_0.zip"
     elif context.buildPython and pyVer >= (3, 10):
         BOOST_URL = "https://archives.boost.org/release/1.78.0/source/boost_1_78_0.zip"
     elif IsVisualStudio2022OrGreater():
-        BOOST_URL = "https://archives.boost.org/release/1.81.0/source/boost_1_81_0.zip"
-    elif MacOS():
         BOOST_URL = "https://archives.boost.org/release/1.81.0/source/boost_1_81_0.zip"
     else:
         BOOST_URL = "https://archives.boost.org/release/1.76.0/source/boost_1_76_0.zip"
@@ -935,11 +932,9 @@ def InstallBoost_Helper(context, force, buildArgs):
                 macOSArch = "-arch {0} -arch {1}".format(primaryArch, secondaryArch)
 
             if macOSArch:
-                bootstrapCmd += (
-                    ' cxxflags="{0}" ' ' cflags="{0}" ' ' linkflags="{0}"'.format(
-                        macOSArch
-                    )
-                )
+                bootstrapCmd += " cxxflags=\"{0} -std=c++17 -stdlib=libc++\" " \
+                                " cflags=\"{0}\" " \
+                                " linkflags=\"{0}\"".format(macOSArch)
             bootstrapCmd += " --with-toolset=clang"
 
         Run(bootstrapCmd)
@@ -1094,18 +1089,18 @@ def InstallBoost_Helper(context, force, buildArgs):
             if macOSArchitecture:
                 b2_settings.append(macOSArchitecture)
 
+            #
+            # Xcode 15.3 (and hence Apple Clang 15) removed the global
+            # declaration of std::piecewise_construct which causes boost build
+            # to fail.
+            # https://developer.apple.com/documentation/xcode-release-notes/xcode-15_3-release-notes.
+            # A fix for the same is also available in boost 1.84:
+            # https://github.com/boostorg/container/commit/79a75f470e75f35f5f2a91e10fcc67d03b0a2160
+            b2_settings.append(f"define=BOOST_UNORDERED_HAVE_PIECEWISE_CONSTRUCT=0")
             if macOSArch:
-                cxxFlags = ""
-                linkFlags = ""
-                if context.targetIos:
-                    cxxFlags = "{0} -std=c++14 -stdlib=libc++".format(macOSArch)
-                    linkFlags = "{0} -stdlib=libc++".format(macOSArch)
-                else:
-                    cxxFlags = "{0}".format(macOSArch)
-                    linkFlags = "{0}".format(macOSArch)
-                b2_settings.append('cxxflags="{0}"'.format(cxxFlags))
-                b2_settings.append('cflags="{0}"'.format(macOSArch))
-                b2_settings.append('linkflags="{0}"'.format(linkFlags))
+                b2_settings.append("cxxflags=\"{0} -std=c++17 -stdlib=libc++\"".format(macOSArch))
+                b2_settings.append("cflags=\"{0}\"".format(macOSArch))
+                b2_settings.append("linkflags=\"{0}\"".format(macOSArch))
 
         if context.buildDebug:
             b2_settings.append("--debug-configuration")
@@ -1668,32 +1663,20 @@ def InstallOpenSubdiv(context, force, buildArgs):
     srcOSDDir = DownloadURL(OPENSUBDIV_URL, context, force)
     with CurrentWorkingDirectory(srcOSDDir):
         extraArgs = [
-            "-DNO_EXAMPLES=ON",
-            "-DNO_TUTORIALS=ON",
-            "-DNO_REGRESSION=ON",
-            "-DNO_DOC=ON",
-            "-DNO_OMP=ON",
-            "-DNO_CUDA=ON",
-            "-DNO_OPENCL=ON",
-            "-DNO_DX=ON",
-            "-DNO_TESTS=ON",
-            "-DNO_GLEW=ON",
-            "-DNO_GLFW=ON",
+            '-DNO_EXAMPLES=ON',
+            '-DNO_TUTORIALS=ON',
+            '-DNO_REGRESSION=ON',
+            '-DNO_DOC=ON',
+            '-DNO_OMP=ON',
+            '-DNO_CUDA=ON',
+            '-DNO_OPENCL=ON',
+            '-DNO_DX=ON',
+            '-DNO_TESTS=ON',
+            '-DNO_GLEW=ON',
+            '-DNO_GLFW=ON',
+            '-DNO_PTEX=ON',
+            '-DNO_TBB=ON',
         ]
-
-        # If Ptex support is disabled in USD, disable support in OpenSubdiv
-        # as well. This ensures OSD doesn't accidentally pick up a Ptex
-        # library outside of our build.
-        if not context.enablePtex:
-            extraArgs.append("-DNO_PTEX=ON")
-
-        # NOTE: For now, we disable TBB in our OpenSubdiv build.
-        # This avoids an issue where OpenSubdiv will link against
-        # all TBB libraries it finds, including libtbbmalloc and
-        # libtbbmalloc_proxy. On Linux and MacOS, this has the
-        # unwanted effect of replacing the system allocator with
-        # tbbmalloc.
-        extraArgs.append("-DNO_TBB=ON")
 
         # Add on any user-specified extra arguments.
         extraArgs += buildArgs
@@ -1701,68 +1684,7 @@ def InstallOpenSubdiv(context, force, buildArgs):
         if context.targetIos:
             sdkroot = os.environ.get("SDKROOT")
 
-        # OpenSubdiv seems to error when building on windows w/ Ninja...
-        # ...so just use the default generator (ie, Visual Studio on Windows)
-        # until someone can sort it out
-        oldGenerator = context.cmakeGenerator
-        if oldGenerator == "Ninja" and Windows():
-            context.cmakeGenerator = None
-
-        # OpenSubdiv 3.3 and later on MacOS occasionally runs into build
-        # failures with multiple build jobs. Workaround this by using
-        # just 1 job for now. See:
-        # https://github.com/PixarAnimationStudios/OpenSubdiv/issues/1194
-        buildDirmacOS = ""
-
-        if context.targetIos:
-            PatchFile(
-                srcOSDDir + "/cmake/iOSToolchain.cmake",
-                [
-                    (
-                        "set(SDKROOT $ENV{SDKROOT})",
-                        'set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")\n'
-                        "set(SDKROOT $ENV{SDKROOT})",
-                    ),
-                    (
-                        "set(CMAKE_SYSTEM_PROCESSOR arm)",
-                        "set(CMAKE_SYSTEM_PROCESSOR arm64)\n"
-                        "set(NAMED_LANGUAGE_SUPPORT OFF)\n"
-                        'set(PLATFORM "OS64")\n'
-                        "set(ENABLE_BITCODE OFF)",
-                    ),
-                ],
-            )
-            PatchFile(
-                srcOSDDir + "/opensubdiv/CMakeLists.txt",
-                [
-                    (
-                        "if (BUILD_SHARED_LIBS AND NOT WIN32 AND NOT IOS)",
-                        "if (BUILD_SHARED_LIBS AND NOT WIN32)",
-                    )
-                ],
-            )
-
-            extraArgs.append("-DNO_CLEW=ON")
-            extraArgs.append("-DNO_OPENGL=ON")
-            extraArgs.append(
-                "-DCMAKE_TOOLCHAIN_FILE={srcOSDDir}/cmake/iOSToolchain.cmake -DPLATFORM='OS64'".format(
-                    srcOSDDir=srcOSDDir
-                )
-            )
-            extraArgs.append("-DCMAKE_OSX_ARCHITECTURES=arm64")
-            os.environ["SDKROOT"] = GetCommandOutput(
-                "xcrun --sdk iphoneos --show-sdk-path"
-            ).strip()
-        try:
-            RunCMake(context, force, extraArgs)
-        finally:
-            context.cmakeGenerator = oldGenerator
-        if sdkroot is None:
-            os.unsetenv("SDKROOT")
-        else:
-            os.environ["SDKROOT"] = sdkroot
-        if buildDirmacOS != "":
-            shutil.rmtree(buildDirmacOS)
+        RunCMake(context, force, extraArgs)
 
 
 OPENSUBDIV = Dependency("OpenSubdiv", InstallOpenSubdiv, "include/opensubdiv/version.h")
@@ -2345,24 +2267,17 @@ group.add_argument(
     help="Paths for CMake to ignore when configuring projects.",
 )
 if MacOS():
-    group.add_argument(
-        "--build-target",
-        default=apple_utils.GetBuildTargetDefault(),
-        choices=apple_utils.GetBuildTargets(),
-        help=(
-            "Build target for macOS cross compilation. " "(default: {})".format(
-                apple_utils.GetBuildTargetDefault()
-            )
-        ),
-    )
+   group.add_argument("--build-target",
+                       default=apple_utils.GetBuildTargetDefault(),
+                       choices=apple_utils.GetBuildTargets(),
+                       help=("Build target for macOS cross compilation. "
+                             "(default: {})".format(
+                                apple_utils.GetBuildTargetDefault())))
     if apple_utils.IsHostArm():
         # Intel Homebrew stores packages in /usr/local which unfortunately can
         # be where a lot of other things are too. So we only add this flag on arm macs.
-        group.add_argument(
-            "--ignore-homebrew",
-            action="store_true",
-            help="Specify that CMake should ignore Homebrew packages.",
-        )
+        group.add_argument("--ignore-homebrew", action="store_true",
+                           help="Specify that CMake should ignore Homebrew packages.")
 
 group.add_argument(
     "--build-args",
@@ -2927,9 +2842,9 @@ class InstallContext:
             self.buildTarget = args.build_target
             apple_utils.SetTarget(self, self.buildTarget)
 
-            self.macOSCodesign = (
-                args.macos_codesign if hasattr(args, "macos_codesign") else False
-            )
+           self.macOSCodesign = \
+                (args.macos_codesign if hasattr(args, "macos_codesign")
+                 else False)
             if apple_utils.IsHostArm() and args.ignore_homebrew:
                 self.ignorePaths.append("/opt/homebrew")
         else:

@@ -40,7 +40,7 @@
 #include <string.h>
 
 #if defined(AVIF_CODEC_AVM)
-#include "config/aom_config.h"
+#include "aom/config/aom_config.h"
 #endif
 
 // ---------------------------------------------------------------------------
