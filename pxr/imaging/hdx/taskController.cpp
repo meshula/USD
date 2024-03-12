@@ -1330,9 +1330,11 @@ HdxTaskController::SetRenderOutputSettings(TfToken const& name,
 
         for (size_t i = 0; i < renderParams.aovBindings.size(); ++i) {
             if (renderParams.aovBindings[i].renderBufferId == renderBufferId) {
-                // Only the first RenderTask should clear the AOV /// @dp
-                const VtValue clearValue = isFirstRenderTask ? desc.clearValue : VtValue(); /// @dp hack
-                if (renderParams.aovBindings[i].clearValue != desc.clearValue ||
+                // Only the first RenderTask should clear the AOV
+                const VtValue clearValue =
+                    isFirstRenderTask ? desc.clearValue : VtValue();
+
+                if (renderParams.aovBindings[i].clearValue != clearValue ||
                     renderParams.aovBindings[i].aovSettings != desc.aovSettings) 
                 {
                     renderParams.aovBindings[i].clearValue = clearValue;
