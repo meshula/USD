@@ -53,6 +53,7 @@ ARCH_PRAGMA_UNUSED_FUNCTION
 #include "pxr/base/tf/type.h"
 
 #include "AVIF/src/avif/avif.h"
+#include "OpenEXR/openexr-c.h"
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -198,6 +199,21 @@ namespace {
                 outBuffer[i] = buffer[i];
             }
         }
+
+        // return true for a successful resample
+        static bool ResizeImage(const float* src, float* dst,
+                                int width, int height, int channelCount)
+        {
+            nanoexr_ImageData_t srcImg = {
+                (uint8_t*) src,
+                channelCount * sizeof(float) * width * height,
+                EXR_PIXEL_FLOAT,
+                channelCount, width, height, 0, width, height
+            };
+            nanoexr_ImageData_t dstImg = srcImg;
+            dstImg.src = dst;
+            return nanoexr_Gaussian_resample(&srcImg, &dstImg);
+        }
     };
    
 } // anon
@@ -207,8 +223,69 @@ bool Hio_AVIFImage::ReadCropped(
                 int const cropLeft, int const cropRight, 
                 StorageSpec const& storage)
 {
-return false;
-}
+
+nanoexr_ImageData_t TextureMinorMode::ReadAndCacheAVIF(const char* path) {
+    nanoexr_ImageData_t img = Cached(path);
+    if (img.channelCount != 0)
+        return img;
+
+    size_t sz = _asset->GetSize();
+    uint8_t* data = (uint8_t*) malloc(sz);
+    size_t offset = 0;
+    size_t readSize = _asset->Read(buffer, sz, offset);
+    if (!readSize)
+        return img;
+
+    // Initialize libavif
+    avifImage *image = avifImageCreateEmpty();
+    avifDecoder *decoder = avifDecoderCreate();
+    avifResult result = avifDecoderReadMemory(decoder, image, data, readSize);
+    if (result != AVIF_RESULT_OK) {
+        printf("Error parsing AVIF file: %s\n", avifResultToString(result));
+        avifDecoderDestroy(decoder);
+        avifImageDestroy(image);
+        return img;
+    }
+
+    // Convert to sRGB
+    avifRGBImage rgb;
+    const int bytesPerPixel = 2;
+    const int channelCount = 4;
+    memset(&rgb, 0, sizeof(rgb));
+    avifRGBImageSetDefaults(&rgb, image);
+    rgb.format = AVIF_RGB_FORMAT_RGBA; // Choose desired format (RGBA in this case)
+    rgb.rowBytes = rgb.width * channelCount * bytesPerPixel;
+    rgb.pixels = (uint8_t*) calloc(channelCount * bytesPerPixel * rgb.width * rgb.height, 1);
+    rgb.depth = 8 * bytesPerPixel;
+    rgb.isFloat = true;
+    result = avifImageYUVToRGB(image, &rgb);
+    if (result != AVIF_RESULT_OK) {
+        printf("Error parsing AVIF file: %s\n", avifResultToString(result));
+        avifDecoderDestroy(decoder);
+        avifImageDestroy(image);
+        return img;
+    }
+
+    printf("width: %d, height:%d\n", rgb.width, rgb.height);
+    // rgba8 pixels are at rgb.pixels
+    img.data = (uint8_t*) rgb.pixels;
+    img.dataSize = channelCount * bytesPerPixel * rgb.width * rgb.height;
+    if (bytesPerPixel == 1)
+        img.pixelType = (exr_pixel_type_t) 3;  // A sentinel to indidate an 8 bit texture
+    else
+        img.pixelType = EXR_PIXEL_HALF;
+    img.channelCount = channelCount;
+    img.width = rgb.width;
+    img.height = rgb.height;
+    img.dataWindowMinY = 0;
+    img.dataWindowMaxY = rgb.height - 1;
+    _self->path_texture$[std::string(path)] = img;
+    _self->texture_names.push_back(path);
+
+    avifDecoderDestroy(decoder);
+    avifImageDestroy(image);
+    return img;
+}}
 
 
 bool Hio_AVIFImage::GetMetadata(TfToken const &key, VtValue *value) const
