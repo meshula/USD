@@ -3,6 +3,11 @@
         {
             "Info": {
                 "Types": {
+                   "Hio_AVIFImage" : {
+                        "bases": ["HioImage"],
+                        "imageTypes": ["avif"],
+                        "precedence": 30
+                    },
                    "Hio_OpenEXRImage" : {
                         "bases": ["HioImage"],
                         "imageTypes": ["exr"],

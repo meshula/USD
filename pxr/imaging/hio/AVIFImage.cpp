@@ -208,10 +208,10 @@ namespace {
                 (uint8_t*) src,
                 channelCount * sizeof(float) * width * height,
                 EXR_PIXEL_FLOAT,
-                channelCount, width, height, 0, width, height
+                channelCount, width, height, 0, height - 1
             };
             nanoexr_ImageData_t dstImg = srcImg;
-            dstImg.src = dst;
+            dstImg.data = (uint8_t*) dst;
             return nanoexr_Gaussian_resample(&srcImg, &dstImg);
         }
     };
@@ -223,18 +223,15 @@ bool Hio_AVIFImage::ReadCropped(
                 int const cropLeft, int const cropRight, 
                 StorageSpec const& storage)
 {
-
-nanoexr_ImageData_t TextureMinorMode::ReadAndCacheAVIF(const char* path) {
-    nanoexr_ImageData_t img = Cached(path);
-    if (img.channelCount != 0)
-        return img;
+    nanoexr_ImageData_t img;
+    memset(&img, 0, sizeof(img));
 
     size_t sz = _asset->GetSize();
     uint8_t* data = (uint8_t*) malloc(sz);
     size_t offset = 0;
-    size_t readSize = _asset->Read(buffer, sz, offset);
+    size_t readSize = _asset->Read(data, sz, offset);
     if (!readSize)
-        return img;
+        return false;
 
     // Initialize libavif
     avifImage *image = avifImageCreateEmpty();
@@ -244,7 +241,7 @@ nanoexr_ImageData_t TextureMinorMode::ReadAndCacheAVIF(const char* path) {
         printf("Error parsing AVIF file: %s\n", avifResultToString(result));
         avifDecoderDestroy(decoder);
         avifImageDestroy(image);
-        return img;
+        return false;
     }
 
     // Convert to sRGB
@@ -263,7 +260,7 @@ nanoexr_ImageData_t TextureMinorMode::ReadAndCacheAVIF(const char* path) {
         printf("Error parsing AVIF file: %s\n", avifResultToString(result));
         avifDecoderDestroy(decoder);
         avifImageDestroy(image);
-        return img;
+        return false;
     }
 
     printf("width: %d, height:%d\n", rgb.width, rgb.height);
@@ -279,13 +276,15 @@ nanoexr_ImageData_t TextureMinorMode::ReadAndCacheAVIF(const char* path) {
     img.height = rgb.height;
     img.dataWindowMinY = 0;
     img.dataWindowMaxY = rgb.height - 1;
-    _self->path_texture$[std::string(path)] = img;
-    _self->texture_names.push_back(path);
 
+    // @TODO crop and resize and convert to desired storage spec
+    
+    memcpy(storage.data, img.data, img.dataSize);
+    
     avifDecoderDestroy(decoder);
     avifImageDestroy(image);
-    return img;
-}}
+    return true;
+}
 
 
 bool Hio_AVIFImage::GetMetadata(TfToken const &key, VtValue *value) const
@@ -304,6 +303,7 @@ bool Hio_AVIFImage::_OpenForReading(std::string const &filename,
                                        SourceColorSpace sourceColorSpace,
                                        bool /*suppressErrors*/)
 {
+    _filename = filename;
     _asset = ArGetResolver().OpenAsset(ArResolvedPath(filename));
     if (!_asset) {
         return false;
@@ -320,8 +320,7 @@ bool Hio_AVIFImage::Write(StorageSpec const &storage,
 
 bool Hio_AVIFImage::_OpenForWriting(std::string const &filename)
 {
-    _filename = filename;
-    return true;
+    return false;
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE
