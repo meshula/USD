@@ -32,13 +32,12 @@
 /* **                                                                      ** */
 /* ************************************************************************** */
 
-#ifndef PXR_IMAGING_HD_MATERIAL_BINDINGS_SCHEMA_H
-#define PXR_IMAGING_HD_MATERIAL_BINDINGS_SCHEMA_H
+#ifndef PXR_IMAGING_HD_COLLECTION_SCHEMA_H
+#define PXR_IMAGING_HD_COLLECTION_SCHEMA_H
 
 /// \file
 
 #include "pxr/imaging/hd/api.h"
-#include "pxr/imaging/hd/materialBindingSchema.h"
 
 #include "pxr/imaging/hd/schema.h"
 
@@ -50,48 +49,44 @@ PXR_NAMESPACE_OPEN_SCOPE
 // --(BEGIN CUSTOM CODE: Declares)--
 // --(END CUSTOM CODE: Declares)--
 
-#define HD_MATERIAL_BINDINGS_SCHEMA_TOKENS \
-    (materialBindings) \
-    ((allPurpose, "")) \
+#define HD_COLLECTION_SCHEMA_TOKENS \
+    (collection) \
+    (membershipExpression) \
 
-TF_DECLARE_PUBLIC_TOKENS(HdMaterialBindingsSchemaTokens, HD_API,
-    HD_MATERIAL_BINDINGS_SCHEMA_TOKENS);
+TF_DECLARE_PUBLIC_TOKENS(HdCollectionSchemaTokens, HD_API,
+    HD_COLLECTION_SCHEMA_TOKENS);
 
 //-----------------------------------------------------------------------------
 
 
-class HdMaterialBindingsSchema : public HdSchema
+class HdCollectionSchema : public HdSchema
 {
 public:
     /// \name Schema retrieval
     /// @{
 
-    HdMaterialBindingsSchema(HdContainerDataSourceHandle container)
+    HdCollectionSchema(HdContainerDataSourceHandle container)
       : HdSchema(container) {}
 
     /// Retrieves a container data source with the schema's default name token
-    /// "materialBindings" from the parent container and constructs a
-    /// HdMaterialBindingsSchema instance.
+    /// "collection" from the parent container and constructs a
+    /// HdCollectionSchema instance.
     /// Because the requested container data source may not exist, the result
     /// should be checked with IsDefined() or a bool comparison before use.
     HD_API
-    static HdMaterialBindingsSchema GetFromParent(
+    static HdCollectionSchema GetFromParent(
         const HdContainerDataSourceHandle &fromParentContainer);
 
     /// @}
 
 // --(BEGIN CUSTOM CODE: Schema Methods)--
-
-    HD_API
-    HdMaterialBindingSchema GetMaterialBinding() const;
-    
-    HD_API
-    HdMaterialBindingSchema GetMaterialBinding(TfToken const &purpose) const;
-
 // --(END CUSTOM CODE: Schema Methods)--
 
     /// \name Member accessor
-    /// @{ 
+    /// @{
+
+    HD_API
+    HdPathExpressionDataSourceHandle GetMembershipExpression() const; 
 
     /// @}
 
@@ -112,12 +107,41 @@ public:
 
     /// \name Schema construction
     /// @{
+
+    /// \deprecated Use Builder instead.
+    ///
+    /// Builds a container data source which includes the provided child data
+    /// sources. Parameters with nullptr values are excluded. This is a
+    /// low-level interface. For cases in which it's desired to define
+    /// the container with a sparse set of child fields, the Builder class
+    /// is often more convenient and readable.
     HD_API
     static HdContainerDataSourceHandle
     BuildRetained(
-        size_t count,
-        const TfToken *names,
-        const HdDataSourceBaseHandle *values);
+        const HdPathExpressionDataSourceHandle &membershipExpression
+    );
+
+    /// \class HdCollectionSchema::Builder
+    /// 
+    /// Utility class for setting sparse sets of child data source fields to be
+    /// filled as arguments into BuildRetained. Because all setter methods
+    /// return a reference to the instance, this can be used in the "builder
+    /// pattern" form.
+    class Builder
+    {
+    public:
+        HD_API
+        Builder &SetMembershipExpression(
+            const HdPathExpressionDataSourceHandle &membershipExpression);
+
+        /// Returns a container data source containing the members set thus far.
+        HD_API
+        HdContainerDataSourceHandle Build();
+
+    private:
+        HdPathExpressionDataSourceHandle _membershipExpression;
+
+    };
 
     /// @}
 };

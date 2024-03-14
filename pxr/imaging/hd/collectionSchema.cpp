@@ -32,7 +32,7 @@
 /* **                                                                      ** */
 /* ************************************************************************** */
 
-#include "pxr/imaging/hd/materialBindingsSchema.h"
+#include "pxr/imaging/hd/collectionSchema.h"
 
 #include "pxr/imaging/hd/retainedDataSource.h"
 
@@ -43,64 +43,75 @@
 
 PXR_NAMESPACE_OPEN_SCOPE
 
-TF_DEFINE_PUBLIC_TOKENS(HdMaterialBindingsSchemaTokens,
-    HD_MATERIAL_BINDINGS_SCHEMA_TOKENS);
+TF_DEFINE_PUBLIC_TOKENS(HdCollectionSchemaTokens,
+    HD_COLLECTION_SCHEMA_TOKENS);
 
 // --(BEGIN CUSTOM CODE: Schema Methods)--
-
-HdMaterialBindingSchema
-HdMaterialBindingsSchema::GetMaterialBinding() const
-{
-    return HdMaterialBindingSchema(
-        _GetTypedDataSource<HdContainerDataSource>(
-            HdMaterialBindingsSchemaTokens->allPurpose));
-}
-
-HdMaterialBindingSchema
-HdMaterialBindingsSchema::GetMaterialBinding(TfToken const &purpose) const
-{
-    if (auto b = _GetTypedDataSource<HdContainerDataSource>(purpose)) {
-        return HdMaterialBindingSchema(b);
-    }
-
-    // If we can't find the purpose-specific binding, return the fallback.
-    return GetMaterialBinding();
-}
-
 // --(END CUSTOM CODE: Schema Methods)--
+
+HdPathExpressionDataSourceHandle
+HdCollectionSchema::GetMembershipExpression() const
+{
+    return _GetTypedDataSource<HdPathExpressionDataSource>(
+        HdCollectionSchemaTokens->membershipExpression);
+}
 
 /*static*/
 HdContainerDataSourceHandle
-HdMaterialBindingsSchema::BuildRetained(
-    const size_t count,
-    const TfToken * const names,
-    const HdDataSourceBaseHandle * const values)
+HdCollectionSchema::BuildRetained(
+        const HdPathExpressionDataSourceHandle &membershipExpression
+)
 {
-    return HdRetainedContainerDataSource::New(count, names, values);
+    TfToken _names[1];
+    HdDataSourceBaseHandle _values[1];
+
+    size_t _count = 0;
+
+    if (membershipExpression) {
+        _names[_count] = HdCollectionSchemaTokens->membershipExpression;
+        _values[_count++] = membershipExpression;
+    }
+    return HdRetainedContainerDataSource::New(_count, _names, _values);
+}
+
+HdCollectionSchema::Builder &
+HdCollectionSchema::Builder::SetMembershipExpression(
+    const HdPathExpressionDataSourceHandle &membershipExpression)
+{
+    _membershipExpression = membershipExpression;
+    return *this;
+}
+
+HdContainerDataSourceHandle
+HdCollectionSchema::Builder::Build()
+{
+    return HdCollectionSchema::BuildRetained(
+        _membershipExpression
+    );
 }
 
 /*static*/
-HdMaterialBindingsSchema
-HdMaterialBindingsSchema::GetFromParent(
+HdCollectionSchema
+HdCollectionSchema::GetFromParent(
         const HdContainerDataSourceHandle &fromParentContainer)
 {
-    return HdMaterialBindingsSchema(
+    return HdCollectionSchema(
         fromParentContainer
         ? HdContainerDataSource::Cast(fromParentContainer->Get(
-                HdMaterialBindingsSchemaTokens->materialBindings))
+                HdCollectionSchemaTokens->collection))
         : nullptr);
 }
 
 /*static*/
 const TfToken &
-HdMaterialBindingsSchema::GetSchemaToken()
+HdCollectionSchema::GetSchemaToken()
 {
-    return HdMaterialBindingsSchemaTokens->materialBindings;
+    return HdCollectionSchemaTokens->collection;
 }
 
 /*static*/
 const HdDataSourceLocator &
-HdMaterialBindingsSchema::GetDefaultLocator()
+HdCollectionSchema::GetDefaultLocator()
 {
     static const HdDataSourceLocator locator(GetSchemaToken());
     return locator;

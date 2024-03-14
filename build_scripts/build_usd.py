@@ -158,9 +158,9 @@ def GetVisualStudioCompilerAndVersion():
 
     msvcCompiler = which("cl")
     if msvcCompiler:
-        # VisualStudioVersion environment variable should be set by the
+        # VCToolsVersion environment variable should be set by the
         # Visual Studio Command Prompt.
-        match = re.search(r"(\d+)\.(\d+)", os.environ.get("VisualStudioVersion", ""))
+        match = re.search(r"(\d+)\.(\d+)", os.environ.get("VCToolsVersion", ""))
         if match:
             return (msvcCompiler, tuple(int(v) for v in match.groups()))
     return None
@@ -178,17 +178,17 @@ def IsVisualStudioVersionOrGreater(desiredVersion):
 
 
 def IsVisualStudio2022OrGreater():
-    VISUAL_STUDIO_2022_VERSION = (17, 0)
+    VISUAL_STUDIO_2022_VERSION = (14, 30)
     return IsVisualStudioVersionOrGreater(VISUAL_STUDIO_2022_VERSION)
 
 
 def IsVisualStudio2019OrGreater():
-    VISUAL_STUDIO_2019_VERSION = (16, 0)
+    VISUAL_STUDIO_2019_VERSION = (14, 20)
     return IsVisualStudioVersionOrGreater(VISUAL_STUDIO_2019_VERSION)
 
 
 def IsVisualStudio2017OrGreater():
-    VISUAL_STUDIO_2017_VERSION = (15, 0)
+    VISUAL_STUDIO_2017_VERSION = (14, 1)
     return IsVisualStudioVersionOrGreater(VISUAL_STUDIO_2017_VERSION)
 
 
@@ -1902,9 +1902,9 @@ EMBREE = Dependency("Embree", InstallEmbree, "include/embree3/rtcore.h")
 ############################################################
 # AnimX
 
-# This GitHub project has no releases, so we take the latest.
-# As of 2023, there have been no commits since 2018.
-ANIMX_URL = "https://github.com/Autodesk/animx/archive/refs/heads/master.zip"
+# This GitHub project has no releases, so we fixed on the latest commit as of
+# 2024-02-06 - 5db8ee4, which was committed on 2018-11-05
+ANIMX_URL = "https://github.com/Autodesk/animx/archive/5db8ee416d5fa7050357f498d4dcfaa6ff3f7738.zip"
 
 
 def InstallAnimX(context, force, buildArgs):

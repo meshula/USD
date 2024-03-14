@@ -46,6 +46,7 @@ T_TOKEN = "HdTokenDataSource"
 T_TOKENARRAY = "HdTokenArrayDataSource"
 T_PATH = "HdPathDataSource"
 T_PATHARRAY = "HdPathArrayDataSource"
+T_PATHEXPRESSION = "HdPathExpressionDataSource"
 T_ASSETPATH = "HdAssetPathDataSource"
 T_VEC2I = "HdVec2iDataSource"
 T_VEC2F = "HdVec2fDataSource"
@@ -295,6 +296,7 @@ if __name__ == '__main__':
         description='Generate source code schemas.\n'
             'Use either --all or --names NAME1,NAME2')
     ap.add_argument('--schemaFile', default='hdSchemaDefs.py')
+    ap.add_argument('--srcDir', default=os.curdir)
     ap.add_argument('--dstDir', default=os.curdir)
     ap.add_argument('--all', action='store_true')
     ap.add_argument('--list', action='store_true')
@@ -332,10 +334,10 @@ if __name__ == '__main__':
         import tempfile
         with tempfile.TemporaryDirectory() as tmpdir:
             for entry in entries:
-                ExpandEntry(os.curdir, entry)
+                ExpandEntry(args.srcDir, entry)
                 WriteEntry(tmpdir, entry, templates)
-            ValidateFiles(os.curdir, tmpdir)
+            ValidateFiles(args.srcDir, tmpdir)
     else:
         for entry in entries:
-            ExpandEntry(os.curdir, entry)
+            ExpandEntry(args.srcDir, entry)
             WriteEntry(args.dstDir, entry, templates)

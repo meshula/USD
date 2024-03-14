@@ -32,13 +32,13 @@
 /* **                                                                      ** */
 /* ************************************************************************** */
 
-#ifndef PXR_IMAGING_HD_MATERIAL_BINDINGS_SCHEMA_H
-#define PXR_IMAGING_HD_MATERIAL_BINDINGS_SCHEMA_H
+#ifndef PXR_IMAGING_HD_COLLECTIONS_SCHEMA_H
+#define PXR_IMAGING_HD_COLLECTIONS_SCHEMA_H
 
 /// \file
 
 #include "pxr/imaging/hd/api.h"
-#include "pxr/imaging/hd/materialBindingSchema.h"
+#include "pxr/imaging/hd/collectionSchema.h"
 
 #include "pxr/imaging/hd/schema.h"
 
@@ -50,48 +50,49 @@ PXR_NAMESPACE_OPEN_SCOPE
 // --(BEGIN CUSTOM CODE: Declares)--
 // --(END CUSTOM CODE: Declares)--
 
-#define HD_MATERIAL_BINDINGS_SCHEMA_TOKENS \
-    (materialBindings) \
-    ((allPurpose, "")) \
+#define HD_COLLECTIONS_SCHEMA_TOKENS \
+    (collections) \
 
-TF_DECLARE_PUBLIC_TOKENS(HdMaterialBindingsSchemaTokens, HD_API,
-    HD_MATERIAL_BINDINGS_SCHEMA_TOKENS);
+TF_DECLARE_PUBLIC_TOKENS(HdCollectionsSchemaTokens, HD_API,
+    HD_COLLECTIONS_SCHEMA_TOKENS);
 
 //-----------------------------------------------------------------------------
 
+// The HdCollectionsSchema specifies a wrapper container for collection
+// entries with the key being the collection name.
+//
 
-class HdMaterialBindingsSchema : public HdSchema
+class HdCollectionsSchema : public HdSchema
 {
 public:
     /// \name Schema retrieval
     /// @{
 
-    HdMaterialBindingsSchema(HdContainerDataSourceHandle container)
+    HdCollectionsSchema(HdContainerDataSourceHandle container)
       : HdSchema(container) {}
 
     /// Retrieves a container data source with the schema's default name token
-    /// "materialBindings" from the parent container and constructs a
-    /// HdMaterialBindingsSchema instance.
+    /// "collections" from the parent container and constructs a
+    /// HdCollectionsSchema instance.
     /// Because the requested container data source may not exist, the result
     /// should be checked with IsDefined() or a bool comparison before use.
     HD_API
-    static HdMaterialBindingsSchema GetFromParent(
+    static HdCollectionsSchema GetFromParent(
         const HdContainerDataSourceHandle &fromParentContainer);
 
     /// @}
 
 // --(BEGIN CUSTOM CODE: Schema Methods)--
-
-    HD_API
-    HdMaterialBindingSchema GetMaterialBinding() const;
-    
-    HD_API
-    HdMaterialBindingSchema GetMaterialBinding(TfToken const &purpose) const;
-
 // --(END CUSTOM CODE: Schema Methods)--
 
     /// \name Member accessor
-    /// @{ 
+    /// @{
+
+    HD_API
+    TfTokenVector GetCollectionNames() const;
+
+    HD_API
+    HdCollectionSchema GetCollection(const TfToken &name) const; 
 
     /// @}
 
