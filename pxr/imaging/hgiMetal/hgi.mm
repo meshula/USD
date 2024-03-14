@@ -77,8 +77,9 @@ void HgiMetal::SetDefaultCommandQueue(id<MTLCommandQueue> queue)
 }
 
 
-HgiMetal::HgiMetal(id<MTLDevice> device)
+HgiMetal::HgiMetal(id<MTLDevice> device, id<MTLCommandQueue> commandQueue)
 : _device(device)
+, _commandQueue(commandQueue)
 , _currentCmds(nullptr)
 , _frameDepth(0)
 , _workToFlush(false)
@@ -105,13 +106,14 @@ HgiMetal::HgiMetal(id<MTLDevice> device)
     }
 
     static int const commandBufferPoolSize = 256;
-
-    if (defaultCommandQueue) {
-        _commandQueue = defaultCommandQueue;
-    }
-    else {
-        _commandQueue = [_device newCommandQueueWithMaxCommandBufferCount:
-                        commandBufferPoolSize];
+    if (!_commandQueue) {
+        if (defaultCommandQueue) {
+            _commandQueue = defaultCommandQueue;
+        }
+        else {
+            _commandQueue = [_device newCommandQueueWithMaxCommandBufferCount:
+                            commandBufferPoolSize];
+        }
     }
     _commandBuffer = [_commandQueue commandBuffer];
     [_commandBuffer retain];
