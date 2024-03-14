@@ -417,6 +417,23 @@ HgiMetal::GetQueue() const
     return _commandQueue;
 }
 
+void
+HgiMetal::SyncQueue() const {
+    // Create a semaphore
+    dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+
+    // Submit a command buffer to the command queue
+    id<MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
+    [commandBuffer addCompletedHandler:^(id<MTLCommandBuffer> buffer) {
+        // Signal the semaphore when the command buffer completes
+        dispatch_semaphore_signal(semaphore);
+    }];
+    [commandBuffer commit];
+
+    // Wait for the semaphore until no more work is remaining
+    dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+}
+
 id<MTLCommandBuffer>
 HgiMetal::GetPrimaryCommandBuffer(HgiCmds *requester, bool flush)
 {

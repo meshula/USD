@@ -166,6 +166,9 @@ public:
     id<MTLCommandQueue> GetQueue() const;
 
     HGIMETAL_API
+    void SyncQueue() const;
+
+    HGIMETAL_API
     static void SetDefaultPrimaryDevice(id<MTLDevice> device);
 
     HGIMETAL_API
@@ -255,6 +258,9 @@ private:
 
 #if !__has_feature(objc_arc)
     NSAutoreleasePool *_pool;
+#else
+    // ensure the size of the struct does not vary between ARC and non-ARC
+    NSObject* _padding;
 #endif
 };
 
