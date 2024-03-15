@@ -256,12 +256,8 @@ private:
     int _frameDepth;
     bool _workToFlush;
 
-#if !__has_feature(objc_arc)
-    NSAutoreleasePool *_pool;
-#else
-    // ensure the size of the struct does not vary between ARC and non-ARC
-    NSObject* _padding;
-#endif
+    struct AutoReleasePool;
+    AutoReleasePool* _pool;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE
