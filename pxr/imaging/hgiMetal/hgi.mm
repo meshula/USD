@@ -76,6 +76,30 @@ void HgiMetal::SetDefaultCommandQueue(id<MTLCommandQueue> queue)
     [defaultCommandQueue retain];
 }
 
+struct AutoReleasePool 
+{
+#if !__has_feature(objc_arc)
+    NSAutoreleasePool* _pool = nil;
+    ~AutoReleasePool() {
+        Drain();
+    }
+
+    void Init() {
+        _pool = [[NSAutoreleasePool alloc] init];
+    }
+
+    void Drain() {
+        if (_pool) {
+            [_pool drain];
+            _pool = nil;
+        }
+    }
+#else
+    void Init() {}
+    void Drain() {}
+#endif
+};
+
 
 HgiMetal::HgiMetal(id<MTLDevice> device, id<MTLCommandQueue> commandQueue)
 : _device(device)
@@ -83,6 +107,7 @@ HgiMetal::HgiMetal(id<MTLDevice> device, id<MTLCommandQueue> commandQueue)
 , _currentCmds(nullptr)
 , _frameDepth(0)
 , _workToFlush(false)
+, _pool(new AutoReleasePool())
 {
     if (!_device) {
         if (defaultPrimaryDevice) {
@@ -152,10 +177,6 @@ HgiMetal::HgiMetal(id<MTLDevice> device, id<MTLCommandQueue> commandQueue)
     
     [[MTLCaptureManager sharedCaptureManager]
         setDefaultCaptureScope:_captureScopeFullFrame];
-
-#if !__has_feature(objc_arc)
-    _pool = nil;
-#endif
 }
 
 HgiMetal::~HgiMetal()
@@ -176,6 +197,8 @@ HgiMetal::~HgiMetal()
             _freeArgBuffers.pop();
         }
     }
+
+    delete _pool;
 }
 
 bool
@@ -380,9 +403,7 @@ HgiMetal::GetIndirectCommandEncoder() const
 void
 HgiMetal::StartFrame()
 {
-#if !__has_feature(objc_arc)
-    _pool = [[NSAutoreleasePool alloc] init];
-#endif
+    _pool->Init();
 
     if (_frameDepth++ == 0) {
         [_captureScopeFullFrame beginScope];
@@ -403,12 +424,7 @@ HgiMetal::EndFrame()
         [_captureScopeFullFrame endScope];
     }
 
-#if !__has_feature(objc_arc)
-    if (_pool) {
-        [_pool drain];
-        _pool = nil;
-    }
-#endif
+    _pool->Drain();
 }
 
 id<MTLCommandQueue>
