@@ -76,7 +76,7 @@ void HgiMetal::SetDefaultCommandQueue(id<MTLCommandQueue> queue)
     [defaultCommandQueue retain];
 }
 
-struct AutoReleasePool 
+struct HgiMetal::AutoReleasePool 
 {
 #if !__has_feature(objc_arc)
     NSAutoreleasePool* _pool = nil;
