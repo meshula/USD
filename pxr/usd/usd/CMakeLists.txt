@@ -269,7 +269,6 @@ pxr_test_scripts(
 )
 
 pxr_build_test_shared_lib(TestUsdProceduralExternalAssetsFileFormatPlugin
-    CREATE_FRAMEWORK
     INSTALL_PREFIX UsdPlugins
     LIBRARIES
         sdf
@@ -281,7 +280,6 @@ pxr_build_test_shared_lib(TestUsdProceduralExternalAssetsFileFormatPlugin
 )
 
 pxr_build_test_shared_lib(TestUsdResolverChangedResolver
-    CREATE_FRAMEWORK
     INSTALL_PREFIX UsdPlugins
     LIBRARIES
         ar
@@ -944,18 +942,13 @@ pxr_register_test(testUsdFileFormats
     EXPECTED_RETURN_CODE 0
 )
 
-# XXX:
-# Temporarily disable this test on Windows; the ArAsset-based
-# codepath in the .usdc file format code has issues.
-if (NOT WIN32)
-    pxr_register_test(testUsdFileFormats_asset
-        PYTHON
-        COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdFileFormats"
-        ENV
-            USDC_USE_ASSET=1
-        EXPECTED_RETURN_CODE 0
-    )
-endif()
+pxr_register_test(testUsdFileFormats_asset
+    PYTHON
+    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdFileFormats"
+    ENV
+        USDC_USE_ASSET=1
+    EXPECTED_RETURN_CODE 0
+)
 
 pxr_register_test(testUsdFileFormats_pread
     PYTHON
