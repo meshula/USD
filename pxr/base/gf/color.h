@@ -33,6 +33,7 @@
 #include "pxr/base/gf/api.h"
 #include "pxr/base/tf/span.h"
 #include "pxr/base/tf/staticTokens.h"
+#include "pxr/base/tf/hash.h"
 
 #include <float.h>
 
@@ -99,14 +100,14 @@ TF_DECLARE_PUBLIC_TOKENS(GfColorspaceCanonicalName, GF_API,
 ///
 /// The parameters used to construct the color space are not available for
 /// introspection ~ the color space object is intended for color conversion
-/// operations on a GfColor3f.
+/// operations on a GfColor.
 ///
 /// The color spaces supported by Gf are listed in GfColorspaceCanonicalName
 /// For historical compatibility, "raw" is treated as a synonym for "identity",
 /// and "sRGB" is treated as a synonym for "srgb_texture"
 
 class GfColorSpace {
-    friend class GfColor3f;
+    friend class GfColor;
 public:
     ~GfColorSpace() = default;
     
@@ -132,6 +133,8 @@ public:
                                  float K0,
                                  float phi);
     
+    GF_API TfToken GetName() const;
+
     GF_API bool operator ==(const GfColorSpace &lh) const;
     bool operator !=(const GfColorSpace &lh) const { return !(*this == lh); }
 
@@ -154,35 +157,40 @@ private:
 ///
 /// The color spaces supported by Gf are enumerated in GfColorSpace.
 
-class GfColor3f {
+class GfColor {
 public:
     /// The default constructor creates white, in the "lin_rec709" space
-    GF_API GfColor3f();
-    ~GfColor3f() = default;
+    GF_API GfColor();
+    ~GfColor() = default;
 
     /// Construct from a color from another color
     GF_API
-    GfColor3f(const GfColor3f&);
+    GfColor(const GfColor&);
 
     /// Construct from an rgb tuple and colorspace
     GF_API
-    GfColor3f(const GfVec3f &rgb, GfColorSpace colorSpace);
+    GfColor(const GfVec3f &rgb, GfColorSpace colorSpace);
 
     /// Construct a color from another color into the specified color space
     GF_API
-    GfColor3f(const GfColor3f &color, GfColorSpace colorSpace);
+    GfColor(const GfColor &color, GfColorSpace colorSpace);
 
     /// Replace the color with the contents of the input
     GF_API
-    GfColor3f(GfColor3f&&) noexcept = default;
+    GfColor(GfColor&&) noexcept = default;
 
     /// Replace the color with the contents of the input
     GF_API
-    GfColor3f& operator=(const GfColor3f&);
+    GfColor& operator=(const GfColor&);
 
     /// Replace the color with the contents of the input
     GF_API
-    GfColor3f& operator=(GfColor3f&&) noexcept;
+    GfColor& operator=(GfColor&&) noexcept;
+
+        /// Hash.
+    friend inline size_t hash_value(GfColor const &vec) {
+        return TfHash::Combine(vec._rgb[0], vec._rgb[1], vec._rgb[2], vec._colorSpace->GetName());
+    }
     
     /// Set the color from a CIEXYZ coordinate, adapting to the existing color space
     GF_API
@@ -216,10 +224,10 @@ public:
     GF_API
     GfVec3f NormalizeLuminance(float);
 
-    bool operator ==(const GfColor3f &l) const {
+    bool operator ==(const GfColor &l) const {
         return _rgb == l._rgb && *_colorSpace == *l._colorSpace;
     }
-    bool operator !=(const GfColor3f &r) const {
+    bool operator !=(const GfColor &r) const {
 	    return ! (*this == r);
     }
     
@@ -237,6 +245,11 @@ public:
     GfVec3f _rgb;
     std::shared_ptr<GfColorSpace> _colorSpace;
 };
+
+/// Output a GfColor.
+/// \ingroup group_gf_DebuggingOutput
+GF_API std::ostream& operator<<(std::ostream &, GfColor const &);
+
 
 PXR_NAMESPACE_CLOSE_SCOPE
 

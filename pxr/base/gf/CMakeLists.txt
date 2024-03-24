@@ -12,7 +12,7 @@ pxr_library(gf
     PUBLIC_CLASSES
         bbox3d
         camera
-        color3f
+        color
         dualQuatd
         dualQuatf
         dualQuath
@@ -95,6 +95,7 @@ pxr_library(gf
         module.cpp
         wrapBBox3d.cpp
         wrapCamera.cpp
+        wrapColor.cpp
         wrapDualQuatd.cpp
         wrapDualQuatf.cpp
         wrapDualQuath.cpp

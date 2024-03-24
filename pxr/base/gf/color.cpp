@@ -15,7 +15,9 @@
 //
 
 #include "pxr/pxr.h"
-#include "pxr/base/gf/color3f.h"
+#include "pxr/base/gf/color.h"
+#include "pxr/base/gf/ostreamHelpers.h"
+#include "pxr/base/gf/vec3f.h"
 #include "pxr/base/tf/enum.h"
 #include "pxr/base/tf/registryManager.h"
 #include "pxr/base/tf/type.h"
@@ -25,7 +27,7 @@
 PXR_NAMESPACE_OPEN_SCOPE
 
 TF_REGISTRY_FUNCTION(TfType) {
-    TfType::Define<GfColor3f>();
+    TfType::Define<GfColor>();
 }
 
 TF_DEFINE_PUBLIC_TOKENS(GfColorspaceCanonicalName, GF_rgbSPACE_CANONICAL_NAME_TOKENS);
@@ -113,7 +115,7 @@ GfColorSpace::GfColorSpace(const std::string& name,
     Data::cache[TfToken(name)] = _data->colorSpace;
 }
 
-bool GfColorSpace::operator ==(const GfColorSpace &lh) const
+bool GfColorSpace::operator==(const GfColorSpace &lh) const
 {
     if (_data->colorSpace->name == nullptr ||
         lh._data->colorSpace->name == nullptr) {
@@ -129,8 +131,24 @@ bool GfColorSpace::operator ==(const GfColorSpace &lh) const
                   sizeof(NcColorSpace) - sizeof(char*)) == 0;
 }
 
+TfToken GfColorSpace::GetName() const
+{
+    return TfToken(_data->colorSpace->name);
+}
+
+std::ostream& 
+operator<<(std::ostream &out, GfColor const &v)
+{
+    GfVec3f rgb = v.GetRGB();
+    return out << '(' 
+        << Gf_OstreamHelperP(rgb[0]) << ", " 
+        << Gf_OstreamHelperP(rgb[1]) << ", " 
+        << Gf_OstreamHelperP(rgb[2]) << ", "
+        << Gf_OstreamHelperP(v.GetColorSpace()->GetName().GetString()) << ')';
+}
+
 // The default constructor creates white, in the "lin_rec709" space
-GfColor3f::GfColor3f()
+GfColor::GfColor()
 {
     _rgb = GfVec3f(1.0f, 1.0f, 1.0f);
     _colorSpace = std::make_shared<GfColorSpace>(
@@ -138,21 +156,21 @@ GfColor3f::GfColor3f()
 }
 
 // Construct from an rgb tuple and colorspace
-GfColor3f::GfColor3f(const GfVec3f &rgb, GfColorSpace colorSpace)
+GfColor::GfColor(const GfVec3f &rgb, GfColorSpace colorSpace)
 {
     _rgb = rgb;
     _colorSpace = std::make_shared<GfColorSpace>(colorSpace);
 }
 
 // Construct from a color from the input color,
-GfColor3f::GfColor3f(const GfColor3f& color)
+GfColor::GfColor(const GfColor& color)
 {
     _rgb = color._rgb;
     _colorSpace = color._colorSpace;
 }
 
 // Construct a color from another color into the specified color space
-GfColor3f::GfColor3f(const GfColor3f &color, GfColorSpace colorSpace)
+GfColor::GfColor(const GfColor &color, GfColorSpace colorSpace)
 {
     NcRGB src = {color._rgb[0], color._rgb[1], color._rgb[2]};
     NcRGB dst = NcTransformColor(_colorSpace->_data->colorSpace.get(),
@@ -162,7 +180,7 @@ GfColor3f::GfColor3f(const GfColor3f &color, GfColorSpace colorSpace)
 }
 
 // Replace the color with the contents of the input
-GfColor3f& GfColor3f::operator=(const GfColor3f& color)
+GfColor& GfColor::operator=(const GfColor& color)
 {
     _rgb = color._rgb;
     _colorSpace = color._colorSpace;
@@ -170,7 +188,7 @@ GfColor3f& GfColor3f::operator=(const GfColor3f& color)
 }
 
 // Replace the color with the contents of the input
-GfColor3f& GfColor3f::operator=(GfColor3f&& color) noexcept
+GfColor& GfColor::operator=(GfColor&& color) noexcept
 {
     _rgb = std::move(color._rgb);
     _colorSpace = std::move(color._colorSpace);
@@ -178,7 +196,7 @@ GfColor3f& GfColor3f::operator=(GfColor3f&& color) noexcept
 }
 
 // Set the color from a CIEXYZ coordinate, adapting to the existing color space
-void GfColor3f::SetFromCIEXYZ(const GfVec3f& xyz)
+void GfColor::SetFromCIEXYZ(const GfVec3f& xyz)
 {
     NcCIEXYZ ncxyz = { xyz[0], xyz[1], xyz[2] };
     NcRGB dst = NcXYZToRGB(_colorSpace->_data->colorSpace.get(), ncxyz);
@@ -187,7 +205,7 @@ void GfColor3f::SetFromCIEXYZ(const GfVec3f& xyz)
 
 // Set the color from blackbody temperature in Kelvin, 
 // adapting to the existing color space
-void GfColor3f::SetFromBlackbodyKelvin(float kelvin, float luminosity)
+void GfColor::SetFromBlackbodyKelvin(float kelvin, float luminosity)
 {
     NcCIEXYZ xyz = NcKelvinToXYZ(kelvin, luminosity);
     NcRGB dst = NcXYZToRGB(_colorSpace->_data->colorSpace.get(), xyz);
@@ -196,7 +214,7 @@ void GfColor3f::SetFromBlackbodyKelvin(float kelvin, float luminosity)
 
 // Set the color from a wavelength in nanometers, 
 // adapting to the existing color space
-void GfColor3f::SetFromWavelengthNM(float nm)
+void GfColor::SetFromWavelengthNM(float nm)
 {
     NcCIEXYZ xyz = NcCIE1931ColorFromWavelength(nm, false);
     NcRGB dst = NcXYZToRGB(_colorSpace->_data->colorSpace.get(), xyz);
@@ -204,7 +222,7 @@ void GfColor3f::SetFromWavelengthNM(float nm)
 }
 
 // Get the CIEXYZ coordinate of the color
-GfVec3f GfColor3f::GetCIEXYZ() const
+GfVec3f GfColor::GetCIEXYZ() const
 {
     NcRGB src = {_rgb[0], _rgb[1], _rgb[2]};
     NcCIEXYZ dst = NcRGBToXYZ(_colorSpace->_data->colorSpace.get(), src);
@@ -212,7 +230,7 @@ GfVec3f GfColor3f::GetCIEXYZ() const
 }
 
 // Return the color's RGB values, normalized to a specified luminance
-GfVec3f GfColor3f::NormalizedLuminance(float luminance) const
+GfVec3f GfColor::NormalizedLuminance(float luminance) const
 {
     NcRGB src = {_rgb[0], _rgb[1], _rgb[2]};
     NcCIEXYZ dst = NcRGBToXYZ(_colorSpace->_data->colorSpace.get(), src);
@@ -221,7 +239,7 @@ GfVec3f GfColor3f::NormalizedLuminance(float luminance) const
 }
 
 // Normalize the color to a specified luminance, and return the RGB value
-GfVec3f GfColor3f::NormalizeLuminance(float luminance)
+GfVec3f GfColor::NormalizeLuminance(float luminance)
 {
     NcRGB src = {_rgb[0], _rgb[1], _rgb[2]};
     NcCIEXYZ dst = NcRGBToXYZ(_colorSpace->_data->colorSpace.get(), src);
@@ -229,5 +247,18 @@ GfVec3f GfColor3f::NormalizeLuminance(float luminance)
     _rgb = GfVec3f(dst.x * luminance, dst.y * luminance, dst.z * luminance);
     return _rgb;
 }
+
+/// Convert a packed array of RGB values from one color space to another
+void GfColor::ConvertRGB(const GfColorSpace& from, const GfColorSpace& to, 
+                         TfSpan<const float> rgb) {
+
+}
+
+/// Convert a packed array of RGBA values from one color space to another
+void GfColor::ConvertRGBA(const GfColorSpace& from, const GfColorSpace& to, 
+                          TfSpan<const float> rgba) {
+
+}
+
 
 PXR_NAMESPACE_CLOSE_SCOPE
