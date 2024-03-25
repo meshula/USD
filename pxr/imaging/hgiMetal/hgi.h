@@ -257,7 +257,7 @@ private:
     bool _workToFlush;
 
     struct AutoReleasePool;
-    AutoReleasePool* _pool;
+    std::unique_ptr<AutoReleasePool> _pool;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

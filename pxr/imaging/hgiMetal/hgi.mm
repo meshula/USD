@@ -107,7 +107,7 @@ HgiMetal::HgiMetal(id<MTLDevice> device, id<MTLCommandQueue> commandQueue)
 , _currentCmds(nullptr)
 , _frameDepth(0)
 , _workToFlush(false)
-, _pool(new AutoReleasePool())
+, _pool(std::make_unique<AutoReleasePool>())
 {
     if (!_device) {
         if (defaultPrimaryDevice) {
@@ -131,14 +131,12 @@ HgiMetal::HgiMetal(id<MTLDevice> device, id<MTLCommandQueue> commandQueue)
     }
 
     static int const commandBufferPoolSize = 256;
-    if (!_commandQueue) {
-        if (defaultCommandQueue) {
-            _commandQueue = defaultCommandQueue;
-        }
-        else {
-            _commandQueue = [_device newCommandQueueWithMaxCommandBufferCount:
-                            commandBufferPoolSize];
-        }
+    if (_commandQueue) {
+        [_commandQueue retain];
+    }
+    else {
+        _commandQueue = [_device newCommandQueueWithMaxCommandBufferCount:
+                         commandBufferPoolSize];
     }
     _commandBuffer = [_commandQueue commandBuffer];
     [_commandBuffer retain];
@@ -197,8 +195,6 @@ HgiMetal::~HgiMetal()
             _freeArgBuffers.pop();
         }
     }
-
-    delete _pool;
 }
 
 bool
