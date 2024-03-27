@@ -26,11 +26,12 @@
 #include "pxr/base/arch/defines.h"
 #include "pxr/base/arch/error.h"
 
-#if defined(ARCH_OS_OSX)
+#if defined(ARCH_OS_IPHONE)
+#elif defined(ARCH_OS_DARWIN)
 #   include <sys/malloc.h>
 #elif !defined(ARCH_OS_IOS)
 #   include <malloc.h>
-#endif /* defined(ARCH_OS_OSX) */
+#endif /* defined(ARCH_OS_IPHONE) */
 
 #include <cstdlib>
 
