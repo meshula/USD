@@ -36,7 +36,7 @@ static const NcXYChromaticity _WpACES = { 0.32168, 0.33767 };
 
 static const NcColorSpace _colorSpaces[] = {
     {
-        "acescg",                       // same as lin_ap1
+        "acescg",                       // same as lin_ap0
         { 0.713, 0.293 },
         { 0.165, 0.830 },
         { 0.128, 0.044 },
@@ -370,23 +370,27 @@ NcColorTransform GetRGBtoRGBTransform(NcColorSpace* src, NcColorSpace* dst) {
     return t;
 }
 
+// convert from gamma to linear by raising to gamma
 inline float nc_ToLinear(NcColorSpace* cs, float t) {
+    const float gamma = cs->colorTransform.transfer.gamma;
+    //return powf(t, gamma);
     if (t < cs->colorTransform.transfer.K0)
         return t / cs->colorTransform.transfer.phi;
     const float a = cs->colorTransform.transfer.linearBias;
-    const float gamma = cs->colorTransform.transfer.gamma;
     return powf((t + a) / (1.f + a), gamma);
 }
 
+// convert linear to gamma by raising to 1/gamma
 inline float nc_FromLinear(NcColorSpace* cs, float t) {
+    const float gamma = cs->colorTransform.transfer.gamma;
+    //return powf(t, 1.f/gamma);
     if (t < cs->colorTransform.transfer.K0 / cs->colorTransform.transfer.phi)
         return t * cs->colorTransform.transfer.phi;
     const float a = cs->colorTransform.transfer.linearBias;
-    const float gamma = cs->colorTransform.transfer.gamma;
     return (1.f + a) * powf(t, 1.f / gamma) - a;
 }
 
-NcColorTransform NcGetRGBToRGBTransform(NcColorSpace* src, NcColorSpace* dst) {
+NcM33f NcGetRGBToRGBTransform(NcColorSpace* src, NcColorSpace* dst) {
     if (!dst || !src) {
         return {};
     }
@@ -397,10 +401,7 @@ NcColorTransform NcGetRGBToRGBTransform(NcColorSpace* src, NcColorSpace* dst) {
     NcM33f fromXYZ = NcGetCIEXYZToRGBMatrix(dst);
     
     NcM33f tx = NcM33fMultiply(fromXYZ, toXYZ);
-    
-    NcColorTransform nct;
-    nct.transform = tx;
-    return nct;
+    return tx;
 }
 
 NcRGB NcTransformColor(NcColorSpace* dst, NcColorSpace* src, NcRGB rgb) {

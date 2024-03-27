@@ -14,6 +14,15 @@
 // language governing permissions and limitations under the Apache License.
 //
 
+// NCAPI may be overridden externally to control symbol visibility.
+#ifndef NCNAMESPACE
+#define NCNAMESPACE pxr_nc_1_0_
+#endif
+#define NCCONCAT(a, b) a ## b
+#ifndef NCAPI
+#define NCAPI
+#endif
+
 #ifndef included_nanocolor_h
 #define included_nanocolor_h
 
@@ -123,41 +132,30 @@ extern "C" {
  - Linear_Rec2020:   Rec2020 gamut, and linear gamma
 */
 
-
 // declare the public interface using a C style namespace macro
 // this will allow several libraries to incorporate the nanocolor library
 // directly as source without running into symbol or API conflicts.
 // Change the namespace here to make the symbols unique.
 // Recommended: Foo_nc_ to embed nanocolor in library Foo.
-#ifndef NCNAMESPACE
-#define NCNAMESPACE pxr_nc_1_0_
-#endif
-#define NCCONCAT(a, b) a ## b
 #define NcGetNamedColorSpace   NCCONCAT(NCNAMESPACE, GetNamedColorSpace)
 #define NcGetRGBToCIEXYZMatrix NCCONCAT(NCNAMESPACE, GetRGBtoCIEXYZMatrix)
 #define NcGetCIEXYZToRGBMatrix NCCONCAT(NCNAMESPACE, etCIEXYZtoRGBMatrix)
-#define NcGetRGBToRGBTransform NCCONCAT(NCNAMESPACE, GetRGBToRGBTransform)
+#define NcGetRGBToRGBMatrix    NCCONCAT(NCNAMESPACE, GetRGBToRGBMatrix)
 #define NcTransformColor       NCCONCAT(NCNAMESPACE, TransformColor)
 #define NcRGBToXYZ             NCCONCAT(NCNAMESPACE, RGBToXYZ)
 #define NcXYZToRGB             NCCONCAT(NCNAMESPACE, XYZToRGB)
 #define NcInitColorSpace       NCCONCAT(NCNAMESPACE, InitColorSpace)
 #define NcRegisteredColorSpaceNames NCCONCAT(NCNAMESPACE, RegisteredColorSpaceNames)
 
-
-// NCAPI may be overridden externally to control symbol visibility.
-#ifndef NCAPI
-#define NCAPI
-#endif
-
-NCAPI NcColorSpace     NcGetNamedColorSpace(const char* name);
-NCAPI NcM33f           NcGetRGBToCIEXYZMatrix(NcColorSpace* cs);
-NCAPI NcM33f           NcGetCIEXYZToRGBMatrix(NcColorSpace* cs);
-NCAPI NcColorTransform NcGetRGBToRGBTransform(NcColorSpace* src, NcColorSpace* dst);
-NCAPI NcRGB            NcTransformColor(NcColorSpace* dst, NcColorSpace* src, NcRGB rgb);
-NCAPI NcCIEXYZ         NcRGBToXYZ(NcColorSpace* cs, NcRGB rgb);
-NCAPI NcRGB            NcXYZToRGB(NcColorSpace* cs, NcCIEXYZ xyz);
-NCAPI void             NcInitColorSpace(NcColorSpace* cs);
-NCAPI const char**     NcRegisteredColorSpaceNames();
+NCAPI NcColorSpace NcGetNamedColorSpace(const char* name);
+NCAPI NcM33f       NcGetRGBToCIEXYZMatrix(NcColorSpace* cs);
+NCAPI NcM33f       NcGetCIEXYZToRGBMatrix(NcColorSpace* cs);
+NCAPI NcM33f       NcGetRGBToRGBMatrix(NcColorSpace* src, NcColorSpace* dst);
+NCAPI NcRGB        NcTransformColor(NcColorSpace* dst, NcColorSpace* src, NcRGB rgb);
+NCAPI NcCIEXYZ     NcRGBToXYZ(NcColorSpace* cs, NcRGB rgb);
+NCAPI NcRGB        NcXYZToRGB(NcColorSpace* cs, NcCIEXYZ xyz);
+NCAPI void         NcInitColorSpace(NcColorSpace* cs);
+NCAPI const char** NcRegisteredColorSpaceNames();
 
 #ifdef __cplusplus
 }

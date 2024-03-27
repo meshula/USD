@@ -22,7 +22,7 @@
 // language governing permissions and limitations under the Apache License.
 //
 #include "pxr/pxr.h"
-#include "pxr/usdImaging/usdAppUtils/frameRecorder.h"
+#include "frameRecorder.h"
 
 #include <boost/python.hpp>
 #include <boost/python/class.hpp>
