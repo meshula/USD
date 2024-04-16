@@ -114,7 +114,8 @@ public:
     // construct from a GfColorspaceCanonicalName token
     GF_API explicit GfColorSpace(TfToken name);
     
-    // construct a custom colorspace from raw values
+    // construct a custom colorspace from chromaticities, whitepoint,
+    // and linearization parameters.
     GF_API explicit GfColorSpace(const std::string& name,
                                  const GfVec2f &redChroma,
                                  const GfVec2f &greenChroma,
@@ -125,7 +126,7 @@ public:
                                  float K0,
                                  float phi);
     
-    // construct a colorspace from a 3x3 matrix and linearization parameters
+    // construct a custom colorspace from a 3x3 matrix and linearization parameters
     GF_API explicit GfColorSpace(const std::string& name,
                                  const GfMatrix3f &rgbToXYZ,
                                  float gamma,
@@ -137,6 +138,14 @@ public:
 
     GF_API bool operator ==(const GfColorSpace &lh) const;
     bool operator !=(const GfColorSpace &lh) const { return !(*this == lh); }
+
+    /// Convert a packed array of RGB values from one color space to another
+    GF_API
+    void ConvertRGB(const GfColorSpace& to, TfSpan<const float> rgb);
+
+    /// Convert a packed array of RGBA values from one color space to another
+    GF_API
+    void ConvertRGBA(const GfColorSpace& to, TfSpan<const float> rgba);
 
 private:
     struct Data;
@@ -164,8 +173,7 @@ public:
     ~GfColor() = default;
 
     /// Construct from a color from another color
-    GF_API
-    GfColor(const GfColor&);
+    GfColor(const GfColor&) = default;
 
     /// Construct from an rgb tuple and colorspace
     GF_API
@@ -176,18 +184,15 @@ public:
     GfColor(const GfColor &color, GfColorSpace colorSpace);
 
     /// Replace the color with the contents of the input
-    GF_API
     GfColor(GfColor&&) noexcept = default;
 
     /// Replace the color with the contents of the input
-    GF_API
-    GfColor& operator=(const GfColor&);
+    GfColor& operator=(const GfColor&) = default;
 
     /// Replace the color with the contents of the input
-    GF_API
-    GfColor& operator=(GfColor&&) noexcept;
+    GfColor& operator=(GfColor&&) noexcept = default;
 
-        /// Hash.
+    /// Hash.
     friend inline size_t hash_value(GfColor const &vec) {
         return TfHash::Combine(vec._rgb[0], vec._rgb[1], vec._rgb[2], vec._colorSpace->GetName());
     }
@@ -205,12 +210,10 @@ public:
     void SetFromWavelengthNM(float nm);
 
     /// Get the RGB tuple
-    GF_API
     GfVec3f GetRGB() const { return _rgb; }
 
     /// Get the color space
-    GF_API
-    std::shared_ptr<GfColorSpace> GetColorSpace() const { return _colorSpace; }
+    GfColorSpace GetColorSpace() const { return _colorSpace; }
 
     /// Get the CIEXYZ coordinate of the color
     GF_API
@@ -218,11 +221,11 @@ public:
 
     /// Return the color's RGB values, normalized to a specified luminance
     GF_API
-    GfVec3f NormalizedLuminance(float) const;
+    GfColor NormalizedLuminance(float) const;
 
-    /// Normalize the color to a specified luminance, and return the RGB value
+    /// Normalize the color to a specified luminance
     GF_API
-    GfVec3f NormalizeLuminance(float);
+    void NormalizeLuminance(float);
 
     bool operator ==(const GfColor &l) const {
         return _rgb == l._rgb && *_colorSpace == *l._colorSpace;
@@ -230,20 +233,10 @@ public:
     bool operator !=(const GfColor &r) const {
 	    return ! (*this == r);
     }
-    
-    /// Convert a packed array of RGB values from one color space to another
-    GF_API static
-    void ConvertRGB(const GfColorSpace& from, const GfColorSpace& to, 
-                   TfSpan<const float> rgb);
-
-    /// Convert a packed array of RGBA values from one color space to another
-    GF_API static
-    void ConvertRGBA(const GfColorSpace& from, const GfColorSpace& to, 
-                     TfSpan<const float> rgba);
 
   private:
     GfVec3f _rgb;
-    std::shared_ptr<GfColorSpace> _colorSpace;
+    GfColorSpace _colorSpace;
 };
 
 /// Output a GfColor.

@@ -34,6 +34,18 @@ extern "C" {
 static const NcXYChromaticity _WpD65 = { 0.3127, 0.3290 };
 static const NcXYChromaticity _WpACES = { 0.32168, 0.33767 };
 
+typedef struct {
+    const char*       name;
+    NcCIEXYZ          redPrimary, greenPrimary, bluePrimary;
+    NcXYChromaticity  whitePoint;
+    float             gamma;      // gamma of log section
+    float             linearBias; // linear bias of log section
+    float             K0;         // to linear break point; K0/phi for from linear
+    float             phi;        // slope of from linear section, use 1/phi if to linear
+    NcM33f            colorTransform;
+    bool              initialized_from_matrix;
+} NcColorSpace;
+
 static const NcColorSpace _colorSpaces[] = {
     {
         "acescg",                       // same as lin_ap0
@@ -227,6 +239,42 @@ const char** NcRegisteredColorSpaceNames()
     return colorspaceNames;
 }
 
+bool NcColorSpaceEqual(NcColorSpace* lh, NcColorSpace* rh) {
+    if (!lh || !rh) {
+        return false;
+    }
+
+    if (lh->name == nullptr || rh->name == nullptr) {
+        return false;
+    }
+
+    if (strcmp(lh->name, lh->name) != 0) {
+        return false;
+    }
+
+    NcInitColorSpace(lh);
+    NcInitColorSpace(rh);
+
+    // compare color transform op matrix and transfer op
+    for (int i = 0; i < 9; i++) {
+        if (fabsf(lh->colorTransform.transform.m[i] - rh->colorTransform.transform.m[i]) > 1e-5f) {
+            return false;
+        }
+    }
+    if (fabsf(lh->colorTransform.transfer.gamma - rh->colorTransform.transfer.gamma) > 1e-3f) {
+        return false;
+    }
+    if (fabsf(lh->colorTransform.transfer.linearBias - rh->colorTransform.transfer.linearBias) > 1e-3f) {
+        return false;
+    }
+    if (fabsf(lh->colorTransform.transfer.K0 - rh->colorTransform.transfer.K0) > 1e-3f) {
+        return false;
+    }
+    if (fabsf(lh->colorTransform.transfer.phi - rh->colorTransform.transfer.phi) > 1e-3f) {
+        return false;
+    }
+    return true;
+}
 
 static NcM33f NcM3ffInvert(NcM33f m) {
     NcM33f inv;

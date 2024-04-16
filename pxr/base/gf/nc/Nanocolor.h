@@ -72,37 +72,24 @@ typedef struct {
 // leaving gamma and a here - it's one way to go
 // note we definitely want K0 here, as setting it to zero after construction allows non-lifted
 // slope-limited gamma functions
-
-typedef struct {
-    float gamma;      // gamma of log section
-    float linearBias; // linear bias of log section
-    float K0;         // to linear break point; K0/phi for from linear
-    float phi;        // slope of from linear section, use 1/phi if to linear
-} NcTransferOp;
-
-// If the color transform struct is changed in the future, a new struct should be
-// created and the old one should be left in place for backwards compatibility.
 //
-// a given color space must be invertible;
-// chaining a different transform on input/output is done by chaining colorpaces
-typedef struct {
-    NcTransferOp transfer;
-    NcM33f       transform;
-} NcColorTransform;
-
-// If the color space struct is changed in the future, a new struct should be
-// created and the old one should be left in place for backwards compatibility.
-//
-// The color space struct contains all the information needed to convert
-// between the named color space and the CIE 1931 XYZ color space.
 typedef struct {
     const char*       name;
     NcCIEXYZ          redPrimary, greenPrimary, bluePrimary;
     NcXYChromaticity  whitePoint;
-    float             gamma;
-    float             linearBias;
-    NcColorTransform  colorTransform;
-} NcColorSpace;
+    float             gamma;      // gamma of log section
+    float             linearBias; // linear bias of log section
+} NcColorSpaceDescriptor;
+
+typedef struct {
+    const char*       name;
+    NcM33f            rgbToXYZ;
+    float             gamma;      // gamma of log section
+    float             linearBias; // linear bias of log section
+} NcColorSpaceM33Descriptor;
+
+// Opaque struct for the public interface
+typedef struct NcColorSpace;
 
 #ifdef __cplusplus
 extern "C" {
@@ -137,6 +124,9 @@ extern "C" {
 // directly as source without running into symbol or API conflicts.
 // Change the namespace here to make the symbols unique.
 // Recommended: Foo_nc_ to embed nanocolor in library Foo.
+#define NcInitColorSpace       NCCONCAT(NCNAMESPACE, InitColorSpace)
+#define NcInitColorSpaceM33    NCCONCAT(NCNAMESPACE, InitColorSpaceM33)
+#define NcColorSpaceEqual      NCCONCAT(NCNAMESPACE, ColorSpaceEqual)
 #define NcGetNamedColorSpace   NCCONCAT(NCNAMESPACE, GetNamedColorSpace)
 #define NcGetRGBToCIEXYZMatrix NCCONCAT(NCNAMESPACE, GetRGBtoCIEXYZMatrix)
 #define NcGetCIEXYZToRGBMatrix NCCONCAT(NCNAMESPACE, etCIEXYZtoRGBMatrix)
@@ -144,9 +134,10 @@ extern "C" {
 #define NcTransformColor       NCCONCAT(NCNAMESPACE, TransformColor)
 #define NcRGBToXYZ             NCCONCAT(NCNAMESPACE, RGBToXYZ)
 #define NcXYZToRGB             NCCONCAT(NCNAMESPACE, XYZToRGB)
-#define NcInitColorSpace       NCCONCAT(NCNAMESPACE, InitColorSpace)
 #define NcRegisteredColorSpaceNames NCCONCAT(NCNAMESPACE, RegisteredColorSpaceNames)
 
+NCAPI void         NcInitColorSpace(NcColorSpaceDescriptor* cs);
+NCAPI void         NcInitColorSpaceM33(NcColorSpaceM33Descriptor* cs);
 NCAPI NcColorSpace NcGetNamedColorSpace(const char* name);
 NCAPI NcM33f       NcGetRGBToCIEXYZMatrix(NcColorSpace* cs);
 NCAPI NcM33f       NcGetCIEXYZToRGBMatrix(NcColorSpace* cs);
@@ -154,8 +145,8 @@ NCAPI NcM33f       NcGetRGBToRGBMatrix(NcColorSpace* src, NcColorSpace* dst);
 NCAPI NcRGB        NcTransformColor(NcColorSpace* dst, NcColorSpace* src, NcRGB rgb);
 NCAPI NcCIEXYZ     NcRGBToXYZ(NcColorSpace* cs, NcRGB rgb);
 NCAPI NcRGB        NcXYZToRGB(NcColorSpace* cs, NcCIEXYZ xyz);
-NCAPI void         NcInitColorSpace(NcColorSpace* cs);
 NCAPI const char** NcRegisteredColorSpaceNames();
+NCAPI bool         NcColorSpaceEqual(NcColorSpace* cs1, NcColorSpace* cs2);
 
 #ifdef __cplusplus
 }
