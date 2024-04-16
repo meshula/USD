@@ -53,34 +53,46 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace {
 
-static string __repr__(GfColorSpace const &self) 
+static string __repr__(GfColorspace const &self) 
 {
     GfVec3f v = self.GetRGB();
-    string colorSpaceName = self.>GetName().GetString();
+    string colorSpaceName = self.GetColorSpace()->GetName().GetString();
     return TF_PY_REPR_PREFIX + 
-        TfStringPrintf("ColorSpace(%s)", 
+        TfStringPrintf("Color(%f, %f, %f, %s)", 
                               v[0], v[1], v[2], colorSpaceName.c_str());
 }
 
+static size_t __hash__(GfColor const &self) 
+{
+    return TfHash{}(self);
+}
 
 } // anon
 
 void wrapColor()
 {
-    typedef GfColorSpace This;
+    typedef GfColor This;
+    typedef GfColorSpace CS;
 
     scope thisScope = 
-        class_<This>("ColorSpace", "Color space", init<>())
+        class_<This>("Color", "Basic color class", init<>())
             .def(init<>())
-            .def(init<TfToken>())
-            .def(init<const TfToken, 
-                      const GfVec2f&, const GfVec2f&, const GfVec2f&, 
-                      const GfVec2f&, float, float, float, float>())
-            .def(init<const TfToken&, const GfMatrix3f&, float, float, float, float>())
-            .def("GetName", &This::GetName)
+            .def(init<const This&>())
+            .def(init<const GfVec3f&, CS>())
+            .def(init<const This&, CS>())
+            .def("SetFromCIEXYZ", &This::SetFromCIEXYZ)
+            .def("SetFromWavelengthNM", &This::SetFromWavelengthNM)
+            .def("GetRGB", &This::GetRGB)
+            .def("GetColorSpace", &This::GetColorSpace)
+            .def("GetCIEXYZ", &This::GetCIEXYZ)
+            .def("NormalizedLuminance", &This::NormalizedLuminance)
+            .def("NormalizeLuminance", &This::NormalizedLuminance)
             .def(self == self)
             .def(self != self)
+            .def("ConvertRGB", &This::ConvertRGB)
+            .def("ConvertRGBA", &This::ConvertRGBA)
             .def(str(self))
             .def("__repr__", __repr__)
+            .def("__hash__", __hash__)
             ;
 }

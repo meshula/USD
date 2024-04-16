@@ -50,7 +50,7 @@ GfColorSpace::GfColorSpace(TfToken name)
 }
 
 // construct a custom colorspace from raw values
-GfColorSpace::GfColorSpace(const std::string& name,
+GfColorSpace::GfColorSpace(TfToken name,
                            const GfVec2f &redChroma,
                            const GfVec2f &greenChroma,
                            const GfVec2f &blueChroma,
@@ -64,7 +64,7 @@ GfColorSpace::GfColorSpace(const std::string& name,
     _data->colorSpace = std::shared_ptr<NcColorSpace>(new NcColorSpace());
     _data->constructedFromPrimaries = true;
     auto cs = _data->colorSpace.get();
-    cs->name = strdup(name.c_str());
+    cs->name = strdup(name.GetString().c_str());
     cs->redPrimary.x = redChroma[0];
     cs->redPrimary.y = redChroma[1];
     cs->greenPrimary.x = greenChroma[0];
@@ -82,7 +82,7 @@ GfColorSpace::GfColorSpace(const std::string& name,
 }
 
 // construct a custom colorspace from a 3x3 matrix and linearization parameters
-GfColorSpace::GfColorSpace(const std::string& name,
+GfColorSpace::GfColorSpace(TfToken name,
                            const GfMatrix3f &rgbToXYZ,
                            float gamma,
                            float linearBias,
@@ -93,7 +93,7 @@ GfColorSpace::GfColorSpace(const std::string& name,
     _data->colorSpace = std::shared_ptr<NcColorSpace>(new NcColorSpace());
     _data->constructedFromPrimaries = false;
     auto cs = _data->colorSpace.get();
-    cs->name = strdup(name.c_str());
+    cs->name = strdup(name.GetString().c_str());
     cs->gamma = gamma;
     cs->linearBias = linearBias;
     memcpy(cs->colorTransform.transform.m, rgbToXYZ.GetArray(), 9 * sizeof(float));
@@ -143,7 +143,7 @@ GfColor::GfColor()
 }
 
 // Construct from an rgb tuple and colorspace
-GfColor::GfColor(const GfVec3f &rgb, GfColorSpace colorSpace)
+GfColor::GfColor(const GfVec3f &rgb, const GfColorSpace& colorSpace)
 {
     _rgb = rgb;
     _colorSpace = std::make_shared<GfColorSpace>(colorSpace);
@@ -157,7 +157,7 @@ GfColor::GfColor(const GfColor& color)
 }
 
 // Construct a color from another color into the specified color space
-GfColor::GfColor(const GfColor &color, GfColorSpace colorSpace)
+GfColor::GfColor(const GfColor &color, const GfColorSpace& colorSpace)
 {
     NcRGB src = {color._rgb[0], color._rgb[1], color._rgb[2]};
     NcRGB dst = NcTransformColor(_colorSpace->_data->colorSpace.get(),

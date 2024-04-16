@@ -28,7 +28,7 @@
 /// \ingroup group_gf_BasicGeometry
 
 #include "pxr/pxr.h"
-#include "pxr/base/gf/vec2d.h"
+#include "pxr/base/gf/vec2f.h"
 #include "pxr/base/gf/matrix3f.h"
 #include "pxr/base/gf/api.h"
 #include "pxr/base/tf/span.h"
@@ -42,10 +42,12 @@ PXR_NAMESPACE_OPEN_SCOPE
 /// \enum GfColorSpace
 /// \ingroup group_gf_BasicGeometry
 ///
-/// Color spaces supported by Gf.
+/// Color spaces natively supported by Gf.
+/// The token names correspond to the canonical names defined
+/// by the OpenColorIO Nanocolor project
 ///
 /// ACEScg:           The Academy Color Encoding System, a color space designed
-///                     for cinematic content creation and exchange, using AP1 primaries
+///                     for cinematic content creation and exchange, with AP1 primaries
 /// Linear_AP1:       Alias for ACEScg. A linearized version of the ACEScg color space
 /// G18_AP1:          A color space with a 1.8 gamma and an AP1 primaries color gamut
 /// G22_AP1:          A color space with a 2.2 gamma and an AP1 primaries color gamut
@@ -60,14 +62,18 @@ PXR_NAMESPACE_OPEN_SCOPE
 /// Linear_DisplayP3: DisplayP3 gamut, and linear gamma
 /// Linear_sRGB:      sRGB gamut, linear gamma
 /// sRGB_Texture:     An sRGB color space optimized for texture mapping.
+/// sRGB:             A synonym for sRGB_Texture
 /// sRGB_DisplayP3:   sRGB color space adapted to the Display P3 primaries
 /// Linear_Rec2020:   Rec2020 gamut, and linear gamma
-
-// Note that the quoted names here correspond to the canonical names defined
-// by the OpenColorIO project
-
+/// CIEXYZ:           The CIE 1931 XYZ color space, a standard color space used
+///                     in color science
+///
+/// identity and raw are a utility color space that does not tranform the color
+///
+/// Colorspaces outside of the set may be defined.
 #define GF_COLORSPACE_CANONICAL_NAME_TOKENS  \
     ((Identity, "identity"))                 \
+    ((Raw, "raw"))                           \
     ((ACEScg, "acescg"))                     \
     ((AdobeRGB, "adobergb"))                 \
     ((LinearAdobeRGB, "lin_adobergb"))       \
@@ -83,12 +89,11 @@ PXR_NAMESPACE_OPEN_SCOPE
     ((LinearDisplayP3, "lin_displayp3"))     \
     ((LinearSRGB, "lin_srgb"))               \
     ((SRGBTexture, "srgb_texture"))          \
+    ((SRGB, "sRGB"))                         \
     ((SRGBDisplayP3, "srgb_displayp3"))      \
-    ((Custom, "custom"))
 
 TF_DECLARE_PUBLIC_TOKENS(GfColorspaceCanonicalName, GF_API, 
                                         GF_COLORSPACE_CANONICAL_NAME_TOKENS);
-
 
 /// \class GfColorSpace
 /// \ingroup group_gf_BasicGeometry
@@ -102,9 +107,8 @@ TF_DECLARE_PUBLIC_TOKENS(GfColorspaceCanonicalName, GF_API,
 /// introspection ~ the color space object is intended for color conversion
 /// operations on a GfColor.
 ///
-/// The color spaces supported by Gf are listed in GfColorspaceCanonicalName
-/// For historical compatibility, "raw" is treated as a synonym for "identity",
-/// and "sRGB" is treated as a synonym for "srgb_texture"
+/// The color spaces natively recognized by GfColorSpace are listed in 
+/// GfColorspaceCanonicalName.
 
 class GfColorSpace {
     friend class GfColor;
@@ -114,25 +118,24 @@ public:
     // construct from a GfColorspaceCanonicalName token
     GF_API explicit GfColorSpace(TfToken name);
     
-    // construct a custom colorspace from chromaticities, whitepoint,
-    // and linearization parameters.
-    GF_API explicit GfColorSpace(const std::string& name,
+    // construct a custom colorspace from raw values
+    GF_API explicit GfColorSpace(const TfToken name,
                                  const GfVec2f &redChroma,
                                  const GfVec2f &greenChroma,
                                  const GfVec2f &blueChroma,
                                  const GfVec2f &whitePoint,
-                                 float gamma,
-                                 float linearBias,
-                                 float K0,
-                                 float phi);
+                                 float gamma,       // gamma of log section
+                                 float linearBias,  // linear bias of log section
+                                 float K0,          // linear break point
+                                 float phi);        // slope of linear section
     
-    // construct a custom colorspace from a 3x3 matrix and linearization parameters
-    GF_API explicit GfColorSpace(const std::string& name,
+    // construct a colorspace from a 3x3 matrix and linearization parameters
+    GF_API explicit GfColorSpace(const TfToken name,
                                  const GfMatrix3f &rgbToXYZ,
-                                 float gamma,
-                                 float linearBias,
-                                 float K0,
-                                 float phi);
+                                 float gamma,       // gamma of log section
+                                 float linearBias,  // linear bias of log section
+                                 float K0,          // linear break point
+                                 float phi);        // slope of linear section
     
     GF_API TfToken GetName() const;
 
@@ -164,7 +167,8 @@ private:
 /// Various set and get methods are provided; these allow conversion
 /// between RGB and other color spaces.
 ///
-/// The color spaces supported by Gf are enumerated in GfColorSpace.
+/// The color spaces natively supported by Gf are enumerated in
+/// GfColorspaceCanonicalName.
 
 class GfColor {
 public:
@@ -172,40 +176,43 @@ public:
     GF_API GfColor();
     ~GfColor() = default;
 
-    /// Construct from a color from another color
-    GfColor(const GfColor&) = default;
-
-    /// Construct from an rgb tuple and colorspace
+    /// Construct a color from another color
     GF_API
-    GfColor(const GfVec3f &rgb, GfColorSpace colorSpace);
+    GfColor(const GfColor&);
+
+    /// Construct a color from an rgb tuple and colorspace
+    GF_API
+    GfColor(const GfVec3f &rgb, const GfColorSpace& colorSpace);
 
     /// Construct a color from another color into the specified color space
     GF_API
-    GfColor(const GfColor &color, GfColorSpace colorSpace);
+    GfColor(const GfColor &color, const GfColorSpace& colorSpace);
 
     /// Replace the color with the contents of the input
     GfColor(GfColor&&) noexcept = default;
 
-    /// Replace the color with the contents of the input
-    GfColor& operator=(const GfColor&) = default;
+    /// Overwrite the color with the contents of the input
+    GF_API
+    GfColor& operator=(const GfColor&);
 
     /// Replace the color with the contents of the input
     GfColor& operator=(GfColor&&) noexcept = default;
 
     /// Hash.
     friend inline size_t hash_value(GfColor const &vec) {
-        return TfHash::Combine(vec._rgb[0], vec._rgb[1], vec._rgb[2], vec._colorSpace->GetName());
+        return TfHash::Combine(vec._rgb[0], vec._rgb[1], vec._rgb[2], 
+                               vec._colorSpace->GetName());
     }
     
     /// Set the color from a CIEXYZ coordinate, adapting to the existing color space
     GF_API
     void SetFromCIEXYZ(const GfVec3f& xyz);
 
-    /// Set the color from blackbody temperature in Kelvin, adapting to the existing color space
+    /// Set the color from blackbody temperature in Kelvin, in the existing color space
     GF_API
     void SetFromBlackbodyKelvin(float kelvin, float luminosity);
 
-    // Set the color from a wavelength in nanometers, adapting to the existing color space
+    // Set the color from a wavelength in nanometers, in the existing color space
     GF_API
     void SetFromWavelengthNM(float nm);
 
@@ -242,7 +249,6 @@ public:
 /// Output a GfColor.
 /// \ingroup group_gf_DebuggingOutput
 GF_API std::ostream& operator<<(std::ostream &, GfColor const &);
-
 
 PXR_NAMESPACE_CLOSE_SCOPE
 
