@@ -26,6 +26,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
+#include <stdlib.h>
 
 #ifdef __SSE2__
 #include <xmmintrin.h>
@@ -36,13 +37,29 @@
 #include <arm_neon.h>
 #endif
 
-extern "C" {
-
 struct NcColorSpace {
     NcColorSpaceDescriptor desc;
     float K0, phi;
     NcM33f rgbToXYZ;
 };
+
+// convert linear to gamma
+static float nc_FromLinear(const NcColorSpace* cs, float t) {
+    const float gamma = cs->desc.gamma;
+    if (t < cs->K0 / cs->phi)
+        return t * cs->phi;
+    const float a = cs->desc.linearBias;
+    return (1.f + a) * powf(t, 1.f / gamma) - a;
+}
+
+// convert from gamma to linear
+static float nc_ToLinear(const NcColorSpace* cs, float t) {
+    const float gamma = cs->desc.gamma;
+    if (t < cs->K0)
+        return t / cs->phi;
+    const float a = cs->desc.linearBias;
+    return powf((t + a) / (1.f + a), gamma);
+}
 
 const char* Nc_acescg = "acescg";
 const char* Nc_adobergb = "adobergb";
@@ -65,7 +82,7 @@ const char* Nc_srgb_texture = "srgb_texture";
 
 NCAPI const char*  NcGetDescription(const NcColorSpace* cs) {
     if (!cs)
-        return nullptr;
+        return NULL;
 
     if (!strcmp(cs->desc.name, Nc_acescg))
         return "Academy Color Encoding System (ACEScg), a color space designed for computer graphics.";
@@ -109,8 +126,8 @@ NCAPI const char*  NcGetDescription(const NcColorSpace* cs) {
 void NcInitColorSpace(NcColorSpace* cs);
 
 // White point chromaticities.
-static const NcXYChromaticity _WpD65 = { 0.3127, 0.3290 };
-static const NcXYChromaticity _WpACES = { 0.32168, 0.33767 };
+#define _WpD65 (NcXYChromaticity) { 0.3127, 0.3290 }
+#define _WpACES (NcXYChromaticity) { 0.32168, 0.33767 }
 
 static NcColorSpace _colorSpaces[] = {
     {
@@ -321,7 +338,7 @@ const char** NcRegisteredColorSpaceNames()
     if (!registeredColorSpaces) {
         for (int i = 0; i < colorspaces; ++i)
             colorspaceNames[i] = _colorSpaces[i].desc.name;
-        colorspaceNames[colorspaces] = nullptr;
+        colorspaceNames[colorspaces] = NULL;
         registeredColorSpaces = colorspaces;
     }
     return colorspaceNames;
@@ -332,7 +349,7 @@ bool NcColorSpaceEqual(const NcColorSpace* cs1, const NcColorSpace* cs2) {
         return false;
     }
 
-    if (cs1->desc.name == nullptr || cs2->desc.name == nullptr) {
+    if (cs1->desc.name == NULL || cs2->desc.name == NULL) {
         return false;
     }
 
@@ -505,10 +522,10 @@ const NcColorSpace* NcCreateColorSpaceM33(const NcColorSpaceM33Descriptor* csd) 
     
     NcColorSpace* cs = (NcColorSpace*) calloc(sizeof(*cs), 0);
     cs->desc.name = strdup(csd->name);
-    cs->desc.redPrimary = {0,0,0};
-    cs->desc.greenPrimary = {0,0,0};
-    cs->desc.bluePrimary = {0,0,0};
-    cs->desc.whitePoint = {0,0};
+    cs->desc.redPrimary = (NcCIEXYZ){0,0,0};
+    cs->desc.greenPrimary = (NcCIEXYZ){0,0,0};
+    cs->desc.bluePrimary = (NcCIEXYZ){0,0,0};
+    cs->desc.whitePoint = (NcXYChromaticity){0,0};
     cs->desc.gamma = csd->gamma;
     cs->desc.linearBias = csd->linearBias;
     cs->rgbToXYZ = csd->rgbToXYZ;
@@ -516,48 +533,37 @@ const NcColorSpace* NcCreateColorSpaceM33(const NcColorSpaceM33Descriptor* csd) 
     return cs;
 }
 
+void NcFreeColorSpace(const NcColorSpace* cs) {
+    if (!cs)
+        return;
+    
+    free((void*)cs->desc.name);
+    free((void*)cs);
+}
 
 NcM33f NcGetRGBToCIEXYZMatrix(const NcColorSpace* cs) {
     if (!cs)
-        return {1,0,0, 0,1,0, 0,0,1};
-    
+        return (NcM33f) {1,0,0, 0,1,0, 0,0,1};
+
     return cs->rgbToXYZ;
 }
 
 NcM33f NcGetCIEXYZToRGBMatrix(const NcColorSpace* cs) {
     if (!cs)
-        return {1,0,0, 0,1,0, 0,0,1};
-    
+        return (NcM33f) {1,0,0, 0,1,0, 0,0,1};
+
     return NcM3ffInvert(NcGetRGBToCIEXYZMatrix(cs));
 }
 
 NcM33f GetRGBtoRGBMatrix(const NcColorSpace* src, const NcColorSpace* dst) {
-    auto t = NcM33fMultiply(NcM3ffInvert(NcGetRGBToCIEXYZMatrix(src)),
+    NcM33f t = NcM33fMultiply(NcM3ffInvert(NcGetRGBToCIEXYZMatrix(src)),
                                  NcGetCIEXYZToRGBMatrix(dst));
     return t;
 }
 
-// convert from gamma to linear by raising to gamma
-inline float nc_ToLinear(const NcColorSpace* cs, float t) {
-    const float gamma = cs->desc.gamma;
-    if (t < cs->K0)
-        return t / cs->phi;
-    const float a = cs->desc.linearBias;
-    return powf((t + a) / (1.f + a), gamma);
-}
-
-// convert linear to gamma by raising to 1/gamma
-inline float nc_FromLinear(const NcColorSpace* cs, float t) {
-    const float gamma = cs->desc.gamma;
-    if (t < cs->K0 / cs->phi)
-        return t * cs->phi;
-    const float a = cs->desc.linearBias;
-    return (1.f + a) * powf(t, 1.f / gamma) - a;
-}
-
 NcM33f NcGetRGBToRGBMatrix(const NcColorSpace* src, const NcColorSpace* dst) {
     if (!dst || !src) {
-        return {};
+        return (NcM33f){1,0,0,0,1,0,0,0,1};
     }
     
     NcM33f toXYZ = NcGetRGBToCIEXYZMatrix(src);
@@ -810,15 +816,16 @@ const NcColorSpace* NcGetNamedColorSpace(const char* name)
 // Note: This routine is exposed via NanocolorUtils, but the tables aren't
 // exported so the implementation is here.
 
-static bool CompareCIEXYZ(const NcCIEXYZ& a, const NcCIEXYZ& b, float threshold) {
-    return fabsf(a.x - b.x) < threshold &&
-    fabsf(a.y - b.y) < threshold &&
-    fabsf(a.z - b.z) < threshold;
+static bool CompareCIEXYZ(const NcCIEXYZ* a, const NcCIEXYZ* b, float threshold) {
+    return fabsf(a->x - b->x) < threshold &&
+           fabsf(a->y - b->y) < threshold &&
+           fabsf(a->z - b->z) < threshold;
 }
 
-static bool CompareCIEXYChromaticity(const NcXYChromaticity& a, const NcXYChromaticity& b, float threshold) {
-    return fabsf(a.x - b.x) < threshold &&
-    fabsf(a.y - b.y) < threshold;
+static bool CompareCIEXYChromaticity(const NcXYChromaticity* a,
+                                     const NcXYChromaticity* b, float threshold) {
+    return fabsf(a->x - b->x) < threshold &&
+           fabsf(a->y - b->y) < threshold;
 }
 
 // The main reason this exists is that OpenEXR encodes colorspaces via primaries
@@ -832,10 +839,10 @@ NCCONCAT(NCNAMESPACE, MatchLinearColorSpace)
 (NcCIEXYZ redPrimary, NcCIEXYZ greenPrimary, NcCIEXYZ bluePrimary,
  NcXYChromaticity  whitePoint, float threshold) {
     for (int i = 0; i < sizeof(_colorSpaces) / sizeof(NcColorSpace); ++i) {
-        if (CompareCIEXYZ(_colorSpaces[i].desc.redPrimary, redPrimary, threshold) &&
-            CompareCIEXYZ(_colorSpaces[i].desc.greenPrimary, greenPrimary, threshold) &&
-            CompareCIEXYZ(_colorSpaces[i].desc.bluePrimary, bluePrimary, threshold) &&
-            CompareCIEXYChromaticity(_colorSpaces[i].desc.whitePoint, whitePoint, threshold))
+        if (CompareCIEXYZ(&_colorSpaces[i].desc.redPrimary, &redPrimary, threshold) &&
+            CompareCIEXYZ(&_colorSpaces[i].desc.greenPrimary, &greenPrimary, threshold) &&
+            CompareCIEXYZ(&_colorSpaces[i].desc.bluePrimary, &bluePrimary, threshold) &&
+            CompareCIEXYChromaticity(&_colorSpaces[i].desc.whitePoint, &whitePoint, threshold))
             return _colorSpaces[i].desc.name;
     }
     return NULL;
@@ -866,5 +873,3 @@ void NcGetK0Phi(const NcColorSpace* cs, float* K0, float* phi) {
         *phi = cs->phi;
     }
 }
-
-} // extern "C"

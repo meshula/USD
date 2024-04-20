@@ -25,6 +25,8 @@
 #ifndef PXR_BASE_GF_NC_NANOCOLOR_H
 #define PXR_BASE_GF_NC_NANOCOLOR_H
 
+#include <stdbool.h>
+
 // NCNAMESPACE is provided to introduce a namespace to the symbols
 // so that multiple libraries can include the nanocolor library
 // without symbol conflicts. The default is nc_1_0_ to indicate the
@@ -176,17 +178,18 @@ NCEXTERNC const char* Nc_srgb_texture;
 // Recommended: Foo_nc_ to embed nanocolor in library Foo.
 #define NcCreateColorSpace           NCCONCAT(NCNAMESPACE, InitColorSpace)
 #define NcCreateColorSpaceM33        NCCONCAT(NCNAMESPACE, InitColorSpaceM33)
-#define NcColorSpaceEqual      NCCONCAT(NCNAMESPACE, ColorSpaceEqual)
+#define NcFreeColorSpace             NCCONCAT(NCNAMESPACE, FreeColorSpace)
+#define NcColorSpaceEqual            NCCONCAT(NCNAMESPACE, ColorSpaceEqual)
 #define NcRegisteredColorSpaceNames  NCCONCAT(NCNAMESPACE, RegisteredColorSpaceNames)
-#define NcGetNamedColorSpace   NCCONCAT(NCNAMESPACE, GetNamedColorSpace)
-#define NcGetRGBToCIEXYZMatrix NCCONCAT(NCNAMESPACE, GetRGBtoCIEXYZMatrix)
-#define NcGetCIEXYZToRGBMatrix NCCONCAT(NCNAMESPACE, etCIEXYZtoRGBMatrix)
-#define NcGetRGBToRGBMatrix    NCCONCAT(NCNAMESPACE, GetRGBToRGBMatrix)
-#define NcTransformColor       NCCONCAT(NCNAMESPACE, TransformColor)
+#define NcGetNamedColorSpace         NCCONCAT(NCNAMESPACE, GetNamedColorSpace)
+#define NcGetRGBToCIEXYZMatrix       NCCONCAT(NCNAMESPACE, GetRGBtoCIEXYZMatrix)
+#define NcGetCIEXYZToRGBMatrix       NCCONCAT(NCNAMESPACE, etCIEXYZtoRGBMatrix)
+#define NcGetRGBToRGBMatrix          NCCONCAT(NCNAMESPACE, GetRGBToRGBMatrix)
+#define NcTransformColor             NCCONCAT(NCNAMESPACE, TransformColor)
 #define NcTransformColorsWithAlpha   NCCONCAT(NCNAMESPACE, TransformColorsWithAlpha)
 #define NcTransformColors            NCCONCAT(NCNAMESPACE, TransformColors)
-#define NcRGBToXYZ             NCCONCAT(NCNAMESPACE, RGBToXYZ)
-#define NcXYZToRGB             NCCONCAT(NCNAMESPACE, XYZToRGB)
+#define NcRGBToXYZ                   NCCONCAT(NCNAMESPACE, RGBToXYZ)
+#define NcXYZToRGB                   NCCONCAT(NCNAMESPACE, XYZToRGB)
 #define NcGetColorSpaceDescriptor    NCCONCAT(NCNAMESPACE, GetColorSpaceDescriptor)
 #define NcGetColorSpaceM33Descriptor NCCONCAT(NCNAMESPACE, GetColorSpaceM33Descriptor)
 #define NcGetK0Phi                   NCCONCAT(NCNAMESPACE, GetK0Phi)
@@ -194,6 +197,7 @@ NCEXTERNC const char* Nc_srgb_texture;
 
 NCAPI const NcColorSpace* NcCreateColorSpace(const NcColorSpaceDescriptor* cs);
 NCAPI const NcColorSpace* NcCreateColorSpaceM33(const NcColorSpaceM33Descriptor* cs);
+NCAPI void          NcFreeColorSpace(const NcColorSpace* cs);
 NCAPI const char**  NcRegisteredColorSpaceNames(void);
 NCAPI const NcColorSpace* NcGetNamedColorSpace(const char* name);
 NCAPI NcM33f        NcGetRGBToCIEXYZMatrix(const NcColorSpace* cs);
@@ -216,7 +220,7 @@ NCAPI bool          NcGetColorSpaceDescriptor(const NcColorSpace* cs, NcColorSpa
 NCAPI bool          NcGetColorSpaceM33Descriptor(const NcColorSpace* cs, NcColorSpaceM33Descriptor*);
 
 // returns a string describing the color space.
-NCAPI const char*  NcGetDescription(const NcColorSpace* cs);
+NCAPI const char*   NcGetDescription(const NcColorSpace* cs);
 
 NCAPI void          NcGetK0Phi(const NcColorSpace* cs, float* K0, float* phi);
 

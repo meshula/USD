@@ -35,7 +35,7 @@
 #include "pxr/base/tf/staticTokens.h"
 #include "pxr/base/tf/hash.h"
 
-#include <float.h>
+#include <iostream>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -92,11 +92,11 @@ PXR_NAMESPACE_OPEN_SCOPE
     ((SRGB, "sRGB"))                         \
     ((SRGBDisplayP3, "srgb_displayp3"))      \
 
-TF_DECLARE_PUBLIC_TOKENS(GfColorspaceCanonicalName, GF_API, 
+TF_DECLARE_PUBLIC_TOKENS(GfColorSpaceCanonicalName, GF_API, 
                                         GF_COLORSPACE_CANONICAL_NAME_TOKENS);
 
 /// \class GfColorSpace
-/// \ingroup group_gf_BasicGeometry
+/// \ingroup group_gf_Color
 ///
 /// Basic type: ColorSpace
 ///
@@ -112,143 +112,250 @@ TF_DECLARE_PUBLIC_TOKENS(GfColorspaceCanonicalName, GF_API,
 
 class GfColorSpace {
     friend class GfColor;
-public:
-    ~GfColorSpace() = default;
+public:    
+    /// Construct a GfColorSpace from a canonical name token.
+    ///
+    /// \param name The canonical name token of the color space.
+    GF_API explicit GfColorSpace(const TfToken& name);
     
-    // construct from a GfColorspaceCanonicalName token
-    GF_API explicit GfColorSpace(TfToken name);
-    
-    // construct a custom colorspace from raw values
-    GF_API explicit GfColorSpace(const TfToken name,
+    /// Construct a custom color space from raw values.
+    ///
+    /// \param name The name token of the color space.
+    /// \param redChroma The red chromaticity coordinates.
+    /// \param greenChroma The green chromaticity coordinates.
+    /// \param blueChroma The blue chromaticity coordinates.
+    /// \param whitePoint The white point chromaticity coordinates.
+    /// \param gamma The gamma value of the log section.
+    /// \param linearBias The linear bias of the log section.
+    /// \param K0 The linear break point.
+    /// \param phi The slope of the linear section.
+    GF_API explicit GfColorSpace(const TfToken& name,
                                  const GfVec2f &redChroma,
                                  const GfVec2f &greenChroma,
                                  const GfVec2f &blueChroma,
                                  const GfVec2f &whitePoint,
-                                 float gamma,       // gamma of log section
-                                 float linearBias,  // linear bias of log section
-                                 float K0,          // linear break point
-                                 float phi);        // slope of linear section
+                                 float gamma,
+                                 float linearBias);
     
-    // construct a colorspace from a 3x3 matrix and linearization parameters
-    GF_API explicit GfColorSpace(const TfToken name,
+    /// Construct a color space from a 3x3 matrix and linearization parameters.
+    ///
+    /// \param name The name token of the color space.
+    /// \param rgbToXYZ The RGB to XYZ conversion matrix.
+    /// \param gamma The gamma value of the log section.
+    /// \param linearBias The linear bias of the log section.
+    /// \param K0 The linear break point.
+    /// \param phi The slope of the linear section.
+    GF_API explicit GfColorSpace(const TfToken& name,
                                  const GfMatrix3f &rgbToXYZ,
-                                 float gamma,       // gamma of log section
-                                 float linearBias,  // linear bias of log section
-                                 float K0,          // linear break point
-                                 float phi);        // slope of linear section
+                                 float gamma,
+                                 float linearBias);
+
+    /// Destructor.
+    ~GfColorSpace() = default;
     
+    /// Get the name of the color space.
+    ///
+    /// \return The name of the color space.
     GF_API TfToken GetName() const;
 
+    /// Check if two color spaces are equal.
+    ///
+    /// \param lh The left-hand side color space.
+    /// \return True if the color spaces are equal, false otherwise.
     GF_API bool operator ==(const GfColorSpace &lh) const;
-    bool operator !=(const GfColorSpace &lh) const { return !(*this == lh); }
+    
+    /// Check if two color spaces are not equal.
+    ///
+    /// \param rh The rigt-hand side color space.
+    /// \return True if the color spaces are not equal, false otherwise.
+    bool operator !=(const GfColorSpace &rh) const { return !(*this == rh); }
 
-    /// Convert a packed array of RGB values from one color space to another
-    GF_API
-    void ConvertRGB(const GfColorSpace& to, TfSpan<const float> rgb);
+    /// Convert in place a packed array of RGB values from one color space to another.
+    ///
+    /// \param to The target color space.
+    /// \param rgb The packed array of RGB values to convert.
+    GF_API void ConvertRGB(const GfColorSpace& to, TfSpan<float> rgb);
 
-    /// Convert a packed array of RGBA values from one color space to another
-    GF_API
-    void ConvertRGBA(const GfColorSpace& to, TfSpan<const float> rgba);
+    /// Convert in place a packed array of RGBA values from one color space to another.
+    ///
+    /// \param to The target color space.
+    /// \param rgba The packed array of RGBA values to convert.
+    GF_API void ConvertRGBA(const GfColorSpace& to, TfSpan<float> rgba);
+
+    /// Get the RGB to CIEXYZ conversion matrix.
+    ///
+    /// \return The RGB to CIEXYZ conversion matrix.
+    GF_API GfMatrix3f GetRGBToXYZ() const;
+
+    /// Get the gamma value of the color space.
+    ///
+    /// \return The gamma value of the color space.
+    GF_API float GetGamma() const;
+
+    /// Get the linear bias of the color space.
+    ///
+    /// \return The linear bias of the color space.
+    GF_API float GetLinearBias() const;
+
+    /// Get the computed K0 and Phi values for use in the transfer function.
+    ///
+    GF_API std::pair<float, float> GetTransferFunctionParams() const;
+
+    /// Indicate if the color space was constructed from primaries.
+    ///
+    /// \return True if the color space was constructed from primaries, false otherwise.
+    GF_API bool IsConstructedFromPrimaries() const;
+
+    /// Get the chromaticity coordinates and white point if the color space
+    /// was constructed from primaries.
+    ///
+    /// \return The chromaticity coordinates and white point; 
+    /// an empty optional if the color space was not constructed from primaries.
+    GF_API std::optional<std::tuple<GfVec2f, GfVec2f, GfVec2f, GfVec2f>> GetPrimaries() const;
+
+    /// TfHash function for GfColor.
+    /// \param vec The GfColor object to hash.
+    /// \return The hash value.
+    template <class HashState>
+    friend void
+    TfHashAppend(HashState &h, GfColorSpace const &cs) {
+        h.Append(HashData(cs._data.get()));
+    }
 
 private:
     struct Data;
     std::shared_ptr<Data> _data;
+
+    // Hash function for the private data
+    GF_API static size_t HashData(Data*);
 };
 
+
 /// \class GfColor
-/// \ingroup group_gf_BasicGeometry
-///
+/// \brief Represents a color in a specific color space.
+/// \ingroup group_gf_Color
+/// 
 /// Basic type: Color
 ///
-/// This class represents a color, consisting of three components: red,
-/// green, and blue.  It also contains a color space, which is used to
-/// interpret the RGB values.
+/// The GfColor class represents a color in a specific color space. It provides
+/// various methods for constructing, manipulating, and retrieving color values.
 ///
-/// Various set and get methods are provided; these allow conversion
-/// between RGB and other color spaces.
+/// The color values are stored as an RGB tuple and are associated with a color
+/// space. The color space determines the interpretation of the RGB values.
 ///
-/// The color spaces natively supported by Gf are enumerated in
-/// GfColorspaceCanonicalName.
+/// This class provides methods for setting and getting color values, converting
+/// between color spaces, normalizing luminance, and comparing colors.
 
 class GfColor {
 public:
-    /// The default constructor creates white, in the "lin_rec709" space
+    /// The default constructor creates white, in the "lin_rec709" color space.
     GF_API GfColor();
-    ~GfColor() = default;
 
-    /// Construct a color from another color
-    GF_API
-    GfColor(const GfColor&);
+    /// Construct a color from another color.
+    /// \param color The color to copy.
+    GfColor(const GfColor& color) = default;
 
-    /// Construct a color from an rgb tuple and colorspace
+    /// Construct a color from an RGB tuple and color space.
+    /// \param rgb The RGB tuple.
+    /// \param colorSpace The color space.
     GF_API
     GfColor(const GfVec3f &rgb, const GfColorSpace& colorSpace);
 
-    /// Construct a color from another color into the specified color space
+    /// Construct a color from another color into the specified color space.
+    /// \param color The color to copy.
+    /// \param colorSpace The color space.
     GF_API
     GfColor(const GfColor &color, const GfColorSpace& colorSpace);
 
-    /// Replace the color with the contents of the input
-    GfColor(GfColor&&) noexcept = default;
+    /// Move constructor.
+    /// \param color The color to move.
+    GfColor(GfColor&& color) noexcept = default;
 
-    /// Overwrite the color with the contents of the input
-    GF_API
-    GfColor& operator=(const GfColor&);
+    /// Copy assignment operator.
+    /// \param color The color to copy.
+    /// \return A reference to the assigned color.
+    GfColor& operator=(const GfColor& color) noexcept = default;
 
-    /// Replace the color with the contents of the input
-    GfColor& operator=(GfColor&&) noexcept = default;
+    /// Move assignment operator.
+    /// \param color The color to move.
+    /// \return A reference to the assigned color.
+    GfColor& operator=(GfColor&& color) noexcept = default;
 
-    /// Hash.
-    friend inline size_t hash_value(GfColor const &vec) {
-        return TfHash::Combine(vec._rgb[0], vec._rgb[1], vec._rgb[2], 
-                               vec._colorSpace->GetName());
+    /// TfHash function for GfColor.
+    /// \param vec The GfColor object to hash.
+    /// \return The hash value.
+    template <class HashState>
+    friend void
+    TfHashAppend(HashState &h, GfColor const &color) {
+        h.Append(color._rgb, color._colorSpace);
     }
-    
-    /// Set the color from a CIEXYZ coordinate, adapting to the existing color space
+
+    /// Set the color from a CIEXYZ coordinate, adapting to the existing color space.
+    /// \param xyz The CIEXYZ coordinate.
     GF_API
     void SetFromCIEXYZ(const GfVec3f& xyz);
 
-    /// Set the color from blackbody temperature in Kelvin, in the existing color space
+    /// Set the color from blackbody temperature in Kelvin, in the existing color space.
+    /// \param kelvin The blackbody temperature in Kelvin.
+    /// \param luminosity The luminosity.
     GF_API
     void SetFromBlackbodyKelvin(float kelvin, float luminosity);
 
-    // Set the color from a wavelength in nanometers, in the existing color space
+    /// Set the color from a wavelength in nanometers, in the existing color space.
+    /// \param nm The wavelength in nanometers.
     GF_API
     void SetFromWavelengthNM(float nm);
 
-    /// Get the RGB tuple
+    /// Get the RGB tuple.
+    /// \return The RGB tuple.
     GfVec3f GetRGB() const { return _rgb; }
 
-    /// Get the color space
+    /// Get the color space.
+    /// \return The color space.
     GfColorSpace GetColorSpace() const { return _colorSpace; }
 
-    /// Get the CIEXYZ coordinate of the color
+    /// Get the CIEXYZ coordinate of the color.
+    /// \return The CIEXYZ coordinate.
     GF_API
     GfVec3f GetCIEXYZ() const;
 
-    /// Return the color's RGB values, normalized to a specified luminance
+    /// Return the color's RGB values, normalized to a specified luminance.
+    /// \param luminance The specified luminance.
+    /// \return The normalized color.
     GF_API
-    GfColor NormalizedLuminance(float) const;
+    GfColor NormalizedLuminance(float luminance) const;
 
-    /// Normalize the color to a specified luminance
+    /// Normalize the color to a specified luminance.
+    /// \param luminance The specified luminance.
+    /// \return A reference to the normalized color.
     GF_API
-    void NormalizeLuminance(float);
+    GfColor& NormalizeLuminance(float luminance);
 
-    bool operator ==(const GfColor &l) const {
-        return _rgb == l._rgb && *_colorSpace == *l._colorSpace;
-    }
-    bool operator !=(const GfColor &r) const {
-	    return ! (*this == r);
-    }
+    /// Equality operator.
+    /// \param l The left-hand side color.
+    /// \return True if the colors are equal, false otherwise.
+    bool operator ==(const GfColor &l) const;
 
-  private:
-    GfVec3f _rgb;
-    GfColorSpace _colorSpace;
+    /// Inequality operator.
+    /// \param r The right-hand side color.
+    /// \return True if the colors are not equal, false otherwise.
+    bool operator !=(const GfColor &r) const;
+
+private:
+    GfColorSpace _colorSpace; ///< The color space.
+    GfVec3f _rgb; ///< The RGB tuple.
 };
 
 /// Output a GfColor.
 /// \ingroup group_gf_DebuggingOutput
-GF_API std::ostream& operator<<(std::ostream &, GfColor const &);
+/// @brief Stream insertion operator for outputting GfColor objects to an output stream.
+///
+/// This operator allows GfColor objects to be written to an output stream.
+///
+/// @param os The output stream to write to.
+/// @param color The GfColor object to be outputted.
+/// @return The output stream after writing the GfColor object.
+std::ostream& operator<<(std::ostream &, GfColor const &);
 
 PXR_NAMESPACE_CLOSE_SCOPE
 

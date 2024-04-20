@@ -77,8 +77,8 @@ pxr_library(gf
         traits.h
 
     CPPFILES
-        nc/Nanocolor.cpp
-        nc/NanocolorUtils.cpp
+        nc/Nanocolor.c
+        nc/NanocolorUtils.c
 
     PRIVATE_CLASSES
         ostreamHelpers

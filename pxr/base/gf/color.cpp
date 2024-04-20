@@ -19,10 +19,11 @@
 #include "pxr/base/gf/ostreamHelpers.h"
 #include "pxr/base/gf/vec3f.h"
 #include "pxr/base/tf/enum.h"
+#include "pxr/base/tf/hash.h"
 #include "pxr/base/tf/registryManager.h"
 #include "pxr/base/tf/type.h"
-#include "nc/Nanocolor.h"
-#include "nc/NanocolorUtils.h"
+#include "nc/nanocolor.h"
+#include "nc/nanocolorUtils.h"
 #include <mutex>
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -31,96 +32,129 @@ TF_REGISTRY_FUNCTION(TfType) {
     TfType::Define<GfColor>();
 }
 
-TF_DEFINE_PUBLIC_TOKENS(GfColorspaceCanonicalName, GF_rgbSPACE_CANONICAL_NAME_TOKENS);
+TF_DEFINE_PUBLIC_TOKENS(GfColorSpaceCanonicalName, GF_rgbSPACE_CANONICAL_NAME_TOKENS);
 
 struct GfColorSpace::Data
 {
-    std::shared_ptr<NcColorSpace> colorSpace;
-    bool constructedFromPrimaries;
+    ~Data() {
+        NcFreeColorSpace(colorSpace);
+    }
+
+    const NcColorSpace* colorSpace = nullptr;
+    bool constructedFromPrimaries = false;
 };
-GfColorSpace::GfColorSpace(TfToken name)
+
+size_t GfColorSpace::HashData(GfColorSpace::Data* d) {
+    if (!d) {
+        return 0;
+    }
+    NcColorSpaceM33Descriptor desc;
+    if (!NcGetColorSpaceM33Descriptor(d->colorSpace, &desc)) {
+        return 0;
+    }
+
+    return TfHash::Combine(TfHashCString()(desc.name),
+                           d->constructedFromPrimaries,
+                           desc.rgbToXYZ.m[0], desc.rgbToXYZ.m[1], desc.rgbToXYZ.m[2],
+                           desc.rgbToXYZ.m[3], desc.rgbToXYZ.m[4], desc.rgbToXYZ.m[5],
+                           desc.rgbToXYZ.m[6], desc.rgbToXYZ.m[7], desc.rgbToXYZ.m[8],
+                           desc.gamma, desc.linearBias);
+}
+
+GfColorSpace::GfColorSpace(const TfToken& name)
 : _data(new Data())
 {
-    _data->colorSpace = std::shared_ptr<NcColorSpace>(new NcColorSpace());
-    NcColorSpace nccs = NcGetNamedColorSpace(name.GetString().c_str());
-    if (nccs.name == nullptr) {
-        nccs = NcGetNamedColorSpace("identity");
+    _data->colorSpace = NcGetNamedColorSpace(name.GetString().c_str());
+    if (_data->colorSpace == nullptr) {
+        // A color space constructed with a name that is not a registered name
+        // should function like an identity color space; the only reason to do
+        // this is to have a sentinel color space meant for comparison and
+        // hashing.
+        NcColorSpaceM33Descriptor identity;
+        identity.name = strdup(name.GetString().c_str());
+        identity.rgbToXYZ = { 1.0f, 0.0f, 0.0f,
+                              0.0f, 1.0f, 0.0f,
+                              0.0f, 0.0f, 1.0f };
+        identity.gamma = 1.0f;
+        identity.linearBias = 0.0f;
+        _data->colorSpace = NcCreateColorSpaceM33(&identity);
+        _data->constructedFromPrimaries = false;
     }
-    *_data->colorSpace = nccs;
 }
 
 // construct a custom colorspace from raw values
-GfColorSpace::GfColorSpace(TfToken name,
+GfColorSpace::GfColorSpace(const TfToken& name,
                            const GfVec2f &redChroma,
                            const GfVec2f &greenChroma,
                            const GfVec2f &blueChroma,
                            const GfVec2f &whitePoint,
                            float gamma,
-                           float linearBias,
-                           float K0,
-                           float phi)
+                           float linearBias)
 : _data(new Data())
 {
-    _data->colorSpace = std::shared_ptr<NcColorSpace>(new NcColorSpace());
+    NcColorSpaceDescriptor desc;
+    desc.name = strdup(name.GetString().c_str());
+    desc.redPrimary.x = redChroma[0];
+    desc.redPrimary.y = redChroma[1];
+    desc.greenPrimary.x = greenChroma[0];
+    desc.greenPrimary.y = greenChroma[1];
+    desc.bluePrimary.x = blueChroma[0];
+    desc.bluePrimary.y = blueChroma[1];
+    desc.whitePoint.x = whitePoint[0];
+    desc.whitePoint.y = whitePoint[1];
+    desc.gamma = gamma;
+    desc.linearBias = linearBias;
+    _data->colorSpace = NcCreateColorSpace(&desc);
     _data->constructedFromPrimaries = true;
-    auto cs = _data->colorSpace.get();
-    cs->name = strdup(name.GetString().c_str());
-    cs->redPrimary.x = redChroma[0];
-    cs->redPrimary.y = redChroma[1];
-    cs->greenPrimary.x = greenChroma[0];
-    cs->greenPrimary.y = greenChroma[1];
-    cs->bluePrimary.x = blueChroma[0];
-    cs->bluePrimary.y = blueChroma[1];
-    cs->whitePoint.x = whitePoint[0];
-    cs->whitePoint.y = whitePoint[1];
-    cs->gamma = gamma;
-    cs->linearBias = linearBias;
-    cs->colorTransform.transfer.gamma = gamma;
-    cs->colorTransform.transfer.linearBias = linearBias;
-    cs->colorTransform.transfer.K0 = K0;
-    cs->colorTransform.transfer.phi = phi;
 }
 
 // construct a custom colorspace from a 3x3 matrix and linearization parameters
-GfColorSpace::GfColorSpace(TfToken name,
+GfColorSpace::GfColorSpace(const TfToken& name,
                            const GfMatrix3f &rgbToXYZ,
                            float gamma,
-                           float linearBias,
-                           float K0,
-                           float phi)
+                           float linearBias)
 : _data(new Data())
 {
-    _data->colorSpace = std::shared_ptr<NcColorSpace>(new NcColorSpace());
+    NcColorSpaceM33Descriptor desc;
+    desc.name = strdup(name.GetString().c_str());
+    desc.rgbToXYZ.m[0] = rgbToXYZ[0][0];
+    desc.rgbToXYZ.m[1] = rgbToXYZ[0][1];
+    desc.rgbToXYZ.m[2] = rgbToXYZ[0][2];
+    desc.rgbToXYZ.m[3] = rgbToXYZ[1][0];
+    desc.rgbToXYZ.m[4] = rgbToXYZ[1][1];
+    desc.rgbToXYZ.m[5] = rgbToXYZ[1][2];
+    desc.rgbToXYZ.m[6] = rgbToXYZ[2][0];
+    desc.rgbToXYZ.m[7] = rgbToXYZ[2][1];
+    desc.rgbToXYZ.m[8] = rgbToXYZ[2][2];
+    desc.gamma = gamma;
+    desc.linearBias = linearBias;
+    _data->colorSpace = NcCreateColorSpaceM33(&desc);
     _data->constructedFromPrimaries = false;
-    auto cs = _data->colorSpace.get();
-    cs->name = strdup(name.GetString().c_str());
-    cs->gamma = gamma;
-    cs->linearBias = linearBias;
-    memcpy(cs->colorTransform.transform.m, rgbToXYZ.GetArray(), 9 * sizeof(float));
-    cs->colorTransform.transfer.gamma = gamma;
-    cs->colorTransform.transfer.linearBias = linearBias;
-    cs->colorTransform.transfer.K0 = K0;
-    cs->colorTransform.transfer.phi = phi;
 }
+
 
 bool GfColorSpace::operator==(const GfColorSpace &lh) const
 {
-    return NcColorSpaceEqual(_data->colorSpace.get(), lh._data->colorSpace.get());
+    return NcColorSpaceEqual(_data->colorSpace, lh._data->colorSpace);
 }
 
 /// Convert a packed array of RGB values from one color space to another
-void GfColorSpace::ConvertRGB(const GfColorSpace& to, TfSpan<const float> rgb) {
+void GfColorSpace::ConvertRGB(const GfColorSpace& to, TfSpan<float> rgb) {
 
 }
 
 /// Convert a packed array of RGBA values from one color space to another
-void GfColorSpace::ConvertRGBA(const GfColorSpace& to, TfSpan<const float> rgba) {
+void GfColorSpace::ConvertRGBA(const GfColorSpace& to, TfSpan<float> rgba) {
 
 }
 
 TfToken GfColorSpace::GetName() const
 {
-    return TfToken(_data->colorSpace->name);
+    NcColorSpaceM33Descriptor desc;
+    if (!NcGetColorSpaceM33Descriptor(_data->colorSpace, &desc)) {
+        return TfToken();
+    }
+    return TfToken(desc.name);
 }
 
 std::ostream& 
@@ -131,62 +165,38 @@ operator<<(std::ostream &out, GfColor const &v)
         << Gf_OstreamHelperP(rgb[0]) << ", " 
         << Gf_OstreamHelperP(rgb[1]) << ", " 
         << Gf_OstreamHelperP(rgb[2]) << ", "
-        << Gf_OstreamHelperP(v.GetColorSpace()->GetName().GetString()) << ')';
+        << Gf_OstreamHelperP(v.GetColorSpace().GetName().GetString()) << ')';
 }
 
 // The default constructor creates white, in the "lin_rec709" space
 GfColor::GfColor()
+: _colorSpace(GfColorSpaceCanonicalName->LinearRec709)
 {
     _rgb = GfVec3f(1.0f, 1.0f, 1.0f);
-    _colorSpace = std::make_shared<GfColorSpace>(
-                             GfColorspaceCanonicalName->LinearRec709);
 }
 
 // Construct from an rgb tuple and colorspace
 GfColor::GfColor(const GfVec3f &rgb, const GfColorSpace& colorSpace)
+: _colorSpace(colorSpace)
 {
     _rgb = rgb;
-    _colorSpace = std::make_shared<GfColorSpace>(colorSpace);
-}
-
-// Construct from a color from the input color,
-GfColor::GfColor(const GfColor& color)
-{
-    _rgb = color._rgb;
-    _colorSpace = color._colorSpace;
 }
 
 // Construct a color from another color into the specified color space
 GfColor::GfColor(const GfColor &color, const GfColorSpace& colorSpace)
+: _colorSpace(colorSpace)
 {
     NcRGB src = {color._rgb[0], color._rgb[1], color._rgb[2]};
-    NcRGB dst = NcTransformColor(_colorSpace->_data->colorSpace.get(),
-                                 colorSpace._data->colorSpace.get(), src);
+    NcRGB dst = NcTransformColor(_colorSpace._data->colorSpace,
+                                 colorSpace._data->colorSpace, src);
     _rgb = GfVec3f(dst.r, dst.g, dst.b);
-    _colorSpace = std::make_shared<GfColorSpace>(colorSpace);
-}
-
-// Replace the color with the contents of the input
-GfColor& GfColor::operator=(const GfColor& color)
-{
-    _rgb = color._rgb;
-    _colorSpace = color._colorSpace;
-    return *this;
-}
-
-// Replace the color with the contents of the input
-GfColor& GfColor::operator=(GfColor&& color) noexcept
-{
-    _rgb = std::move(color._rgb);
-    _colorSpace = std::move(color._colorSpace);
-    return *this;
 }
 
 // Set the color from a CIEXYZ coordinate, adapting to the existing color space
 void GfColor::SetFromCIEXYZ(const GfVec3f& xyz)
 {
     NcCIEXYZ ncxyz = { xyz[0], xyz[1], xyz[2] };
-    NcRGB dst = NcXYZToRGB(_colorSpace->_data->colorSpace.get(), ncxyz);
+    NcRGB dst = NcXYZToRGB(_colorSpace._data->colorSpace, ncxyz);
     _rgb = GfVec3f(dst.r, dst.g, dst.b);
 }
 
@@ -195,7 +205,7 @@ void GfColor::SetFromCIEXYZ(const GfVec3f& xyz)
 void GfColor::SetFromBlackbodyKelvin(float kelvin, float luminosity)
 {
     NcCIEXYZ xyz = NcKelvinToXYZ(kelvin, luminosity);
-    NcRGB dst = NcXYZToRGB(_colorSpace->_data->colorSpace.get(), xyz);
+    NcRGB dst = NcXYZToRGB(_colorSpace._data->colorSpace, xyz);
     _rgb = GfVec3f(dst.r, dst.g, dst.b);
 }
 
@@ -204,7 +214,7 @@ void GfColor::SetFromBlackbodyKelvin(float kelvin, float luminosity)
 void GfColor::SetFromWavelengthNM(float nm)
 {
     NcCIEXYZ xyz = NcCIE1931ColorFromWavelength(nm, false);
-    NcRGB dst = NcXYZToRGB(_colorSpace->_data->colorSpace.get(), xyz);
+    NcRGB dst = NcXYZToRGB(_colorSpace._data->colorSpace, xyz);
     _rgb = GfVec3f(dst.r, dst.g, dst.b);
 }
 
@@ -212,7 +222,7 @@ void GfColor::SetFromWavelengthNM(float nm)
 GfVec3f GfColor::GetCIEXYZ() const
 {
     NcRGB src = {_rgb[0], _rgb[1], _rgb[2]};
-    NcCIEXYZ dst = NcRGBToXYZ(_colorSpace->_data->colorSpace.get(), src);
+    NcCIEXYZ dst = NcRGBToXYZ(_colorSpace._data->colorSpace, src);
     return GfVec3f(dst.x, dst.y, dst.z);
 }
 
@@ -225,12 +235,13 @@ GfColor GfColor::NormalizedLuminance(float luminance) const
 }
 
 // Normalize the color to a specified luminance
-void GfColor::NormalizeLuminance(float luminance)
+GfColor& GfColor::NormalizeLuminance(float luminance)
 {
     NcRGB src = {_rgb[0], _rgb[1], _rgb[2]};
-    NcCIEXYZ dst = NcRGBToXYZ(_colorSpace->_data->colorSpace.get(), src);
+    NcCIEXYZ dst = NcRGBToXYZ(_colorSpace._data->colorSpace, src);
     dst = NcNormalizeXYZ(dst);
     _rgb = GfVec3f(dst.x * luminance, dst.y * luminance, dst.z * luminance);
+    return *this;
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE
