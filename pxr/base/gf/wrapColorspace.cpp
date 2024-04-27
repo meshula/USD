@@ -25,16 +25,18 @@
 
 #include "pxr/pxr.h"
 #include "pxr/base/gf/color.h"
-
+/*
 #include "pxr/base/gf/pyBufferUtils.h"
 
 #include "pxr/base/tf/hash.h"
 #include "pxr/base/tf/pyContainerConversions.h"
 #include "pxr/base/tf/pyUtils.h"
 #include "pxr/base/tf/stringUtils.h"
+*/
 #include "pxr/base/tf/wrapTypeHelpers.h"
 
 #include <boost/python/class.hpp>
+/*
 #include <boost/python/def.hpp>
 #include <boost/python/make_constructor.hpp>
 #include <boost/python/operators.hpp>
@@ -42,12 +44,10 @@
 #include <boost/python/return_arg.hpp>
 #include <boost/python/tuple.hpp>
 #include <boost/python/slice.hpp>
-
+*/
 #include <string>
 
 using namespace boost::python;
-
-using std::string;
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -58,8 +58,8 @@ static string __repr__(GfColorspace const &self)
     GfVec3f v = self.GetRGB();
     string colorSpaceName = self.GetColorSpace()->GetName().GetString();
     return TF_PY_REPR_PREFIX + 
-        TfStringPrintf("Color(%f, %f, %f, %s)", 
-                              v[0], v[1], v[2], colorSpaceName.c_str());
+        TfStringPrintf("ColorSpace(%s)", 
+                              TfPyRepr(colorSpaceName).c_str());
 }
 
 static size_t __hash__(GfColor const &self) 
@@ -69,30 +69,27 @@ static size_t __hash__(GfColor const &self)
 
 } // anon
 
-void wrapColor()
+void wrapColorSpace()
 {
-    typedef GfColor This;
-    typedef GfColorSpace CS;
+    typedef GfColorSpace This;
 
     scope thisScope = 
-        class_<This>("Color", "Basic color class", init<>())
+        class_<This>("ColorSpace")
             .def(init<>())
-            .def(init<const This&>())
-            .def(init<const GfVec3f&, CS>())
-            .def(init<const This&, CS>())
-            .def("SetFromCIEXYZ", &This::SetFromCIEXYZ)
-            .def("SetFromWavelengthNM", &This::SetFromWavelengthNM)
-            .def("GetRGB", &This::GetRGB)
-            .def("GetColorSpace", &This::GetColorSpace)
-            .def("GetCIEXYZ", &This::GetCIEXYZ)
-            .def("NormalizedLuminance", &This::NormalizedLuminance)
-            .def("NormalizeLuminance", &This::NormalizedLuminance)
+            .def(init<TfToken>(arg("name"))
+            .def(init<const TfToken, 
+                      const GfVec2f&, const GfVec2f&, const GfVec2f&, 
+                      const GfVec2f&, float, float>(
+                (arg("name"), arg("red"), arg("green"), arg("blue"), arg("white"),
+                    arg("gamma"), arg("linearBias"))))
+            .def(init<const TfToken&, const GfMatrix3f&, float, float>(
+                (arg("name"), arg("rgbToXYZ"), arg("gamma"), arg("linearBias"))))
+            .def("GetName", &This::GetName)
             .def(self == self)
             .def(self != self)
-            .def("ConvertRGB", &This::ConvertRGB)
-            .def("ConvertRGBA", &This::ConvertRGBA)
             .def(str(self))
             .def("__repr__", __repr__)
-            .def("__hash__", __hash__)
             ;
 }
+
+

@@ -13,6 +13,7 @@ pxr_library(gf
         bbox3d
         camera
         color
+        colorSpace
         dualQuatd
         dualQuatf
         dualQuath
@@ -97,6 +98,7 @@ pxr_library(gf
         wrapBBox3d.cpp
         wrapCamera.cpp
         wrapColor.cpp
+        wrapColorSpace.cpp
         wrapDualQuatd.cpp
         wrapDualQuatf.cpp
         wrapDualQuath.cpp
@@ -178,7 +180,13 @@ pxr_build_test(testGfHardToReach
         gf
     CPPFILES
         testenv/testGfHardToReach.cpp
-) 
+)
+pxr_build_test(testGfColor
+    LIBRARIES
+        gf
+    CPPFILES
+        testenv/testGColor.cpp
+)
 
 pxr_test_scripts(
     testenv/testGfBBox3d.py

@@ -25,7 +25,7 @@
 #ifndef PXR_BASE_GF_NC_NANOCOLOR_UTILS_H
 #define PXR_BASE_GF_NC_NANOCOLOR_UTILS_H
 
-#include "Nanocolor.h"
+#include "nanocolor.h"
 
 #ifdef __cplusplus
 extern "C" {

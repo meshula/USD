@@ -22,7 +22,7 @@
 // language governing permissions and limitations under the Apache License.
 //
 
-#include "Nanocolor.h"
+#include "nanocolor.h"
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
