@@ -870,10 +870,10 @@ function(pxr_register_test TEST_NAME)
   endif()
 
   add_test(
-        NAME ${TEST_NAME}
-        COMMAND ${PYTHON_EXECUTABLE} ${testWrapperCmd}
-                "--env-var=PYTHONPATH=${_testPythonPath}" ${testCmd}
-    )
+    NAME ${TEST_NAME}
+    COMMAND ${PYTHON_EXECUTABLE} ${testWrapperCmd}
+            "--env-var=PYTHONPATH=${_testPythonPath}" ${testCmd}
+  )
 
   # But in some cases, we need to pass cmake properties directly to cmake
   # run_test, rather than configuring the environment
