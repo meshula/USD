@@ -25,26 +25,9 @@
 
 #include "pxr/pxr.h"
 #include "pxr/base/gf/color.h"
-/*
-#include "pxr/base/gf/pyBufferUtils.h"
-
-#include "pxr/base/tf/hash.h"
-#include "pxr/base/tf/pyContainerConversions.h"
-#include "pxr/base/tf/pyUtils.h"
-#include "pxr/base/tf/stringUtils.h"
-*/
 #include "pxr/base/tf/wrapTypeHelpers.h"
 
 #include <boost/python/class.hpp>
-/*
-#include <boost/python/def.hpp>
-#include <boost/python/make_constructor.hpp>
-#include <boost/python/operators.hpp>
-#include <boost/python/overloads.hpp>
-#include <boost/python/return_arg.hpp>
-#include <boost/python/tuple.hpp>
-#include <boost/python/slice.hpp>
-*/
 #include <string>
 
 using namespace boost::python;
@@ -60,11 +43,6 @@ static string __repr__(GfColorspace const &self)
     return TF_PY_REPR_PREFIX + 
         TfStringPrintf("ColorSpace(%s)", 
                               TfPyRepr(colorSpaceName).c_str());
-}
-
-static size_t __hash__(GfColor const &self) 
-{
-    return TfHash{}(self);
 }
 
 } // anon

@@ -24,9 +24,9 @@
 
 PXR_NAMESPACE_OPEN_SCOPE
 
-struct GfColorSpace::Data
+struct GfColorSpace::_Data
 {
-    ~Data() {
+    ~_Data() {
         NcFreeColorSpace(colorSpace);
     }
 

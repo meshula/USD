@@ -24,16 +24,12 @@
 #include "pxr/pxr.h"
 #include "pxr/base/gf/color.h"
 #include "pxr/base/gf/colorSpace.h"
-#include "pxr/base/gf/ostreamHelpers.h"
 #include "pxr/base/gf/vec3f.h"
-#include "pxr/base/tf/enum.h"
-#include "pxr/base/tf/hash.h"
 #include "pxr/base/tf/registryManager.h"
 #include "pxr/base/tf/type.h"
 #include "nc/nanocolor.h"
 #include "nc/nanocolorUtils.h"
 #include "colorSpace_data.h"
-#include <mutex>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -41,37 +37,22 @@ TF_REGISTRY_FUNCTION(TfType) {
     TfType::Define<GfColorSpace>();
 }
 
-TF_DEFINE_PUBLIC_TOKENS(GfColorSpaceCanonicalName, GF_COLORSPACE_CANONICAL_NAME_TOKENS);
-
-
-size_t GfColorSpace::HashData(GfColorSpace::Data* d) {
-    if (!d) {
-        return 0;
-    }
-    NcColorSpaceM33Descriptor desc;
-    if (!NcGetColorSpaceM33Descriptor(d->colorSpace, &desc)) {
-        return 0;
-    }
-
-    return TfHash::Combine(TfHashCString()(desc.name),
-                           d->constructedFromPrimaries,
-                           desc.rgbToXYZ.m[0], desc.rgbToXYZ.m[1], desc.rgbToXYZ.m[2],
-                           desc.rgbToXYZ.m[3], desc.rgbToXYZ.m[4], desc.rgbToXYZ.m[5],
-                           desc.rgbToXYZ.m[6], desc.rgbToXYZ.m[7], desc.rgbToXYZ.m[8],
-                           desc.gamma, desc.linearBias);
-}
+TF_DEFINE_PUBLIC_TOKENS(GfColorSpaceNames, GF_COLORSPACE_NAME_TOKENS);
 
 GfColorSpace::GfColorSpace(const TfToken& name)
-: _data(new Data())
+: _data(new _Data())
 {
     _data->colorSpace = NcGetNamedColorSpace(name.GetString().c_str());
-    if (_data->colorSpace == nullptr) {
+    if (_data->colorSpace) {
+        _data->constructedFromPrimaries = true;
+    }
+    else {
         // A color space constructed with a name that is not a registered name
         // should function like an identity color space; the only reason to do
         // this is to have a sentinel color space meant for comparison and
         // hashing.
         NcColorSpaceM33Descriptor identity;
-        identity.name = strdup(name.GetString().c_str());
+        identity.name = name.GetString().c_str();
         identity.rgbToXYZ = { 1.0f, 0.0f, 0.0f,
                               0.0f, 1.0f, 0.0f,
                               0.0f, 0.0f, 1.0f };
@@ -90,10 +71,10 @@ GfColorSpace::GfColorSpace(const TfToken& name,
                            const GfVec2f &whitePoint,
                            float gamma,
                            float linearBias)
-: _data(new Data())
+: _data(new _Data())
 {
     NcColorSpaceDescriptor desc;
-    desc.name = strdup(name.GetString().c_str());
+    desc.name = name.GetString().c_str();
     desc.redPrimary.x = redChroma[0];
     desc.redPrimary.y = redChroma[1];
     desc.greenPrimary.x = greenChroma[0];
@@ -113,10 +94,10 @@ GfColorSpace::GfColorSpace(const TfToken& name,
                            const GfMatrix3f &rgbToXYZ,
                            float gamma,
                            float linearBias)
-: _data(new Data())
+: _data(new _Data())
 {
     NcColorSpaceM33Descriptor desc;
-    desc.name = strdup(name.GetString().c_str());
+    desc.name = name.GetString().c_str();
     desc.rgbToXYZ.m[0] = rgbToXYZ[0][0];
     desc.rgbToXYZ.m[1] = rgbToXYZ[0][1];
     desc.rgbToXYZ.m[2] = rgbToXYZ[0][2];
@@ -138,7 +119,8 @@ bool GfColorSpace::operator==(const GfColorSpace &lh) const
 }
 
 /// Convert a packed array of RGB values from one color space to another
-void GfColorSpace::ConvertRGB(const GfColorSpace& to, TfSpan<float> rgb) {
+void GfColorSpace::ConvertRGBSpan(const GfColorSpace& to, TfSpan<float> rgb) const
+{
     // Convert the RGB values in place
     size_t count = rgb.size() / 3;
     if (!count || (count * 3 != rgb.size())) {
@@ -150,7 +132,8 @@ void GfColorSpace::ConvertRGB(const GfColorSpace& to, TfSpan<float> rgb) {
 }
 
 /// Convert a packed array of RGBA values from one color space to another
-void GfColorSpace::ConvertRGBA(const GfColorSpace& to, TfSpan<float> rgba) {
+void GfColorSpace::ConvertRGBASpan(const GfColorSpace& to, TfSpan<float> rgba) const
+{
     // Convert the RGBA values in place
     size_t count = rgba.size() / 4;
     if (!count || (count * 4 != rgba.size())) {
@@ -159,6 +142,12 @@ void GfColorSpace::ConvertRGBA(const GfColorSpace& to, TfSpan<float> rgba) {
     }
     NcTransformColorsWithAlpha(to._data->colorSpace, _data->colorSpace, 
                                rgba.data(), (int) count);
+}
+
+GfColor GfColorSpace::Convert(const GfColorSpace& srcColorSpace, const GfVec3f& rgb) const
+{
+    GfColor c(rgb, srcColorSpace);
+    return GfColor(c, *this);
 }
 
 TfToken GfColorSpace::GetName() const
@@ -170,5 +159,9 @@ TfToken GfColorSpace::GetName() const
     return TfToken(desc.name);
 }
 
+bool GfColorSpace::IsConstructedFromPrimaries() const
+{
+    return _data->constructedFromPrimaries;
+}
 
 PXR_NAMESPACE_CLOSE_SCOPE

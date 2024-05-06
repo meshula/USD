@@ -30,13 +30,11 @@
 #include "pxr/pxr.h"
 #include "pxr/base/gf/colorSpace.h"
 #include "pxr/base/gf/vec2f.h"
+#include "pxr/base/gf/vec3f.h"
 #include "pxr/base/gf/matrix3f.h"
 #include "pxr/base/gf/api.h"
-#include "pxr/base/tf/span.h"
-#include "pxr/base/tf/staticTokens.h"
-#include "pxr/base/tf/hash.h"
 
-#include <iostream>
+#include <iosfwd>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -57,12 +55,13 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 class GfColor {
 public:
-    /// The default constructor creates white, in the "lin_rec709" color space.
+    /// The default constructor creates black, in the "lin_rec709" color space.
     GF_API GfColor();
 
-    /// Construct a color from another color.
-    /// \param color The color to copy.
-    GfColor(const GfColor& color) = default;
+    /// Construct a black color in the given color space.
+    /// \param colorSpace The color space.
+    GF_API
+    GfColor(const GfColorSpace& colorSpace);
 
     /// Construct a color from an RGB tuple and color space.
     /// \param rgb The RGB tuple.
@@ -70,36 +69,19 @@ public:
     GF_API
     GfColor(const GfVec3f &rgb, const GfColorSpace& colorSpace);
 
-    /// Construct a color from another color into the specified color space.
+    /// Construct a color by converting the source color into the specified color space.
     /// \param color The color to copy.
     /// \param colorSpace The color space.
     GF_API
     GfColor(const GfColor &color, const GfColorSpace& colorSpace);
 
-    /// Move constructor.
-    /// \param color The color to move.
-    GfColor(GfColor&& color) noexcept = default;
+    /// Set the color from a CIEXY coordinate in the chromaticity chart,
+    /// in the existing color space.
+    /// \param xyz The CIEXYZ coordinate.
+    GF_API
+    void SetFromCIEXY(const GfVec2f& xy);
 
-    /// Copy assignment operator.
-    /// \param color The color to copy.
-    /// \return A reference to the assigned color.
-    GfColor& operator=(const GfColor& color) noexcept = default;
-
-    /// Move assignment operator.
-    /// \param color The color to move.
-    /// \return A reference to the assigned color.
-    GfColor& operator=(GfColor&& color) noexcept = default;
-
-    /// TfHash function for GfColor.
-    /// \param vec The GfColor object to hash.
-    /// \return The hash value.
-    template <class HashState>
-    friend void
-    TfHashAppend(HashState &h, GfColor const &color) {
-        h.Append(color._rgb, color._colorSpace);
-    }
-
-    /// Set the color from a CIEXYZ coordinate, adapting to the existing color space.
+    /// Set the color from a CIEXYZ coordinate, in the existing color space.
     /// \param xyz The CIEXYZ coordinate.
     GF_API
     void SetFromCIEXYZ(const GfVec3f& xyz);
@@ -128,32 +110,50 @@ public:
     GF_API
     GfVec3f GetCIEXYZ() const;
 
+    /// Get the CIEXY coordinate of the color in the chromaticity chart.
+    /// \return The CIEXY coordinate.
+    GF_API
+    GfVec2f GetCIEXY() const;
+
     /// Return the color's RGB values, normalized to a specified luminance.
     /// \param luminance The specified luminance.
     /// \return The normalized color.
     GF_API
-    GfColor NormalizedLuminance(float luminance) const;
+    GfColor GetLuminanceNormalizedColor(float luminance) const;
 
     /// Normalize the color to a specified luminance.
     /// \param luminance The specified luminance.
     /// \return A reference to the normalized color.
     GF_API
-    GfColor& NormalizeLuminance(float luminance);
+    void NormalizeLuminance(float luminance);
 
     /// Equality operator.
-    /// \param l The left-hand side color.
+    /// \param rh The right-hand side color.
     /// \return True if the colors are equal, false otherwise.
-    bool operator ==(const GfColor &l) const;
+    bool operator ==(const GfColor &rh) const {
+        return _rgb == rh._rgb && _colorSpace == rh._colorSpace;
+    }
 
     /// Inequality operator.
     /// \param r The right-hand side color.
     /// \return True if the colors are not equal, false otherwise.
-    bool operator !=(const GfColor &r) const;
+    bool operator !=(const GfColor &rh) const { return !(*this == rh); }
 
 private:
     GfColorSpace _colorSpace; ///< The color space.
-    GfVec3f _rgb; ///< The RGB tuple.
+    GfVec3f      _rgb;        ///< The RGB tuple.
 };
+
+
+/// Tests for equality of the RGB tuple in a color with a given tolerance, 
+/// returning \c true if the length of the difference vector is less than or 
+/// equal to \p tolerance. This comparison does not adapt the colors to the
+/// same color space before comparing, and is not a perceptual comparison.
+inline bool
+GfIsClose(GfColor const &c1, GfColor const &c2, double tolerance)
+{
+    return GfIsClose(c1.GetRGB(), c2.GetRGB(), tolerance);
+}
 
 /// Output a GfColor.
 /// \ingroup group_gf_DebuggingOutput

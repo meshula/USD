@@ -26,14 +26,12 @@
 #include "pxr/base/gf/colorSpace.h"
 #include "pxr/base/gf/ostreamHelpers.h"
 #include "pxr/base/gf/vec3f.h"
-#include "pxr/base/tf/enum.h"
-#include "pxr/base/tf/hash.h"
 #include "pxr/base/tf/registryManager.h"
 #include "pxr/base/tf/type.h"
 #include "nc/nanocolor.h"
 #include "nc/nanocolorUtils.h"
 #include "colorSpace_data.h"
-#include <mutex>
+#include <iostream>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -52,13 +50,18 @@ operator<<(std::ostream &out, GfColor const &v)
         << Gf_OstreamHelperP(v.GetColorSpace().GetName().GetString()) << ')';
 }
 
-// The default constructor creates white, in the "lin_rec709" space
+// The default constructor creates black, in the "lin_rec709" space
 GfColor::GfColor()
-: _colorSpace(GfColorSpaceCanonicalName->LinearRec709)
-, _rgb(1.0f, 1.0f, 1.0f)
+: GfColor(GfColorSpace(GfColorSpaceNames->LinearRec709))
 {
 }
 
+// Construct from a colorspace
+GfColor::GfColor(const GfColorSpace& colorSpace)
+: _colorSpace(colorSpace)
+, _rgb(0, 0, 0)
+{
+}
 
 // Construct from an rgb tuple and colorspace
 GfColor::GfColor(const GfVec3f &rgb, const GfColorSpace& colorSpace)
@@ -68,16 +71,25 @@ GfColor::GfColor(const GfVec3f &rgb, const GfColorSpace& colorSpace)
 }
 
 // Construct a color from another color into the specified color space
-GfColor::GfColor(const GfColor &color, const GfColorSpace& colorSpace)
-: _colorSpace(colorSpace)
+GfColor::GfColor(const GfColor &srcColor, const GfColorSpace& dstColorSpace)
+: _colorSpace(dstColorSpace)
 {
-    NcRGB src = {color._rgb[0], color._rgb[1], color._rgb[2]};
-    NcRGB dst = NcTransformColor(_colorSpace._data->colorSpace,
-                                 colorSpace._data->colorSpace, src);
-    _rgb = GfVec3f(dst.r, dst.g, dst.b);
+    const NcColorSpace* src = srcColor._colorSpace._data->colorSpace;
+    const NcColorSpace* dst = dstColorSpace._data->colorSpace;
+    NcRGB srcRGB = { srcColor._rgb[0], srcColor._rgb[1], srcColor._rgb[2] };
+    NcRGB dstRGB = NcTransformColor(dst, src, srcRGB);
+    _rgb = GfVec3f(dstRGB.r, dstRGB.g, dstRGB.b);
 }
 
-// Set the color from a CIEXYZ coordinate, adapting to the existing color space
+// Set the color from a CIEXY coordinate in the chromaticity chart
+void GfColor::SetFromCIEXY(const GfVec2f& xy)
+{
+    NcCIEXYZ c = { 1.f, xy[0], xy[1] };
+    NcRGB rgb = NcRGBFromYxy(_colorSpace._data->colorSpace, c);
+    _rgb = GfVec3f(rgb.r, rgb.g, rgb.b);
+}
+
+// Set the color from a CIEXYZ coordinate, in the existing color space
 void GfColor::SetFromCIEXYZ(const GfVec3f& xyz)
 {
     NcCIEXYZ ncxyz = { xyz[0], xyz[1], xyz[2] };
@@ -89,9 +101,9 @@ void GfColor::SetFromCIEXYZ(const GfVec3f& xyz)
 // adapting to the existing color space
 void GfColor::SetFromBlackbodyKelvin(float kelvin, float luminosity)
 {
-    NcCIEXYZ xyz = NcKelvinToXYZ(kelvin, luminosity);
-    NcRGB dst = NcXYZToRGB(_colorSpace._data->colorSpace, xyz);
-    _rgb = GfVec3f(dst.r, dst.g, dst.b);
+    NcCIEXYZ c = NcKelvinToXYZ(kelvin, luminosity);
+    NcRGB rgb = NcRGBFromYxy(_colorSpace._data->colorSpace, c);
+    _rgb = GfVec3f(rgb.r, rgb.g, rgb.b);
 }
 
 // Set the color from a wavelength in nanometers, 
@@ -111,8 +123,18 @@ GfVec3f GfColor::GetCIEXYZ() const
     return GfVec3f(dst.x, dst.y, dst.z);
 }
 
+// Get the CIEXY coordinate of the color in the chromaticity chart.
+GF_API
+GfVec2f GfColor::GetCIEXY() const
+{
+    NcRGB src = {_rgb[0], _rgb[1], _rgb[2]};
+    NcCIEXYZ rgb = NcRGBToXYZ(_colorSpace._data->colorSpace, src);
+    NcCIEXYZ chroma = NcProjectToChromaticities(rgb);
+    return GfVec2f(chroma.x, chroma.y);
+}
+
 // Return the color's RGB values, normalized to a specified luminance
-GfColor GfColor::NormalizedLuminance(float luminance) const
+GfColor GfColor::GetLuminanceNormalizedColor(float luminance) const
 {
     GfColor ret = *this;
     ret.NormalizeLuminance(luminance);
@@ -120,13 +142,12 @@ GfColor GfColor::NormalizedLuminance(float luminance) const
 }
 
 // Normalize the color to a specified luminance
-GfColor& GfColor::NormalizeLuminance(float luminance)
+void GfColor::NormalizeLuminance(float luminance)
 {
     NcRGB src = {_rgb[0], _rgb[1], _rgb[2]};
     NcCIEXYZ dst = NcRGBToXYZ(_colorSpace._data->colorSpace, src);
     dst = NcNormalizeXYZ(dst);
     _rgb = GfVec3f(dst.x * luminance, dst.y * luminance, dst.z * luminance);
-    return *this;
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE

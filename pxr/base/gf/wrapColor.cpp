@@ -26,14 +26,6 @@
 #include "pxr/pxr.h"
 #include "pxr/base/gf/color.h"
 #include <boost/python/class.hpp>
-//#include <boost/python/def.hpp>
-//#include <boost/python/make_constructor.hpp>
-//#include <boost/python/operators.hpp>
-//#include <boost/python/overloads.hpp>
-//#include <boost/python/return_arg.hpp>
-//#include <boost/python/tuple.hpp>
-//#include <boost/python/slice.hpp>
-
 #include <string>
 
 using namespace boost::python;
@@ -50,7 +42,8 @@ static string __repr__(GfColor const &self)
     string colorSpaceName = self.>GetName().GetString();
     return TF_PY_REPR_PREFIX + 
         TfStringPrintf("Color(%s, %s)", 
-                             TfPyRepr(self.GetRGB()).c_str(), TfPyRepr(colorSpaceName).c_str());
+                             TfPyRepr(self.GetRGB()).c_str(),
+			     TfPyRepr(colorSpaceName).c_str());
 }
 
 } // anon
@@ -61,7 +54,7 @@ void wrapColor()
     typedef GfColorSpace CS;
 
     scope thisScope = 
-        class_<This>("Color", "Basic color class", init<>())
+        class_<This>("Color")
             .def(init<>())
             .def(init<const This&>())
             .def(init<const GfVec3f&, CS>())

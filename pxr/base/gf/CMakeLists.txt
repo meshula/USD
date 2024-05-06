@@ -185,7 +185,7 @@ pxr_build_test(testGfColor
     LIBRARIES
         gf
     CPPFILES
-        testenv/testGColor.cpp
+        testenv/testGfColor.cpp
 )
 
 pxr_test_scripts(
