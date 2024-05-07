@@ -253,6 +253,11 @@ Disable building the tutorial support files by specifying the cmake flag
 
 Hydra's rendering functionality can be extended with these optional plugins.
 
+##### AVIF
+
+This plugin is enabled by default and can be disabled by specifying the
+cmake flag `PXR_ENABLE_AVIF_SUPPORT=FALSE`.
+
 ##### Ptex
 
 Support for Ptex is disabled by default and can be enabled by specifying the 

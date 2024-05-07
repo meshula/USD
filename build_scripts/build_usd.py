@@ -2044,6 +2044,11 @@ def InstallUSD(context, force, buildArgs):
             else:
                 extraArgs.append("-DPXR_BUILD_PRMAN_PLUGIN=OFF")
 
+            if context.buildAVIF:
+                extraArgs.append("-DPXR_BUILD_AVIF_PLUGIN=ON")
+            else:
+                extraArgs.append("-DPXR_BUILD_AVIF_PLUGIN=OFF")
+
             if context.buildOIIO:
                 extraArgs.append("-DPXR_BUILD_OPENIMAGEIO_PLUGIN=ON")
             else:
@@ -2638,6 +2643,22 @@ subgroup.add_argument(
     action="store_false",
     help="Do not build OpenImageIO plugin for USD (default)",
 )
+
+subgroup = group.add_mutually_exclusive_group()
+subgroup.add_argument(
+    "--avif",
+    dest="build_avif",
+    action="store_true",
+    default=True,
+    help="Build AVIF plugin for USD",
+)
+subgroup.add_argument(
+    "--no-avif",
+    dest="build_avif",
+    action="store_false",
+    help="Do not build AVIF plugin for USD",
+)
+
 subgroup = group.add_mutually_exclusive_group()
 subgroup.add_argument(
     "--opencolorio",
@@ -2900,6 +2921,7 @@ class InstallContext:
             os.path.abspath(args.prman_location) if args.prman_location else None
         )
         self.buildOIIO = args.build_oiio or (self.buildUsdImaging and self.buildTests)
+        self.buildAVIF = args.build_avif
         self.buildOCIO = args.build_ocio
 
         # - Alembic Plugin
@@ -3174,6 +3196,7 @@ summaryMsg += """\
     Imaging                     {buildImaging}
       Ptex support:             {enablePtex}
       OpenVDB support:          {enableOpenVDB}
+      AVIF support:             {buildAVIF}
       OpenImageIO support:      {buildOIIO} 
       OpenColorIO support:      {buildOCIO} 
       PRMan support:            {buildPrman}
@@ -3250,6 +3273,7 @@ summaryMsg = summaryMsg.format(
     buildImaging=("On" if context.buildImaging else "Off"),
     enablePtex=("On" if context.enablePtex else "Off"),
     enableOpenVDB=("On" if context.enableOpenVDB else "Off"),
+    buildAVIF=("On" if context.buildAVIF else "Off"),
     buildOIIO=("On" if context.buildOIIO else "Off"),
     buildOCIO=("On" if context.buildOCIO else "Off"),
     buildPrman=("On" if context.buildPrman else "Off"),

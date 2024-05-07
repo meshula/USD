@@ -5,7 +5,7 @@
                 "Types": {
                    "Hio_AVIFImage" : {
                         "bases": ["HioImage"],
-                        "imageTypes": ["avif"],
+                        "imageTypes": ["avifx"],
                         "precedence": 30
                     },
                    "Hio_OpenEXRImage" : {
