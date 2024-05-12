@@ -31,7 +31,6 @@ struct GfColorSpace::_Data
     }
 
     const NcColorSpace* colorSpace = nullptr;
-    bool constructedFromPrimaries = false;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

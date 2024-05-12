@@ -75,7 +75,6 @@ PXR_NAMESPACE_OPEN_SCOPE
     ((LinearAdobeRGB, "lin_adobergb"))       \
     ((CIEXYZ, "CIEXYZ"))                     \
     ((LinearAP0, "lin_ap0"))                 \
-    ((LinearAP0D65, "lin_ap0_d65"))          \
     ((LinearAP1, "lin_ap1"))                 \
     ((G18AP1, "g18_ap1"))                    \
     ((G22AP1, "g22_ap1"))                    \
@@ -189,9 +188,9 @@ public:
     GF_API
     GfColor Convert(const GfColorSpace& srcColorSpace, const GfVec3f& rgb) const;
 
-    /// Get the RGB to CIEXYZ conversion matrix.
+    /// Get the RGB to XYZ conversion matrix.
     ///
-    /// \return The RGB to CIEXYZ conversion matrix.
+    /// \return The RGB to XYZ conversion matrix.
     GF_API 
     GfMatrix3f GetRGBToXYZ() const;
 
@@ -212,19 +211,16 @@ public:
     GF_API 
     std::pair<float, float> GetTransferFunctionParams() const;
 
-    /// Indicate if the color space was constructed from primaries.
-    ///
-    /// \return True if the color space was constructed from primaries, false otherwise.
-    GF_API 
-    bool IsConstructedFromPrimaries() const;
-
     /// Get the chromaticity coordinates and white point if the color space
-    /// was constructed from primaries.
+    /// was constructed from primaries. The primaries and white points will
+    /// be in the order red, green, blue, white. The values will be 
+    /// valid if the color space was constructed from primaries or a well formed
+    /// primary matrix.
     ///
     /// \return The chromaticity coordinates and white point; 
     /// an empty optional if the color space was not constructed from primaries.
     GF_API 
-    std::optional<std::tuple<GfVec2f, GfVec2f, GfVec2f, GfVec2f>>
+    std::tuple<GfVec2f, GfVec2f, GfVec2f, GfVec2f>
         GetPrimariesAndWhitePoint() const;
 
 private:

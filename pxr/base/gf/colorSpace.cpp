@@ -43,10 +43,7 @@ GfColorSpace::GfColorSpace(const TfToken& name)
 : _data(new _Data())
 {
     _data->colorSpace = NcGetNamedColorSpace(name.GetString().c_str());
-    if (_data->colorSpace) {
-        _data->constructedFromPrimaries = true;
-    }
-    else {
+    if (!_data->colorSpace) {
         // A color space constructed with a name that is not a registered name
         // should function like an identity color space; the only reason to do
         // this is to have a sentinel color space meant for comparison and
@@ -58,8 +55,7 @@ GfColorSpace::GfColorSpace(const TfToken& name)
                               0.0f, 0.0f, 1.0f };
         identity.gamma = 1.0f;
         identity.linearBias = 0.0f;
-        _data->colorSpace = NcCreateColorSpaceM33(&identity);
-        _data->constructedFromPrimaries = false;
+        _data->colorSpace = NcCreateColorSpaceM33(&identity, nullptr);
     }
 }
 
@@ -86,7 +82,6 @@ GfColorSpace::GfColorSpace(const TfToken& name,
     desc.gamma = gamma;
     desc.linearBias = linearBias;
     _data->colorSpace = NcCreateColorSpace(&desc);
-    _data->constructedFromPrimaries = true;
 }
 
 // construct a custom colorspace from a 3x3 matrix and linearization parameters
@@ -109,8 +104,7 @@ GfColorSpace::GfColorSpace(const TfToken& name,
     desc.rgbToXYZ.m[8] = rgbToXYZ[2][2];
     desc.gamma = gamma;
     desc.linearBias = linearBias;
-    _data->colorSpace = NcCreateColorSpaceM33(&desc);
-    _data->constructedFromPrimaries = false;
+    _data->colorSpace = NcCreateColorSpaceM33(&desc, nullptr);
 }
 
 bool GfColorSpace::operator==(const GfColorSpace &lh) const
@@ -159,9 +153,55 @@ TfToken GfColorSpace::GetName() const
     return TfToken(desc.name);
 }
 
-bool GfColorSpace::IsConstructedFromPrimaries() const
+GfMatrix3f GfColorSpace::GetRGBToXYZ() const
 {
-    return _data->constructedFromPrimaries;
+    NcColorSpaceM33Descriptor desc;
+    if (!NcGetColorSpaceM33Descriptor(_data->colorSpace, &desc)) {
+        return GfMatrix3f(1.0f);
+    }
+    float* m = desc.rgbToXYZ.m;
+    return GfMatrix3f(m[0], m[1], m[2],
+                      m[3], m[4], m[5],
+                      m[6], m[7], m[8]);
 }
+
+float GfColorSpace::GetLinearBias() const
+{
+    NcColorSpaceM33Descriptor desc;
+    if (!NcGetColorSpaceM33Descriptor(_data->colorSpace, &desc)) {
+        return 0.0f;
+    }
+    return desc.linearBias;
+}
+
+float GfColorSpace::GetGamma() const
+{
+    NcColorSpaceM33Descriptor desc;
+    if (!NcGetColorSpaceM33Descriptor(_data->colorSpace, &desc)) {
+        return 1.0f;
+    }
+    return desc.gamma;
+}
+
+std::pair<float, float> GfColorSpace::GetTransferFunctionParams() const
+{
+    float K0, phi;
+    NcGetK0Phi(_data->colorSpace, &K0, &phi);
+    return std::make_pair(K0, phi);
+}
+
+std::tuple<GfVec2f, GfVec2f, GfVec2f, GfVec2f>
+    GfColorSpace::GetPrimariesAndWhitePoint() const
+{
+    NcColorSpaceDescriptor desc;
+    if (!NcGetColorSpaceDescriptor(_data->colorSpace, &desc)) {
+        return std::make_tuple(GfVec2f(0.0f), GfVec2f(0.0f), GfVec2f(0.0f), GfVec2f(0.0f));
+    }
+    return std::make_tuple(GfVec2f(desc.redPrimary.x, desc.redPrimary.y),
+                           GfVec2f(desc.greenPrimary.x, desc.greenPrimary.y),
+                           GfVec2f(desc.bluePrimary.x, desc.bluePrimary.y),
+                           GfVec2f(desc.whitePoint.x, desc.whitePoint.y));
+}
+
 
 PXR_NAMESPACE_CLOSE_SCOPE

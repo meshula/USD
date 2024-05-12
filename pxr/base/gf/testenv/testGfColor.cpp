@@ -67,14 +67,13 @@ main(int argc, char *argv[])
     GfColorSpace csLinearRec709(GfColorSpaceNames->LinearRec709);
     GfColorSpace csG22Rec709(GfColorSpaceNames->G22Rec709);
     GfColorSpace csAp0(GfColorSpaceNames->LinearAP0);
-    GfColorSpace csAp0D65(GfColorSpaceNames->LinearAP0D65);
     GfColorSpace csSRGBP3(GfColorSpaceNames->SRGBDisplayP3);
     GfColorSpace csLinearRec2020(GfColorSpaceNames->LinearRec2020);
 
     GfColor mauveLinear(GfVec3f(0.5f, 0.25f, 0.125f), csLinearRec709);
     GfColor mauveGamma(mauveLinear, csG22Rec709);
 
-    GfVec2f wpD65xy = GfColor(GfVec3f(1.0f, 1.0f, 1.0f), csLinearRec709).GetCIEXY();
+    GfVec2f wpD65xy = GfColor(GfVec3f(1.0f, 1.0f, 1.0f), csLinearRec709).GetChromaticity();
 
     GfVec2f ap0Primaries[3] = {
         { 0.7347, 0.2653  },
@@ -124,20 +123,20 @@ main(int argc, char *argv[])
         GfColor c2(c1, csLinearSRGB);
         TF_AXIOM(GfIsClose(mauveLinear, c2, 1e-7f));
     }
-    // test CIEXY equality, and thus also GetCIEXY
+    // test CIE XY equality, and thus also GetChromaticity
     {
         // MauveLinear and Gamma are both have a D65 white point.
         GfColor c1(mauveLinear, csSRGB);
         GfColor c2(c1, csAp0);                      // different white point
-        GfColor c2d65(c2, csAp0D65);                // adapt to d65 for comparison
+        GfColor c2d65(c2, csSRGBP3);                // adapt to d65 for comparison
         GfColor cmauve(c2, csLinearRec709);
         GfColor cmauveD65(c2d65, csLinearRec709);
 
-        GfVec2f chr1 = mauveLinear.GetCIEXY();
-        GfVec2f chr2 = mauveGamma.GetCIEXY();
-        GfVec2f chr3 = c1.GetCIEXY();
-        GfVec2f chr4 = c2.GetCIEXY();
-        GfVec2f chr5 = c2d65.GetCIEXY();
+        GfVec2f chr1 = mauveLinear.GetChromaticity();
+        GfVec2f chr2 = mauveGamma.GetChromaticity();
+        GfVec2f chr3 = c1.GetChromaticity();
+        GfVec2f chr4 = c2.GetChromaticity();
+        GfVec2f chr5 = c2d65.GetChromaticity();
 
         TF_AXIOM(GfIsClose(chr1, chr2, 1e-5f));
         TF_AXIOM(GfIsClose(chr1, chr3, 1e-5f));
@@ -145,8 +144,10 @@ main(int argc, char *argv[])
         TF_AXIOM(GfIsClose(chr1, chr4, 5e-2f));
         TF_AXIOM(GfIsClose(chr1, chr5, 2e-2f));
     }
-    // test construction with adaptation
+    // test construction with conversion
     {
+        //print out all the values as we go and report to Rick
+
         GfColor colG22Rec709(mauveLinear, csG22Rec709);
         TF_AXIOM(GfIsClose(colG22Rec709, mauveGamma, 1e-5f));
         GfColor colLinRec709(colG22Rec709, csLinearRec709);
@@ -157,17 +158,17 @@ main(int argc, char *argv[])
 
         TF_AXIOM(colLinRec709.GetColorSpace() == csLinearRec709);
         GfColor colSRGB_2(colLinRec709, csSRGB);
-        GfVec2f xy1 = colG22Rec709.GetCIEXY();
-        GfVec2f xy2 = colSRGB_2.GetCIEXY();
+        GfVec2f xy1 = colG22Rec709.GetChromaticity();
+        GfVec2f xy2 = colSRGB_2.GetChromaticity();
         TF_AXIOM(GfIsClose(xy1, xy2, 1e-5f));
         GfColor colAp0(colSRGB_2, csAp0);
-        GfVec2f xy3 = colAp0.GetCIEXY();
+        GfVec2f xy3 = colAp0.GetChromaticity();
         TF_AXIOM(GfIsClose(xy1, xy3, 3e-2f));
         GfColor colSRGB_3(colAp0, csSRGB);
-        GfVec2f xy4 = colAp0.GetCIEXY();
+        GfVec2f xy4 = colAp0.GetChromaticity();
         TF_AXIOM(GfIsClose(xy1, xy4, 3e-2f));
         GfColor col_SRGBP3(colSRGB_3, csSRGBP3);
-        GfVec2f xy5 = col_SRGBP3.GetCIEXY();
+        GfVec2f xy5 = col_SRGBP3.GetChromaticity();
         TF_AXIOM(GfIsClose(xy1, xy5, 3e-2f));
 
         // all the way back to rec709
@@ -196,24 +197,12 @@ main(int argc, char *argv[])
         TF_AXIOM(GfIsClose(c3.GetRGB(), GfVec3f(0.25f, 0.5f, 0.125f), 1e-5f));
         TF_AXIOM(c3.GetColorSpace() == csSRGB);
     }
-    // test that the color spaces are constructed from primaries
-    {
-        TF_AXIOM(csSRGB.IsConstructedFromPrimaries());
-        TF_AXIOM(csLinearSRGB.IsConstructedFromPrimaries());
-        TF_AXIOM(csLinearRec709.IsConstructedFromPrimaries());
-        TF_AXIOM(csG22Rec709.IsConstructedFromPrimaries());
-        TF_AXIOM(csAp0.IsConstructedFromPrimaries());
-        TF_AXIOM(csAp0D65.IsConstructedFromPrimaries());
-        TF_AXIOM(csSRGBP3.IsConstructedFromPrimaries());
-        TF_AXIOM(csLinearRec2020.IsConstructedFromPrimaries());
-    }
     // test color space inequality
     {
         TF_AXIOM(csSRGB != csLinearSRGB);
         TF_AXIOM(csSRGB != csLinearRec709);
         TF_AXIOM(csSRGB != csG22Rec709);
         TF_AXIOM(csSRGB != csAp0);
-        TF_AXIOM(csSRGB != csAp0D65);
         TF_AXIOM(csSRGB != csSRGBP3);
         TF_AXIOM(csSRGB != csLinearRec2020);
     }
@@ -221,49 +210,49 @@ main(int argc, char *argv[])
     {
         GfColor c;
         c.SetFromBlackbodyKelvin(6500, 1.0f);
-        GfVec2f xy = c.GetCIEXY();
+        GfVec2f xy = c.GetChromaticity();
         TF_AXIOM(GfIsClose(xy, wpD65xy, 1e-2f));
     }
     // test that primaries correspond to unit vectors in their color space
     {
         GfColor c1(csAp0);
-        c1.SetFromCIEXY(ap0Primaries[0]);
+        c1.SetFromChromaticity(ap0Primaries[0]);
         GfColor c2(csAp0);
-        c2.SetFromCIEXY(ap0Primaries[1]);
+        c2.SetFromChromaticity(ap0Primaries[1]);
         GfColor c3(csAp0);
-        c3.SetFromCIEXY(ap0Primaries[2]);
+        c3.SetFromChromaticity(ap0Primaries[2]);
         TF_AXIOM(GfIsClose(c1, GfColor(GfVec3f(1, 0, 0), csAp0), 1e-5f));
         TF_AXIOM(GfIsClose(c2, GfColor(GfVec3f(0, 1, 0), csAp0), 1e-5f));
         TF_AXIOM(GfIsClose(c3, GfColor(GfVec3f(0, 0, 1), csAp0), 1e-5f));
 
         GfColor c4(csLinearRec2020);
-        c4.SetFromCIEXY(rec2020Primaries[0]);
+        c4.SetFromChromaticity(rec2020Primaries[0]);
         GfColor c5(csLinearRec2020);
-        c5.SetFromCIEXY(rec2020Primaries[1]);
+        c5.SetFromChromaticity(rec2020Primaries[1]);
         GfColor c6(csLinearRec2020);
-        c6.SetFromCIEXY(rec2020Primaries[2]);
+        c6.SetFromChromaticity(rec2020Primaries[2]);
         TF_AXIOM(GfIsClose(c4, GfColor(GfVec3f(1, 0, 0), csLinearRec2020), 1e-5f));
         TF_AXIOM(GfIsClose(c5, GfColor(GfVec3f(0, 1, 0), csLinearRec2020), 1e-5f));
         TF_AXIOM(GfIsClose(c6, GfColor(GfVec3f(0, 0, 1), csLinearRec2020), 1e-5f));
 
         GfColor c7(csLinearRec709);
-        c7.SetFromCIEXY(rec709Primaries[0]);
+        c7.SetFromChromaticity(rec709Primaries[0]);
         GfColor c8(csLinearRec709);
-        c8.SetFromCIEXY(rec709Primaries[1]);
+        c8.SetFromChromaticity(rec709Primaries[1]);
         GfColor c9(csLinearRec709);
-        c9.SetFromCIEXY(rec709Primaries[2]);
+        c9.SetFromChromaticity(rec709Primaries[2]);
         TF_AXIOM(GfIsClose(c7, GfColor(GfVec3f(1, 0, 0), csLinearRec709), 1e-5f));
         TF_AXIOM(GfIsClose(c8, GfColor(GfVec3f(0, 1, 0), csLinearRec709), 1e-5f));
         TF_AXIOM(GfIsClose(c9, GfColor(GfVec3f(0, 0, 1), csLinearRec709), 1e-5f));
     }
 
     // permute the rec709 primaries through rec2020 and ap0
-    // and verify that at each point the adapted colors are contained
+    // and verify that at each point the converted colors are contained
     // within the gamut of the target color space by testing that the
-    // adapted color is within the triangle formed by the target color
+    // converted color is within the triangle formed by the target color
     // space's primaries
     {
-        // Create adapted colors
+        // Create converted colors
         GfColor red709(GfVec3f(1.0f, 0.0f, 0.0f), csLinearRec709);
         GfColor green709(GfVec3f(0.0f, 1.0f, 0.0f), csLinearRec709);
         GfColor blue709(GfVec3f(0.0f, 0.0f, 1.0f), csLinearRec709);
@@ -274,29 +263,76 @@ main(int argc, char *argv[])
         GfColor greenAp0(GfVec3f(0.0f, 1.0f, 0.0f), csAp0);
         GfColor blueAp0(GfVec3f(0.0f, 0.0f, 1.0f), csAp0);
 
-        // Verify that adapted 709 colors are within rec2020 gamut
-        TF_AXIOM(PointInTriangle(red709.GetCIEXY(),   
-                                 red2020.GetCIEXY(), blue2020.GetCIEXY(), green2020.GetCIEXY()));
-        TF_AXIOM(PointInTriangle(green709.GetCIEXY(), 
-                                 red2020.GetCIEXY(), blue2020.GetCIEXY(), green2020.GetCIEXY()));
-        TF_AXIOM(PointInTriangle(blue709.GetCIEXY(),  
-                                 red2020.GetCIEXY(), blue2020.GetCIEXY(), green2020.GetCIEXY()));
+        // Verify that converted 709 colors are within rec2020 gamut
+        TF_AXIOM(PointInTriangle(red709.GetChromaticity(),
+                                 red2020.GetChromaticity(), 
+                                 green2020.GetChromaticity(),
+                                 blue2020.GetChromaticity()));
+        TF_AXIOM(PointInTriangle(green709.GetChromaticity(),
+                                 red2020.GetChromaticity(), 
+                                 green2020.GetChromaticity(),
+                                 blue2020.GetChromaticity()));
+        TF_AXIOM(PointInTriangle(blue709.GetChromaticity(),
+                                 red2020.GetChromaticity(), 
+                                 green2020.GetChromaticity(),
+                                 blue2020.GetChromaticity()));
 
-        // Verify that adapted 709 colors are within ap0 gamut
-        TF_AXIOM(PointInTriangle(red709.GetCIEXY(),
-                                 redAp0.GetCIEXY(), blueAp0.GetCIEXY(), greenAp0.GetCIEXY()));
-        TF_AXIOM(PointInTriangle(green709.GetCIEXY(),
-                                 redAp0.GetCIEXY(), blueAp0.GetCIEXY(), greenAp0.GetCIEXY()));
-        TF_AXIOM(PointInTriangle(blue709.GetCIEXY(),
-                                 redAp0.GetCIEXY(), blueAp0.GetCIEXY(), greenAp0.GetCIEXY()));
+        // Verify that converted 709 colors are within ap0 gamut
+        TF_AXIOM(PointInTriangle(red709.GetChromaticity(),
+                                 redAp0.GetChromaticity(), 
+                                 greenAp0.GetChromaticity(),
+                                 blueAp0.GetChromaticity()));
+        TF_AXIOM(PointInTriangle(green709.GetChromaticity(),
+                                 redAp0.GetChromaticity(), 
+                                 greenAp0.GetChromaticity(),
+                                 blueAp0.GetChromaticity()));
+        TF_AXIOM(PointInTriangle(blue709.GetChromaticity(),
+                                 redAp0.GetChromaticity(), 
+                                 greenAp0.GetChromaticity(),
+                                 blueAp0.GetChromaticity()));
 
-        // Verify that adapted rec2020 colors are within ap0 gamut
-        TF_AXIOM(PointInTriangle(red2020.GetCIEXY(),
-                                 redAp0.GetCIEXY(), blueAp0.GetCIEXY(), greenAp0.GetCIEXY()));
-        TF_AXIOM(PointInTriangle(green2020.GetCIEXY(),
-                                 redAp0.GetCIEXY(), blueAp0.GetCIEXY(), greenAp0.GetCIEXY()));
-        TF_AXIOM(PointInTriangle(blue2020.GetCIEXY(),
-                                 redAp0.GetCIEXY(), blueAp0.GetCIEXY(), greenAp0.GetCIEXY()));
+        // Verify that converted rec2020 colors are within ap0 gamut
+        TF_AXIOM(PointInTriangle(red2020.GetChromaticity(),
+                                 redAp0.GetChromaticity(), 
+                                 greenAp0.GetChromaticity(),
+                                 blueAp0.GetChromaticity()));
+        TF_AXIOM(PointInTriangle(green2020.GetChromaticity(),
+                                 redAp0.GetChromaticity(), 
+                                 greenAp0.GetChromaticity(),
+                                 blueAp0.GetChromaticity()));
+        TF_AXIOM(PointInTriangle(blue2020.GetChromaticity(),
+                                 redAp0.GetChromaticity(), 
+                                 greenAp0.GetChromaticity(),
+                                 blueAp0.GetChromaticity()));
+    }
+    // Test Kelvin to Yxy conversion for values that are 1000K apart from
+    // 1000 to 15000 Kelvin
+    {
+        GfVec2f tableOfKnownValues[] = {
+            { 0.6530877f, 0.3446811f },
+            { 0.5266493f, 0.4133117f },
+            { 0.4370493f, 0.4043753f },
+            { 0.3804111f, 0.3765993f },
+            { 0.3450407f, 0.3512992f },
+            { 0.3220662f, 0.3315561f },
+            { 0.3064031f, 0.3165002f },
+            { 0.2952405f, 0.3049043f },
+            { 0.2869792f, 0.2958082f },
+            { 0.2806694f, 0.2885335f },
+            { 0.2757214f, 0.2826093f },
+            { 0.2717545f, 0.2777060f },
+            { 0.2685138f, 0.2735892f },
+            { 0.2658236f, 0.2700888f },
+            { 0.2635591f, 0.2670793f },
+        };
+        // test against known values
+        for (int kelvin = 1000; kelvin <= 15000; kelvin += 1000) {
+            GfColor c;
+            c.SetFromBlackbodyKelvin(kelvin, 1.0f);
+            GfVec2f xy = c.GetChromaticity();
+            GfVec2f known = tableOfKnownValues[(kelvin - 1000) / 1000];
+            TF_AXIOM(GfIsClose(xy, known, 1e-3f));
+        }
     }
     
     printf("OK\n");

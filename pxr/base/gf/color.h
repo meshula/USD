@@ -48,7 +48,9 @@ PXR_NAMESPACE_OPEN_SCOPE
 /// various methods for constructing, manipulating, and retrieving color values.
 ///
 /// The color values are stored as an RGB tuple and are associated with a color
-/// space. The color space determines the interpretation of the RGB values.
+/// space. The color space determines the interpretation of the RGB values. The
+/// values are colorimetric, but not photometric as there is no normalizing
+/// constant (such as a luminance factor).
 ///
 /// This class provides methods for setting and getting color values, converting
 /// between color spaces, normalizing luminance, and comparing colors.
@@ -64,38 +66,36 @@ public:
     GfColor(const GfColorSpace& colorSpace);
 
     /// Construct a color from an RGB tuple and color space.
-    /// \param rgb The RGB tuple.
+    /// \param rgb The RGB tuple (red, green, blue), in the color space
+    /// provided.
     /// \param colorSpace The color space.
     GF_API
     GfColor(const GfVec3f &rgb, const GfColorSpace& colorSpace);
 
     /// Construct a color by converting the source color into the specified color space.
-    /// \param color The color to copy.
-    /// \param colorSpace The color space.
+    /// \param color The color to convert, in its color space.
+    /// \param colorSpace The desired color space.
     GF_API
     GfColor(const GfColor &color, const GfColorSpace& colorSpace);
 
-    /// Set the color from a CIEXY coordinate in the chromaticity chart,
-    /// in the existing color space.
-    /// \param xyz The CIEXYZ coordinate.
+    /// Set the color from an xy coordinate in the chromaticity chart,
+    /// in the existing color space. Note the xy is conventionally annotated
+    /// as lower case coordinates.
+    /// \param xy The xy coordinate.
     GF_API
-    void SetFromCIEXY(const GfVec2f& xy);
+    void SetFromChromaticity(const GfVec2f& xy);
 
-    /// Set the color from a CIEXYZ coordinate, in the existing color space.
-    /// \param xyz The CIEXYZ coordinate.
+    /// Set the color from an XYZ coordinate, in the existing color space.
+    /// Note that XYZ is conventionally annotated as upper case coordinates.
+    /// \param XYZ The XYZ coordinate.
     GF_API
-    void SetFromCIEXYZ(const GfVec3f& xyz);
+    void SetFromXYZ(const GfVec3f& XYZ);
 
     /// Set the color from blackbody temperature in Kelvin, in the existing color space.
     /// \param kelvin The blackbody temperature in Kelvin.
-    /// \param luminosity The luminosity.
+    /// \param luminance The desired luminance.
     GF_API
-    void SetFromBlackbodyKelvin(float kelvin, float luminosity);
-
-    /// Set the color from a wavelength in nanometers, in the existing color space.
-    /// \param nm The wavelength in nanometers.
-    GF_API
-    void SetFromWavelengthNM(float nm);
+    void SetFromBlackbodyKelvin(float kelvin, float luminance);
 
     /// Get the RGB tuple.
     /// \return The RGB tuple.
@@ -105,15 +105,15 @@ public:
     /// \return The color space.
     GfColorSpace GetColorSpace() const { return _colorSpace; }
 
-    /// Get the CIEXYZ coordinate of the color.
-    /// \return The CIEXYZ coordinate.
+    /// Get the XYZ coordinate of the color.
+    /// \return The XYZ coordinate.
     GF_API
-    GfVec3f GetCIEXYZ() const;
+    GfVec3f GetXYZ() const;
 
-    /// Get the CIEXY coordinate of the color in the chromaticity chart.
-    /// \return The CIEXY coordinate.
+    /// Get the chromaticity of the color.
+    /// \return The chromaticity.
     GF_API
-    GfVec2f GetCIEXY() const;
+    GfVec2f GetChromaticity() const;
 
     /// Return the color's RGB values, normalized to a specified luminance.
     /// \param luminance The specified luminance.

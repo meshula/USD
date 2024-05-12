@@ -21,57 +21,56 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-////////////////////////////////////////////////////////////////////////
 
 #include "pxr/pxr.h"
 #include "pxr/base/gf/color.h"
+#include "pxr/base/gf/vec3f.h"
+#include "pxr/base/gf/colorSpace.h"
+#include "pxr/base/tf/pyUtils.h"
+#include "pxr/base/tf/stringUtils.h"
+#include "pxr/base/tf/wrapTypeHelpers.h"
 #include <boost/python/class.hpp>
+#include <boost/python/def.hpp>
+#include <boost/python/operators.hpp>
 #include <string>
 
 using namespace boost::python;
-
-using std::string;
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace {
 
-static string __repr__(GfColor const &self) 
+std::string __repr__(GfColor const &self)
 {
-    GfVec3f v = self.GetRGB();
-    string colorSpaceName = self.>GetName().GetString();
+    std::string colorSpaceName = self.GetColorSpace().GetName().GetString();
     return TF_PY_REPR_PREFIX + 
         TfStringPrintf("Color(%s, %s)", 
                              TfPyRepr(self.GetRGB()).c_str(),
 			     TfPyRepr(colorSpaceName).c_str());
 }
 
-} // anon
+}
 
 void wrapColor()
 {
-    typedef GfColor This;
-    typedef GfColorSpace CS;
+    class_<GfColor>("GfColor")
+        .def(init<>())
+        .def(init<const GfColorSpace&>())
+        .def(init<const GfVec3f&, const GfColorSpace&>())
+        .def(init<const GfColor&, const GfColorSpace&>())
+        .def("__repr__", &__repr__)
+        .def("SetFromXY", &GfColor::SetFromChromaticity)
+        .def("SetFromXYZ", &GfColor::SetFromXYZ)
+        .def("SetFromBlackbodyKelvin", &GfColor::SetFromBlackbodyKelvin)
+        .def("GetRGB", &GfColor::GetRGB)
+        .def("GetColorSpace", &GfColor::GetColorSpace)
+        .def("GetXYZ", &GfColor::GetXYZ)
+        .def("GetChromaticity", &GfColor::GetChromaticity)
+        .def("GetLuminanceNormalizedColor", &GfColor::GetLuminanceNormalizedColor)
+        .def("NormalizeLuminance", &GfColor::NormalizeLuminance)
+        .def(self == self)
+        .def(self != self);
 
-    scope thisScope = 
-        class_<This>("Color")
-            .def(init<>())
-            .def(init<const This&>())
-            .def(init<const GfVec3f&, CS>())
-            .def(init<const This&, CS>())
-            .def("SetFromCIEXYZ", &This::SetFromCIEXYZ)
-            .def("SetFromWavelengthNM", &This::SetFromWavelengthNM)
-            .def("GetRGB", &This::GetRGB)
-            .def("GetColorSpace", &This::GetColorSpace)
-            .def("GetCIEXYZ", &This::GetCIEXYZ)
-            .def("NormalizeLuminance", &This::NormalizeLuminance)
-            .def("NormalizedLuminance", &This::NormalizedLuminance)
-            .def(self == self)
-            .def(self != self)
-            .def("ConvertRGB", &This::ConvertRGB)
-            .def("ConvertRGBA", &This::ConvertRGBA)
-            .def(str(self))
-            .def("__repr__", __repr__)
-            .def("__hash__", __hash__)
-            ;
+        def("IsClose", (bool (*)(const GfColor &v1, const GfColor &v2, double))
+            GfIsClose);
 }
