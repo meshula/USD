@@ -25,40 +25,6 @@
 #include "nanocolorUtils.h"
 #include <math.h>
 
-/*
-    This is actually u'v', u'v' is uv scaled by 1.5 along the v axis
-*/
-
-typedef struct {
-    float Y;
-    float u;
-    float v;
-} NcYuvPrime;
-
-NcYxy _NcYuv2Yxy(NcYuvPrime c) {
-    float d = 6 * c.u - 16 * c.v + 12;
-    return (NcYxy) {
-        c.Y,
-        9 * c.u / d,
-        4 * c.v / d
-    };
-}
-
-/* Equations from the paper "An Algorithm to Calculate Correlated Colour 
-   Temperature" by M. Krystek in 1985, using a rational Chebyshev approximation 
-   designed.
-*/
-NcYxy NcKelvinToYxy(float temperature, float luminosity) {
-    if (temperature < 1000 || temperature > 15000)
-        return (NcYxy) { 0, 0, 0 };
-
-    float u = (0.860117757 + 1.54118254e-4 * temperature + 1.2864121e-7 * temperature * temperature) /
-              (1 + 8.42420235e-4 * temperature + 7.08145163e-7 * temperature * temperature);
-    float v = (0.317398726 + 4.22806245e-5 * temperature + 4.20481691e-8 * temperature * temperature) /
-              (1 - 2.89741816e-5 * temperature + 1.61456053e-7 * temperature * temperature);
-    return _NcYuv2Yxy((NcYuvPrime) {luminosity, u, v});
-}
-
 // ISO 17321-1:2012 Table D.1
 // ap0 is the aces name for 2065-1
 /*
@@ -98,31 +64,32 @@ static NcRGB _ISO17321_ap0[24] = {
 
 // these measurements are under Illuminant C, which is not normative
 // https://home.cis.rit.edu/~cnspci/references/mccamy1976.pdf
-static NcXYZ _McCamy1976_xyY[24] = {
-    { 0.400, 0.350, 10.10 },
-    { 0.377, 0.345, 35.80 },
-    { 0.247, 0.251, 19.30 },
-    { 0.337, 0.422, 13.30 },
-    { 0.265, 0.240, 24.30 },
-    { 0.261, 0.343, 43.10 },
-    { 0.506, 0.407, 30.10 },
-    { 0.211, 0.175, 12.00 },
-    { 0.453, 0.306, 19.80 },
-    { 0.285, 0.202,  6.60 },
-    { 0.380, 0.489, 44.30 },
-    { 0.473, 0.438, 43.10 },
-    { 0.187, 0.129,  6.10 },
-    { 0.305, 0.478, 23.40 },
-    { 0.539, 0.313, 12.00 },
-    { 0.448, 0.470, 59.10 },
-    { 0.364, 0.233, 19.80 },
-    { 0.196, 0.252, 19.80 },
-    { 0.310, 0.316, 90.00 },
-    { 0.310, 0.316, 59.10 },
-    { 0.310, 0.316, 36.20 },
-    { 0.310, 0.316, 19.80 },
-    { 0.310, 0.316,  9.00 },
-    { 0.310, 0.316,  3.10 }
+
+static NcYxy _McCamy1976_Yxy[24] = {
+    { 10.10, 0.400, 0.350 },
+    { 35.80, 0.377, 0.345 },
+    { 19.30, 0.247, 0.251 },
+    { 13.30, 0.337, 0.422 },
+    { 24.30, 0.265, 0.240 },
+    { 43.10, 0.261, 0.343 },
+    { 30.10, 0.506, 0.407 },
+    { 12.00, 0.211, 0.175 },
+    { 19.80, 0.453, 0.306 },
+    {  6.60, 0.285, 0.202 },
+    { 44.30, 0.380, 0.489 },
+    { 43.10, 0.473, 0.438 },
+    {  6.10, 0.187, 0.129 },
+    { 23.40, 0.305, 0.478 },
+    { 12.00, 0.539, 0.313 },
+    { 59.10, 0.448, 0.470 },
+    { 19.80, 0.364, 0.233 },
+    { 19.80, 0.196, 0.252 },
+    { 90.00, 0.310, 0.316 },
+    { 59.10, 0.310, 0.316 },
+    { 36.20, 0.310, 0.316 },
+    { 19.80, 0.310, 0.316 },
+    {  9.00, 0.310, 0.316 },
+    {  3.10, 0.310, 0.316 },
 };
 
 // these measurements are under D65 illuminant, and may not match the ISO chart
@@ -183,42 +150,8 @@ static const char* _ISO17321_names[24] = {
     "Black"
 };
 
-
 NcRGB* NcISO17321ColorChipsAP0() { return _ISO17321_ap0; }
 const char** NcISO17321ColorChipsNames() { return _ISO17321_names; }
 NcRGB* NcCheckerColorChipsSRGB() { return _Checker_SRGB; }
-NcXYZ* NcMcCamy1976ColorChipsxyY() { return  _McCamy1976_xyY; }
+NcYxy* NcMcCamy1976ColorChipsYxy() { return _McCamy1976_Yxy; }
 
-NcXYZ NcProjectToChromaticities(NcXYZ c) {
-    float n  = c.x + c.y + c.z;
-    return (NcXYZ) { c.x / n, c.y / n, c.z / n };
-}
-
-NcYxy NcNormalizeYxy(NcYxy c) {
-    return (NcYxy) {
-        c.Y,
-        c.Y * c.x / c.y,
-        c.Y * (1.f - c.x - c.y) / c.y
-    };
-}
-
-static inline float sign_of(float x) {
-    return x > 0 ? 1.f : (x < 0) ? -1.f : 0.f;
-}
-
-NcRGB NcRGBFromYxy(const NcColorSpace* cs, NcYxy c) {
-    NcYxy cYxy = NcNormalizeYxy(c);
-    NcRGB rgb = NcXYZToRGB(cs, (NcXYZ) { cYxy.x, cYxy.Y, cYxy.y });
-    NcRGB magRgb = {
-        fabsf(rgb.r),
-        fabsf(rgb.g),
-        fabsf(rgb.b) };
-
-    float maxc = (magRgb.r > magRgb.g) ? magRgb.r : magRgb.g;
-    maxc = maxc > magRgb.b ? maxc : magRgb.b;
-    rgb = (NcRGB) {
-        sign_of(rgb.r) * rgb.r / maxc,
-        sign_of(rgb.g) * rgb.g / maxc,
-        sign_of(rgb.b) * rgb.b / maxc };
-    return rgb;
-}

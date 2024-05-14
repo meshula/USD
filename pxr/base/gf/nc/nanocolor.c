@@ -892,6 +892,13 @@ NcYxy NcXYZToYxy(NcXYZ xyz) {
     return (NcYxy) {xyz.y, xyz.x / sum, xyz.y / sum};
 }
 
+NCAPI NcXYZ NcYxyToXYZ(NcYxy Yxy) {
+    return (NcXYZ) { 
+        Yxy.Y * Yxy.x / Yxy.y,
+        Yxy.Y,
+        Yxy.Y * (1.f - Yxy.x - Yxy.y) / Yxy.y };
+}
+
 const NcColorSpace* NcGetNamedColorSpace(const char* name)
 {
     if (name) {
@@ -970,3 +977,66 @@ void NcGetK0Phi(const NcColorSpace* cs, float* K0, float* phi) {
         *phi = cs->phi;
     }
 }
+
+/* This is actually u'v', u'v' is uv scaled by 1.5 along the v axis
+*/
+
+typedef struct {
+    float Y;
+    float u;
+    float v;
+} NcYuvPrime;
+
+NcYxy _NcYuv2Yxy(NcYuvPrime c) {
+    float d = 6.f * c.u - 16.f * c.v + 12.f;
+    return (NcYxy) {
+        c.Y,
+        9.f * c.u / d,
+        4.f * c.v / d
+    };
+}
+
+/* Equations from the paper "An Algorithm to Calculate Correlated Colour 
+   Temperature" by M. Krystek in 1985, using a rational Chebyshev approximation.
+*/
+NcYxy NcKelvinToYxy(float T, float luminance) {
+    if (T < 1000 || T > 15000)
+        return (NcYxy) { 0, 0, 0 };
+
+    float u = (0.860117757 + 1.54118254e-4 * T + 1.2864121e-7 * T * T) /
+              (1.0 + 8.42420235e-4 * T + 7.08145163e-7 * T * T);
+    float v = (0.317398726 + 4.22806245e-5 * T + 4.20481691e-8 * T * T) /
+              (1.0 - 2.89741816e-5 * T + 1.61456053e-7 * T * T);
+
+    return _NcYuv2Yxy((NcYuvPrime) {luminance, u, 3.f * v / 2.f });
+}
+
+NcYxy NcNormalizeYxy(NcYxy c) {
+    return (NcYxy) {
+        c.Y,
+        c.Y * c.x / c.y,
+        c.Y * (1.f - c.x - c.y) / c.y
+    };
+}
+
+static inline float sign_of(float x) {
+    return x > 0 ? 1.f : (x < 0) ? -1.f : 0.f;
+}
+
+NcRGB NcYxyToRGB(const NcColorSpace* cs, NcYxy c) {
+    NcYxy cYxy = NcNormalizeYxy(c);
+    NcRGB rgb = NcXYZToRGB(cs, (NcXYZ) { cYxy.x, cYxy.Y, cYxy.y });
+    NcRGB magRgb = {
+        fabsf(rgb.r),
+        fabsf(rgb.g),
+        fabsf(rgb.b) };
+
+    float maxc = (magRgb.r > magRgb.g) ? magRgb.r : magRgb.g;
+    maxc = maxc > magRgb.b ? maxc : magRgb.b;
+    NcRGB ret = (NcRGB) {
+        sign_of(rgb.r) * rgb.r / maxc,
+        sign_of(rgb.g) * rgb.g / maxc,
+        sign_of(rgb.b) * rgb.b / maxc };
+    return ret;
+}
+
