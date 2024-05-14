@@ -107,9 +107,8 @@ component, and you may choose to omit it from your project.
 ```c
 NcXYZ NcKelvinToYxy(float temperature, float luminosity);
 NcRGB* NcISO17321_AP0_ColorChips();
-NcXYZ NcProjectToChromaticities(NcXYZ c);
 NcXYZ NcNormalizeXYZ(NcXYZ c);
-NcRGB NcRGBFromYxy(NcColorSpace* cs, NcYxy c);
+NcRGB NcYxyToRGB(NcColorSpace* cs, NcYxy c);
 NcXYZ NcCIE1931ColorFromWavelength(float lambda, bool approx);
 ```
 
@@ -120,13 +119,10 @@ emission spectrum for values between 1667 and 25000K
 in the ap0 gamut corresponding to the 24 color chips in ISO 
 standard chart 17321
 
-`NcProjectToChromaticities` ~ given a CIE XYZ 1931 color 
-coordinate, project it to the regularized chromaticity coordinate
-
 `NcNormalizeXYZ(NcXYZ c)` ~ given a CIE XYZ 1931 color
 coordinate, normalize it to a unit luminance
 
-`NcRGBFromYxy` ~ given a CIEXY coordinate, and a luminace,
+`NcYxyToRGB` ~ given a CIEXY coordinate, and a luminace,
 compute an RGB value for the given color space
 
 `NcCIE1931ColorFromWavelength` ~ compute a CIE XYZ coordinate
