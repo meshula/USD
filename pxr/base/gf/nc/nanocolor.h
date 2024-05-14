@@ -180,7 +180,6 @@ NCEXTERNC const char* Nc_srgb_texture;
 #define NcInitColorSpaceLibrary      NCCONCAT(NCNAMESPACE, InitColorSpaceLibrary)
 #define NcKelvinToYxy                NCCONCAT(NCNAMESPACE, KelvinToYxy)
 #define NcMatchLinearColorSpace      NCCONCAT(NCNAMESPACE, MatchLinearColorSpace)
-#define NcNormalizeLuminance         NCCONCAT(NCNAMESPACE, NormalizeLuminance)
 #define NcRegisteredColorSpaceNames  NCCONCAT(NCNAMESPACE, RegisteredColorSpaceNames)
 #define NcRGBToXYZ                   NCCONCAT(NCNAMESPACE, RGBToXYZ)
 #define NcTransformColor             NCCONCAT(NCNAMESPACE, TransformColor)
@@ -310,16 +309,6 @@ NCAPI void NcTransformColors(const NcColorSpace* dst, const NcColorSpace* src,
  */
 NCAPI void NcTransformColorsWithAlpha(const NcColorSpace* dst, const NcColorSpace* src,
                                       float* rgba, size_t count);
-
-/**
- * Normalizes the luminance of a color to the provided value.
- * 
- * @param cs Pointer to the color space object.
- * @param rgb The RGB color to normalize.
- * @param luminance The luminance value to normalize to.
- * @return The normalized RGB color.
-*/
-NCAPI NcRGB NcNormalizeLuminance(const NcColorSpace* cs, NcRGB rgb, float luminance);
 
 /**
  * Converts an RGB color to XYZ color space using the provided color space.

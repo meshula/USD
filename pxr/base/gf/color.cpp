@@ -29,7 +29,6 @@
 #include "pxr/base/tf/registryManager.h"
 #include "pxr/base/tf/type.h"
 #include "nc/nanocolor.h"
-#include "nc/nanocolorUtils.h"
 #include "colorSpace_data.h"
 #include <iostream>
 
@@ -122,22 +121,6 @@ GfVec2f GfColor::GetChromaticity() const
     NcXYZ rgb = NcRGBToXYZ(_colorSpace._data->colorSpace, src);
     NcYxy chroma = NcXYZToYxy(rgb);
     return GfVec2f(chroma.x, chroma.y);
-}
-
-// Return the color's RGB values, normalized to a specified luminance.
-GfColor GfColor::GetLuminanceNormalizedColor(float luminance) const
-{
-    GfColor ret = *this;
-    ret.NormalizeLuminance(luminance);
-    return ret;
-}
-
-// Normalize the color to a specified luminance.
-void GfColor::NormalizeLuminance(float luminance)
-{
-    NcRGB src = { _rgb[0], _rgb[1], _rgb[2] };
-    src = NcNormalizeLuminance(_colorSpace._data->colorSpace, src, luminance);
-    _rgb = GfVec3f(src.r, src.g, src.b);
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE

@@ -79,7 +79,6 @@ pxr_library(gf
 
     CPPFILES
         nc/nanocolor.c
-        nc/nanocolorUtils.c
 
     PRIVATE_CLASSES
         ostreamHelpers
@@ -88,7 +87,6 @@ pxr_library(gf
         ilmbase_eLut.h
         ilmbase_toFloat.h
         nc/nanocolor.h
-        nc/nanocolorUtils.h
 
     PYTHON_CPPFILES
         moduleDeps.cpp

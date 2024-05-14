@@ -28,7 +28,6 @@
 #include "pxr/base/tf/registryManager.h"
 #include "pxr/base/tf/type.h"
 #include "nc/nanocolor.h"
-#include "nc/nanocolorUtils.h"
 #include "colorSpace_data.h"
 
 PXR_NAMESPACE_OPEN_SCOPE

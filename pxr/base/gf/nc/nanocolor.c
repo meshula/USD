@@ -37,11 +37,15 @@
 #include <arm_neon.h>
 #endif
 
+// Internal data structure to hold computed color space data, and the initial
+// decsriptor.
 struct NcColorSpace {
     NcColorSpaceDescriptor desc;
     float K0, phi;
     NcM33f rgbToXYZ;
 };
+
+static void _NcInitColorSpace(NcColorSpace* cs);
 
 static float nc_ToLinear(const NcColorSpace* cs, float t) {
     const float gamma = cs->desc.gamma;
@@ -138,8 +142,6 @@ NCAPI const char*  NcGetDescription(const NcColorSpace* cs) {
         return "sRGB Texture, a color space using the sRGB primaries.";
     return cs->desc.name;
 }
-
-static void _NcInitColorSpace(NcColorSpace* cs);
 
 // White point chromaticities.
 #define _WpD65 (NcChromaticity) { 0.3127, 0.3290 }
@@ -434,23 +436,10 @@ static NcM33f NcM33fMultiply(NcM33f lh, NcM33f rh) {
     return m;
 }
 
-#if 0
-/// @TODO move to test suite
-void checkInvertAndMultiply() {
-    // this gives the correct result per Annex C
-    NcM33f s = { 0.56711181859, 0.2793268677, 0, 0.1903210663, 0.6434664624, 0.0725032634, 0.1930166748, 0.0772066699, 1.0165544874 };
-    NcM33f d = { 0.4123907993, 0.2126390059, 0.0193308187, 0.3575843394, 0.7151686788, 0.1191947798, 0.1804807884, 0.0721923154, 0.9505321522 };
-    NcM33f di = NcM3ffInvert(d);
-    NcM33f sd = NcM33fMultiply(s, di);
-}
-#endif
-
 static void _NcInitColorSpace(NcColorSpace* cs) {
     if (!cs || cs->rgbToXYZ.m[8] != 0.0)
         return;
-    
-    // init will overwrite K0, phi.
-    
+        
     const float a = cs->desc.linearBias;
     const float gamma = cs->desc.gamma;
     
@@ -529,8 +518,6 @@ static void _NcInitColorSpace(NcColorSpace* cs) {
     m.m[7] *= C[1];
     m.m[8] *= C[2];
     
-    // overwrite the transform. It's fine if two threads do it simultaneously
-    // because they will both write the same value.
     cs->rgbToXYZ = m;
 }
 

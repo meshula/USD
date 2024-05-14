@@ -117,18 +117,6 @@ public:
     GF_API
     GfVec2f GetChromaticity() const;
 
-    /// Return the color's RGB values, normalized to a specified luminance.
-    /// \param luminance The specified luminance.
-    /// \return The normalized color.
-    GF_API
-    GfColor GetLuminanceNormalizedColor(float luminance) const;
-
-    /// Normalize the color to a specified luminance.
-    /// \param luminance The specified luminance.
-    /// \return A reference to the normalized color.
-    GF_API
-    void NormalizeLuminance(float luminance);
-
     /// Equality operator.
     /// \param rh The right-hand side color.
     /// \return True if the colors are equal, false otherwise.
