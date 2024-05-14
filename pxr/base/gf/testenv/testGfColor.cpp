@@ -69,6 +69,7 @@ main(int argc, char *argv[])
     GfColorSpace csAp0(GfColorSpaceNames->LinearAP0);
     GfColorSpace csSRGBP3(GfColorSpaceNames->SRGBDisplayP3);
     GfColorSpace csLinearRec2020(GfColorSpaceNames->LinearRec2020);
+    GfColorSpace csIdentity(GfColorSpaceNames->Identity);
 
     GfColor mauveLinear(GfVec3f(0.5f, 0.25f, 0.125f), csLinearRec709);
     GfColor mauveGamma(mauveLinear, csG22Rec709);
@@ -206,12 +207,14 @@ main(int argc, char *argv[])
         TF_AXIOM(csSRGB != csSRGBP3);
         TF_AXIOM(csSRGB != csLinearRec2020);
     }
-    // test that constructing from Kelvin at 6500 is D65
+    // test that constructing from Kelvin at 6504 is in the near vicinity of
+    // the chromaticity of D65, even though spectrally, they are unrelated.
+    // nb. 6504 is the CCT match to D65
     {
         GfColor c;
-        c.SetFromBlackbodyKelvin(6500, 1.0f);
+        c.SetFromBlackbodyKelvin(6504, 1.0f);
         GfVec2f xy = c.GetChromaticity();
-        //TF_AXIOM(GfIsClose(xy, wpD65xy, 1e-2f));
+       // TF_AXIOM(GfIsClose(xy, wpD65xy, 1e-2f));
     }
     // test that primaries correspond to unit vectors in their color space
     {
@@ -305,6 +308,7 @@ main(int argc, char *argv[])
                                  greenAp0.GetChromaticity(),
                                  blueAp0.GetChromaticity()));
     }
+
     // Test Kelvin to Yxy conversion for values that are 1000K apart from
     // 1000 to 15000 Kelvin
     {
@@ -325,16 +329,20 @@ main(int argc, char *argv[])
             { 0.2658236f, 0.2700888f },
             { 0.2635591f, 0.2670793f },
         };
-        // test against known values
-        for (int kelvin = 1000; kelvin <= 15000; kelvin += 1000) {
-            GfColor c;
+        // test against known values. Although the approximation returns
+        // values between 1000 and 2000, they are slightly divergent from
+        // canonical values.
+        for (int kelvin = 1000; kelvin <= 15000; kelvin += (kelvin < 2000? 100:1000)) {
+            GfColor c(csIdentity);
             c.SetFromBlackbodyKelvin(kelvin, 1.0f);
             GfVec2f xy = c.GetChromaticity();
-            GfVec2f known = tableOfKnownValues[(kelvin - 1000) / 1000];
+            int index = (kelvin - 1000) / 1000;
+            GfVec2f known = tableOfKnownValues[index];
+            printf("%d: table(%f, %f), func(%f, %f)\n", kelvin, known[0], known[1], xy[0], xy[1]);
             //TF_AXIOM(GfIsClose(xy, known, 1e-3f));
         }
     }
-    
+
     printf("OK\n");
     return 0;
 }

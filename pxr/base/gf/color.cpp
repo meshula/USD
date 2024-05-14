@@ -85,7 +85,7 @@ GfColor::GfColor(const GfColor &srcColor, const GfColorSpace& dstColorSpace)
 void GfColor::SetFromChromaticity(const GfVec2f& xy)
 {
     NcYxy c = { 1.f, xy[0], xy[1] };
-    NcRGB rgb = NcRGBFromYxy(_colorSpace._data->colorSpace, c);
+    NcRGB rgb = NcYxyToRGB(_colorSpace._data->colorSpace, c);
     _rgb = GfVec3f(rgb.r, rgb.g, rgb.b);
 }
 
@@ -102,7 +102,7 @@ void GfColor::SetFromXYZ(const GfVec3f& xyz)
 void GfColor::SetFromBlackbodyKelvin(float kelvin, float lumimance)
 {
     NcYxy c = NcKelvinToYxy(kelvin, lumimance);
-    NcRGB rgb = NcRGBFromYxy(_colorSpace._data->colorSpace, c);
+    NcRGB rgb = NcYxyToRGB(_colorSpace._data->colorSpace, c);
     _rgb = GfVec3f(rgb.r, rgb.g, rgb.b);
 }
 
@@ -120,7 +120,7 @@ GfVec2f GfColor::GetChromaticity() const
 {
     NcRGB src = {_rgb[0], _rgb[1], _rgb[2]};
     NcXYZ rgb = NcRGBToXYZ(_colorSpace._data->colorSpace, src);
-    NcXYZ chroma = NcProjectToChromaticities(rgb);
+    NcYxy chroma = NcXYZToYxy(rgb);
     return GfVec2f(chroma.x, chroma.y);
 }
 

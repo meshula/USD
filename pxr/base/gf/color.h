@@ -92,6 +92,8 @@ public:
     void SetFromXYZ(const GfVec3f& XYZ);
 
     /// Set the color from blackbody temperature in Kelvin, in the existing color space.
+    /// Values are computed for temperatures between 1000K and 15000K.
+    /// Note that temperatures below 1900K are out of gamut for Rec709.
     /// \param kelvin The blackbody temperature in Kelvin.
     /// \param luminance The desired luminance.
     GF_API
