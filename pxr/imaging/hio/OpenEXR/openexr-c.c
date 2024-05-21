@@ -1007,7 +1007,7 @@ exr_result_t nanoexr_read_exr(const char* filename,
                 exr_get_default_error_message(rv));
         return rv;
     }
-    
+
     rv = exr_start_read(&exr, filename, &cinit);
     if (rv != EXR_ERR_SUCCESS) {
         fprintf(stderr, "nanoexr start error: %s\n",
@@ -1023,7 +1023,7 @@ exr_result_t nanoexr_read_exr(const char* filename,
         exr_finish(&exr);
         return rv;
     }
-    
+
     int num_sub_images = 0;
     rv = exr_get_count(exr, &num_sub_images);
     if (rv != EXR_ERR_SUCCESS || partIndex >= num_sub_images) {
@@ -1031,7 +1031,7 @@ exr_result_t nanoexr_read_exr(const char* filename,
         exr_finish(&exr);
         return rv;
     }
-    
+
     // check that compression type is understood
     exr_compression_t compression;
     rv = exr_get_compression(exr, partIndex, &compression);
@@ -1041,7 +1041,7 @@ exr_result_t nanoexr_read_exr(const char* filename,
         exr_finish(&exr);
         return rv;
     }
-    
+
     exr_attr_box2i_t datawin;
     exr_attr_box2i_t displaywin;
     rv = exr_get_data_window(exr, partIndex, &datawin);
@@ -1058,10 +1058,10 @@ exr_result_t nanoexr_read_exr(const char* filename,
         exr_finish(&exr);
         return rv;
     }
-    
+
     int width = datawin.max.x - datawin.min.x + 1;
     int height = datawin.max.y - datawin.min.y + 1;
-    
+
     const exr_attr_chlist_t* chlist = NULL;
     rv = exr_get_channels(exr, partIndex, &chlist);
     if (rv != EXR_ERR_SUCCESS) {
@@ -1070,7 +1070,7 @@ exr_result_t nanoexr_read_exr(const char* filename,
         exr_finish(&exr);
         return rv;
     }
-    
+
     exr_pixel_type_t pixelType = chlist->entries[0].pixel_type;
     int bytesPerChannel = nanoexr_getPixelTypeSize(pixelType);
     if (bytesPerChannel == 0) {
@@ -1094,9 +1094,9 @@ exr_result_t nanoexr_read_exr(const char* filename,
         exr_finish(&exr);
         return rv;
     }
-    
+
     int rgbaIndex[4] = {-1, -1, -1, -1};
-    
+
     if (storage == EXR_STORAGE_TILED) {
         rv = nanoexr_read_tiled_exr(exr, img, layerName, partIndex, mipLevel, rgbaIndex);
     }
@@ -1111,7 +1111,7 @@ exr_result_t nanoexr_read_exr(const char* filename,
         img->data = NULL;
         return rv;
     }
-    
+
     uint16_t oneValue = float_to_half(1.0f);
     uint16_t zeroValue = float_to_half(0.0f);
     
