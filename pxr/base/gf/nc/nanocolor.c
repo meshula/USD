@@ -144,8 +144,8 @@ NCAPI const char*  NcGetDescription(const NcColorSpace* cs) {
 }
 
 // White point chromaticities.
-#define _WpD65 (NcChromaticity) { 0.3127, 0.3290 }
-#define _WpACES (NcChromaticity) { 0.32168, 0.33767 }
+#define _WpD65 { 0.3127, 0.3290 }
+#define _WpACES { 0.32168, 0.33767 }
 
 static NcColorSpace _colorSpaces[] = {
     {

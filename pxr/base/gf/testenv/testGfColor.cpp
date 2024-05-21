@@ -214,7 +214,7 @@ main(int argc, char *argv[])
         GfColor c;
         c.SetFromBlackbodyKelvin(6504, 1.0f);
         GfVec2f xy = c.GetChromaticity();
-       // TF_AXIOM(GfIsClose(xy, wpD65xy, 1e-2f));
+        TF_AXIOM(GfIsClose(xy, wpD65xy, 1e-2f));
     }
     // test that primaries correspond to unit vectors in their color space
     {
@@ -332,14 +332,13 @@ main(int argc, char *argv[])
         // test against known values. Although the approximation returns
         // values between 1000 and 2000, they are slightly divergent from
         // canonical values.
-        for (int kelvin = 1000; kelvin <= 15000; kelvin += (kelvin < 2000? 100:1000)) {
+        for (int kelvin = 1000; kelvin <= 15000; kelvin += 1000) {
             GfColor c(csIdentity);
             c.SetFromBlackbodyKelvin(kelvin, 1.0f);
             GfVec2f xy = c.GetChromaticity();
             int index = (kelvin - 1000) / 1000;
             GfVec2f known = tableOfKnownValues[index];
-            printf("%d: table(%f, %f), func(%f, %f)\n", kelvin, known[0], known[1], xy[0], xy[1]);
-            //TF_AXIOM(GfIsClose(xy, known, 1e-3f));
+            TF_AXIOM(GfIsClose(xy, known, 1e-3f));
         }
     }
 
