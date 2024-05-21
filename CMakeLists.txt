@@ -69,13 +69,6 @@ if (PXR_BUILD_DOCUMENTATION)
     if (PXR_BUILD_PYTHON_DOCUMENTATION)
         pxr_build_python_documentation()
     endif()
-endif()   
-
-# If building python doc strings, run script
-# that uses doxygen build results and installed
-# USD python modules
-if (PXR_BUILD_PYTHON_DOCUMENTATION)
-    pxr_build_python_documentation()
 endif()
 
 if (APPLE)
