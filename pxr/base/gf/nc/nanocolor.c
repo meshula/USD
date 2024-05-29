@@ -522,7 +522,7 @@ static void _NcInitColorSpace(NcColorSpace* cs) {
 }
 
 void  NcInitColorSpaceLibrary(void) {
-    for (int i = 0; i < sizeof(_colorSpaces) / sizeof(_colorSpaces[0]); i++) {
+    for (size_t i = 0; i < sizeof(_colorSpaces) / sizeof(_colorSpaces[0]); i++) {
         _NcInitColorSpace(&_colorSpaces[i]);
     }
 }
@@ -580,7 +580,7 @@ void NcFreeColorSpace(const NcColorSpace* cs) {
         return;
 
     // don't free the built in color spaces
-    for (int i = 0; i < sizeof(_colorSpaces) / sizeof(_colorSpaces[0]); i++) {
+    for (size_t i = 0; i < sizeof(_colorSpaces) / sizeof(_colorSpaces[0]); i++) {
         if (cs == &_colorSpaces[i]) {
             return;
         }
@@ -889,7 +889,7 @@ NCAPI NcXYZ NcYxyToXYZ(NcYxy Yxy) {
 const NcColorSpace* NcGetNamedColorSpace(const char* name)
 {
     if (name) {
-        for (int i = 0; i < sizeof(_colorSpaces) / sizeof(_colorSpaces[0]); i++) {
+        for (size_t i = 0; i < sizeof(_colorSpaces) / sizeof(_colorSpaces[0]); i++) {
             if (strcmp(name, _colorSpaces[i].desc.name) == 0) {
                 _NcInitColorSpace((NcColorSpace*) &_colorSpaces[i]); // ensure initialization
                 return &_colorSpaces[i];
@@ -906,18 +906,6 @@ static bool CompareChromaticity(const NcChromaticity* a, const NcChromaticity* b
            fabsf(a->y - b->y) < threshold;
 }
 
-static bool CompareXYZ(const NcXYZ* a, const NcXYZ* b, float threshold) {
-    return fabsf(a->x - b->x) < threshold &&
-           fabsf(a->y - b->y) < threshold &&
-           fabsf(a->z - b->z) < threshold;
-}
-
-static bool CompareCIEXYChromaticity(const NcChromaticity* a,
-                                     const NcChromaticity* b, float threshold) {
-    return fabsf(a->x - b->x) < threshold &&
-           fabsf(a->y - b->y) < threshold;
-}
-
 // The main reason this exists is that OpenEXR encodes colorspaces via primaries
 // and white point, and it would be good to be able to match an EXR file to a
 // known colorspace, rather than setting up unique transforms for each image.
@@ -927,7 +915,7 @@ static bool CompareCIEXYChromaticity(const NcChromaticity* a,
 const char*
 NcMatchLinearColorSpace(NcChromaticity redPrimary, NcChromaticity greenPrimary, NcChromaticity bluePrimary,
                         NcChromaticity  whitePoint, float threshold) {
-    for (int i = 0; i < sizeof(_colorSpaces) / sizeof(NcColorSpace); ++i) {
+    for (size_t i = 0; i < sizeof(_colorSpaces) / sizeof(NcColorSpace); ++i) {
         if (_colorSpaces[i].desc.gamma != 1.0f)
             continue;
         if (CompareChromaticity(&_colorSpaces[i].desc.redPrimary, &redPrimary, threshold) &&

@@ -25,7 +25,7 @@
 #define PXR_BASE_GF_COLOR_H
 
 /// \file gf/color.h
-/// \ingroup group_gf_BasicGeometry
+/// \ingroup group_gf_Color
 
 #include "pxr/pxr.h"
 #include "pxr/base/gf/colorSpace.h"
@@ -63,7 +63,7 @@ public:
     /// Construct a black color in the given color space.
     /// \param colorSpace The color space.
     GF_API
-    GfColor(const GfColorSpace& colorSpace);
+    explicit GfColor(const GfColorSpace& colorSpace);
 
     /// Construct a color from an RGB tuple and color space.
     /// \param rgb The RGB tuple (red, green, blue), in the color space
