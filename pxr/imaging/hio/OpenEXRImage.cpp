@@ -291,9 +291,15 @@ bool Hio_OpenEXRImage::ReadCropped(
     bool outputIsHalf =  HioGetHioType(storage.format) == HioTypeHalfFloat;
     bool outputIsUInt =  HioGetHioType(storage.format) == HioTypeUnsignedInt;
 
-    // no conversion between uint and a float type is provided.
+    // no conversion to anything except these formats
+    if (!(outputIsHalf || outputIsFloat || outputIsUInt))
+        return false;
+
+    // no conversion to uint from non uint
     if (outputIsUInt && !inputIsUInt)
         return false;
+
+    // no coversion of non float to float
     if (outputIsFloat && !(inputIsFloat || inputIsHalf))
         return false;
 

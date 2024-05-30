@@ -139,3 +139,13 @@ pxr_library(hio
         overview.dox
 )
 
+pxr_build_test(testHio
+    LIBRARIES
+        hio
+    CPPFILES
+        testenv/testHioImage.cpp
+)
+
+pxr_register_test(testHdBufferSourceEmptyVal
+    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testHioImage"
+)

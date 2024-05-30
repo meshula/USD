@@ -515,7 +515,7 @@ exr_result_t nanoexr_write_exr(
             encoder.channels[c].user_pixel_stride = alphaPixelStride;
             encoder.channels[c].user_line_stride  = alphaLineStride;
             encoder.channels[c].height            = scansperchunk; // chunk height
-            encoder.channels[c].width             = dataw.max.x - dataw.min.y + 1;
+            encoder.channels[c].width             = dataw.max.x - dataw.min.x + 1;
             encoder.channels[c].encode_from_ptr   = pAlpha;
             ++c;
         }
@@ -523,7 +523,7 @@ exr_result_t nanoexr_write_exr(
             encoder.channels[c].user_pixel_stride = bluePixelStride;
             encoder.channels[c].user_line_stride  = blueLineStride;
             encoder.channels[c].height            = scansperchunk; // chunk height
-            encoder.channels[c].width             = dataw.max.x - dataw.min.y + 1;
+            encoder.channels[c].width             = dataw.max.x - dataw.min.x + 1;
             encoder.channels[c].encode_from_ptr   = pBlue;
             ++c;
         }
@@ -531,7 +531,7 @@ exr_result_t nanoexr_write_exr(
             encoder.channels[c].user_pixel_stride = greenPixelStride;
             encoder.channels[c].user_line_stride  = greenLineStride;
             encoder.channels[c].height            = scansperchunk; // chunk height
-            encoder.channels[c].width             = dataw.max.x - dataw.min.y + 1;
+            encoder.channels[c].width             = dataw.max.x - dataw.min.x + 1;
             encoder.channels[c].encode_from_ptr   = pGreen;
             ++c;
         }
@@ -539,7 +539,7 @@ exr_result_t nanoexr_write_exr(
             encoder.channels[c].user_pixel_stride = redPixelStride;
             encoder.channels[c].user_line_stride  = redLineStride;
             encoder.channels[c].height            = scansperchunk; // chunk height
-            encoder.channels[c].width             = dataw.max.x - dataw.min.y + 1;
+            encoder.channels[c].width             = dataw.max.x - dataw.min.x + 1;
             encoder.channels[c].encode_from_ptr   = pRed;
             ++c;
         }
@@ -1086,8 +1086,8 @@ exr_result_t nanoexr_read_exr(const char* filename,
     img->height = height;
     img->dataSize = width * height * img->channelCount * bytesPerChannel;
     img->pixelType = pixelType;
-    img->dataWindowMinY = (datawin.min.y + 1) >> mipLevel;
-    img->dataWindowMaxY = (datawin.max.y + 1) >> mipLevel;
+    img->dataWindowMinY = datawin.min.y >> mipLevel;
+    img->dataWindowMaxY = (datawin.max.y+1) >> mipLevel;
     img->data = (unsigned char*) malloc(img->dataSize);
     if (img->data == NULL) {
         fprintf(stderr, "nanoexr error: could not allocate memory for image data\n");

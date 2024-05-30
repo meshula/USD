@@ -416,56 +416,12 @@ def RunCMake(context, force, extraArgs = None):
         # For macOS cross compilation, set the Xcode architecture flags.
         targetArch = apple_utils.GetTargetArch(context)
 
-        if (
-            context.targetNative
-            or targetArch == apple_utils.GetTargetArch(context)
-            and not context.targetIos
-        ):
-            extraArgs.append("-DCMAKE_XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH=YES")
+        if context.targetNative or targetArch == apple_utils.GetHostArch():
+            extraArgs.append('-DCMAKE_XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH=YES')
         else:
-            extraArgs.append("-DCMAKE_XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH=NO")
+            extraArgs.append('-DCMAKE_XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH=NO')
 
-        extraArgs.append("-DCMAKE_OSX_ARCHITECTURES={0}".format(targetArch))
-
-    if context.targetIos:
-        extraArgs.append('-DCMAKE_IGNORE_PATH="/usr/lib;/usr/local/lib;/lib" ')
-        sdkPath = GetCommandOutput("xcrun --sdk iphoneos --show-sdk-path").strip()
-        extraArgs.append('-DCMAKE_OSX_SYSROOT="' + sdkPath + '" ')
-        # Add the default iOS toolchain file if one isn't aready specified
-        if not any("-DCMAKE_TOOLCHAIN_FILE=" in s for s in extraArgs):
-            extraArgs.append(
-                "-DCMAKE_TOOLCHAIN_FILE={srcDir}"
-                "/cmake/toolchains/ios.toolchain.cmake".format(srcDir=context.usdSrcDir)
-            )
-            extraArgs.append("-DPLATFORM='OS64' ")
-            extraArgs.append("-DENABLE_BITCODE=False")
-            extraArgs.append("-DENABLE_VISIBILITY=True")
-            extraArgs.append("-DNAMED_LANGUAGE_SUPPORT=False")
-
-        CODE_SIGN_ID = apple_utils.GetCodeSignID()
-        DEVELOPMENT_TEAM = apple_utils.GetDevelopmentTeamID()
-
-        # Edge case for iOS
-        if CODE_SIGN_ID == "-":
-            CODE_SIGN_ID = ""
-        pyVers = ".".join(platform.python_version().split()[0:1])
-        extraArgs.append(
-            "-DENABLE_BITCODE=False "
-            "-DNAMED_LANGUAGE_SUPPORT=False "
-            "-DENABLE_VISIBILITY=1 "
-            "-DAPPLEIOS=1 "
-            "-DENABLE_ARC=0 "
-            "-DDEPLOYMENT_TARGET={iosVersion} "
-            '-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="{codesignid}" '
-            "-DCMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM={developmentTeam} "
-            "-DPYTHON_EXECUTABLE:FILEPATH={executable} ".format(
-                iosVersion=context.iosVersion,
-                codesignid=CODE_SIGN_ID,
-                developmentTeam=DEVELOPMENT_TEAM,
-                version=pyVers,
-                executable=sys.executable,
-            )
-        )
+        extraArgs.append('-DCMAKE_OSX_ARCHITECTURES={0}'.format(targetArch))
 
     if context.ignorePaths:
         ignoredPaths = ";".join(context.ignorePaths)
@@ -864,12 +820,12 @@ def InstallBoost_Helper(context, force, buildArgs):
         b2_settings = [
             '--prefix="{instDir}"'.format(instDir=context.instDir),
             '--build-dir="{buildDir}"'.format(buildDir=context.buildDir),
-            "-j{procs}".format(procs=num_procs),
-            "address-model=64",
-            "threading=multi",
-            "variant={variant}".format(variant=boostBuildVariant),
-            "--with-atomic",
-            "--with-regex",
+            '-j{procs}'.format(procs=num_procs),
+            'address-model=64',
+            'threading=multi', 
+            'variant={variant}'.format(variant=boostBuildVariant),
+            '--with-atomic',
+            '--with-regex'
         ]
         if not context.targetIos:
             b2_settings.append("link=shared")
@@ -949,54 +905,7 @@ def InstallBoost_Helper(context, force, buildArgs):
         if MacOS():
             # Must specify toolset=clang to ensure install_name for boost
             # libraries includes @rpath
-            if context.targetIos:
-                sdkPath = ""
-                xcodeRoot = GetCommandOutput("xcode-select --print-path").strip()
-                if not context.targetIos:
-                    sdkPath = GetCommandOutput(
-                        "xcrun --sdk macosx --show-sdk-path"
-                    ).strip()
-                else:
-                    sdkPath = GetCommandOutput(
-                        "xcrun --sdk iphoneos --show-sdk-path"
-                    ).strip()
-                b2_settings.append("toolset=darwin-iphone")
-                b2_settings.append("target-os=iphone")
-                b2_settings.append("define=_LITTLE_ENDIAN")
-                b2_settings.append("link=static")
-                newLines = [
-                    "using darwin : iphone\n",
-                    ": {XCODE_ROOT}/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++".format(
-                        XCODE_ROOT=xcodeRoot
-                    ),
-                    " -arch arm64 -mios-version-min=10.0 -fembed-bitcode -Wno-unused-local-typedef"
-                    " -Wno-nullability-completeness -DBOOST_AC_USE_PTHREADS"
-                    " -DBOOST_SP_USE_PTHREADS -g -DNDEBUG\n",
-                    ": <striper> <root>{XCODE_ROOT}/Platforms/iPhoneOS.platform/Developer\n".format(
-                        XCODE_ROOT=xcodeRoot
-                    ),
-                    ": <architecture>arm <target-os>iphone <address-model>64\n",
-                    ";",
-                ]
-                projectPath = "user-config.jam"
-                b2_settings.append("--user-config=user-config.jam")
-                b2_settings.append(
-                    "macosx-version=iphone-{IOS_SDK_VERSION}".format(
-                        IOS_SDK_VERSION=context.iosVersion
-                    )
-                )
-                if os.path.exists(projectPath):
-                    os.remove(projectPath)
-                with open(projectPath, "w") as projectFile:
-                    projectFile.write("\n")
-                    projectFile.writelines(newLines)
-            else:
-                b2_settings.append("toolset=clang")
-
-            # Specify target for macOS cross-compilation.
-            if macOSArchitecture:
-                b2_settings.append(macOSArchitecture)
-
+            b2_settings.append("toolset=clang")
             #
             # Xcode 15.3 (and hence Apple Clang 15) removed the global
             # declaration of std::piecewise_construct which causes boost build
@@ -2379,8 +2288,8 @@ class InstallContext:
         self.buildPrman = self.buildImaging and args.build_prman
         self.prmanLocation = (os.path.abspath(args.prman_location)
                                if args.prman_location else None)                               
-        self.buildOIIO = args.build_oiio or (self.buildUsdImaging
-                                             and self.buildTests)
+        self.buildOIIO = False #args.build_oiio or (self.buildUsdImaging
+                               #              and self.buildTests)
         self.buildAVIF = args.build_avif
         self.buildOCIO = args.build_ocio
 
