@@ -30,11 +30,38 @@
 #include "pxr/usd/ar/resolver.h"
 #include <array>
 #include <mutex>
+#include <iostream>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
 const int w = 256;
 const int h = 256;
+
+const std::array<uint8_t, w * h>& GetGrey8Values()
+{
+    // create a checkerboard pattern, with a stride of 32 pixels.
+    static std::once_flag _once;
+    static std::array<uint8_t, w * h> _grey8Values;
+    std::call_once(_once, []() {
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int xsnap = x & 0xE0; // mask off bottom 5 bits
+                int ysnap = y & 0xE0;
+                uint8_t value = (xsnap + ysnap) & 0xff;
+                int index = y * w + x;
+                int checkIndex = (y/32 * w + x/32);
+                if (checkIndex & 1) {
+                    _grey8Values[index] = value;
+                }
+                else {
+                    _grey8Values[index] = 255 - value;
+                }
+            }
+        }
+    });
+    return _grey8Values;
+}
+
 const std::array<uint8_t, w * h * 3>& GetRgb8Values()
 {
     static std::once_flag _once;
@@ -107,7 +134,8 @@ main(int argc, char *argv[])
         TF_AXIOM(stockPlugins == 2);
     }
 
-    // check existence of built-in formats that should always be available.
+    // check existence of built-in formats that should always be available,
+    // as part of the OpenEXR and Stb plugins tested above.
     {
         TF_AXIOM(HioImage::IsSupportedImageFile("dummy.exr"));
         TF_AXIOM(HioImage::IsSupportedImageFile("dummy.bmp"));
@@ -117,6 +145,37 @@ main(int argc, char *argv[])
         TF_AXIOM(HioImage::IsSupportedImageFile("dummy.tga"));
         TF_AXIOM(HioImage::IsSupportedImageFile("dummy.hdr"));
         TF_AXIOM(!HioImage::IsSupportedImageFile("dummy.xml"));
+    }
+
+    // write out the greyscale values as png, then read it back in and compare
+    {
+        const std::array<uint8_t, w * h>& grey8Values = GetGrey8Values();
+        std::string filename = "testGrey.png";
+        HioImageSharedPtr image = HioImage::OpenForWriting(filename);
+        TF_AXIOM(image);
+
+        // create storage spec
+        HioImage::StorageSpec storageSpec;
+        storageSpec.width = w;
+        storageSpec.height = h;
+        storageSpec.format = HioFormatUNorm8;
+        storageSpec.flipped = false;
+        storageSpec.data = (void*) grey8Values.data();
+        
+        TF_AXIOM(image->Write(storageSpec));
+        image.reset();
+
+        image = HioImage::OpenForReading(filename);
+        TF_AXIOM(image);
+        TF_AXIOM(image->GetWidth() == w);
+        TF_AXIOM(image->GetHeight() == h);
+        TF_AXIOM(image->GetFormat() == HioFormatUNorm8);
+        TF_AXIOM(image->GetBytesPerPixel() == 1);
+        std::array<uint8_t, w * h> readback;
+        auto readSpec = storageSpec;
+        readSpec.data = readback.data();
+        TF_AXIOM(image->Read(readSpec));
+        TF_AXIOM(grey8Values == readback);
     }
 
     // write out rgb8values as png, then read it back in and compare
@@ -258,6 +317,7 @@ main(int argc, char *argv[])
         TF_AXIOM(image->GetFormat() == HioFormatUNorm8Vec3srgb);
         TF_AXIOM(image->GetBytesPerPixel() == 3);
 
+        std::cout << "Expecting an image format mismatch." << std::endl;
         std::array<float, w * h * 3> readback;
         HioImage::StorageSpec readSpec;
         readSpec.width = w;
@@ -275,6 +335,8 @@ main(int argc, char *argv[])
         TF_AXIOM(image->GetHeight() == h);
         TF_AXIOM(image->GetFormat() == HioFormatUNorm8Vec3srgb);
         TF_AXIOM(image->GetBytesPerPixel() == 3);
+
+        std::cout << "Expecting an image format mismatch." << std::endl;
         std::array<uint8_t, w * h * 4> readback;
         HioImage::StorageSpec readSpec;
         readSpec.width = w;

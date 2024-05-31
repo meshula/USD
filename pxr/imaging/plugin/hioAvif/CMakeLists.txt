@@ -113,3 +113,16 @@ pxr_plugin(hioAvif
     RESOURCE_FILES
         plugInfo.json
 )
+
+pxr_install_test_dir(
+    SRC testenv/testHioAvif
+    DEST testHioAvif
+)
+
+pxr_build_test(testHioAvif
+    LIBRARIES
+        hio
+        hioAvif
+    CPPFILES
+        testenv/testHioAvif.cpp
+)
