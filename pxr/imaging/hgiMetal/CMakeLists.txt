@@ -70,4 +70,6 @@ pxr_library(hgiMetal
 
     RESOURCE_FILES
         plugInfo.json
+
+    DISABLE_PRECOMPILED_HEADERS
 )
