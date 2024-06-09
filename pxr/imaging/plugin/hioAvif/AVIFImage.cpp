@@ -22,15 +22,9 @@ ARCH_PRAGMA_UNUSED_FUNCTION
 #include "pxr/usd/ar/resolver.h"
 #include "pxr/usd/ar/writableAsset.h"
 
-#include "pxr/base/gf/matrix3d.h"
-#include "pxr/base/gf/matrix3f.h"
-#include "pxr/base/gf/matrix4d.h"
-#include "pxr/base/gf/matrix4f.h"
-#include "pxr/base/gf/range2d.h"
-#include "pxr/base/gf/vec2f.h"
-
 #include "pxr/base/arch/defines.h"
 #include "pxr/base/arch/pragmas.h"
+#include "pxr/base/gf/colorSpace.h"
 #include "pxr/base/tf/diagnostic.h"
 #include "pxr/base/tf/stringUtils.h"
 #include "pxr/base/tf/type.h"
@@ -47,6 +41,7 @@ class Hio_AVIFImage final : public HioImage
     int _height = 0;
 
     avifImage *_avifImage = nullptr;
+    bool _imposeSRGBTransfer = false;
 
     // mutable because GetMetadata is const, yet it doesn't make sense
     // to cache the dictionary unless metadata is requested.
@@ -77,7 +72,29 @@ public:
                VtDictionary const &metadata) override;
 
     // We're decoding AVIF to linear float16.
-    bool IsColorSpaceSRGB() const override { return false; }
+    bool IsColorSpaceSRGB() const override {
+        if (_imposeSRGBTransfer)
+            return true;
+
+        if (_avifImage) {
+            // special case for BT709 with unspecified transfer function to match
+            // behavior observed in Apple's Finder and web browsers.
+            if (_avifImage->colorPrimaries == AVIF_COLOR_PRIMARIES_BT709 &&
+                _avifImage->transferCharacteristics == AVIF_TRANSFER_CHARACTERISTICS_UNSPECIFIED)
+                return true;
+            
+            // if the transfer function is SRGB-like, assume SRGB
+            switch (_avifImage->transferCharacteristics) {
+                case AVIF_TRANSFER_CHARACTERISTICS_BT709:
+                case AVIF_TRANSFER_CHARACTERISTICS_BT470M:
+                case AVIF_TRANSFER_CHARACTERISTICS_SRGB:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+        return false;
+    }
 
     // hardcoded to f16v4, although f16v3 will work when Hio supports
     // a vector of formats in the future.
@@ -380,6 +397,7 @@ bool Hio_AVIFImage::ReadCropped(
     if (rgb.depth != 16 && rgb.isFloat) {
         TF_CODING_ERROR("Only half floats are supported for AVIF decoding");
     }
+
     avifResult result = avifImageYUVToRGB(_avifImage, &rgb);
     if (result != AVIF_RESULT_OK) {
         printf("Error parsing AVIF file: %s\n", avifResultToString(result));
@@ -388,16 +406,16 @@ bool Hio_AVIFImage::ReadCropped(
         return false;
     }
 
+    // these input pointers will be used to track the data source
+    // for the final copy to storage.data.
+    GfHalf* inputHalf = (GfHalf*) rgb.pixels;
+    float* inputFloat = nullptr;
+
     nanoexr_ImageData_t img;
     memset(&img, 0, sizeof(img));
 
     img.data = (uint8_t*) rgb.pixels;
-    img.dataSize = channelCount * bytesPerChannel * rgb.width * rgb.height;
-    if (bytesPerChannel == 1)
-        img.pixelType = (exr_pixel_type_t) 3;  // A sentinel indidating an 8 bit texture
-    else
-        img.pixelType = EXR_PIXEL_HALF;
-
+    img.pixelType = EXR_PIXEL_HALF;
     img.channelCount = channelCount;
     img.width = rgb.width;
     img.height = rgb.height;
@@ -427,11 +445,12 @@ bool Hio_AVIFImage::ReadCropped(
     bool resizing = (img.width != storage.width) ||
                     (img.width != storage.height);
 
+    std::vector<float> outF32;
     if (resizing) {
         // resize in float
         std::vector<float> f32(img.width * img.height * channelCount);
         ImageProcessor<uint16_t>::HalfToFloat(
-                                      (GfHalf*) img.data, 
+                                      inputHalf,
                                       f32.data(),
                                       img.width, img.height,
                                       channelCount);
@@ -444,12 +463,8 @@ bool Hio_AVIFImage::ReadCropped(
         src.width = img.width;
         src.height = img.height;
 
-        std::vector<float> outF32;
-        float* resolved = (float*) storage.data;
-        if (outputIsHalf) {
-            outF32.resize(img.width * img.height * channelCount);
-            resolved = outF32.data();
-        }
+        outF32.resize(img.width * img.height * channelCount);
+        inputFloat = outF32.data();
 
         nanoexr_ImageData_t dst = { 0 };
         dst.channelCount = channelCount;
@@ -457,27 +472,61 @@ bool Hio_AVIFImage::ReadCropped(
         dst.pixelType = EXR_PIXEL_FLOAT;
         dst.width = storage.width;
         dst.height = storage.height;
-        dst.data = (uint8_t*) resolved;
+        dst.data = (uint8_t*) inputFloat;
 
         nanoexr_Gaussian_resample(&src, &dst);
 
-        if (outputIsHalf) {
-            ImageProcessor<uint16_t>::FloatToHalf(
-                                          resolved,
-                                          (GfHalf*) storage.data,
-                                          storage.width, storage.height,
-                                          channelCount);
+        inputHalf = nullptr;
+    }
+
+    if (_imposeSRGBTransfer) {
+        // if the image was resized, the input data is now in inputFloat
+        // otherwise, it is in inputHalf
+        if (inputFloat == nullptr) {
+            // resize outF32 to the correct size
+            outF32.resize(img.width * img.height * channelCount);
+            ImageProcessor<uint16_t>::HalfToFloat(
+                                      inputHalf,
+                                      outF32.data(),
+                                      img.width, img.height,
+                                      channelCount);
+            inputFloat = outF32.data();
+            inputHalf = nullptr;
+        }
+        GfColorSpace dst(GfColorSpaceNames->LinearRec709);
+        GfColorSpace src(GfColorSpaceNames->SRGB);
+        if (channelCount == 3)
+            dst.ConvertRGBSpan(src, TfSpan<float>(inputFloat, img.width * img.height * channelCount));
+        else
+            dst.ConvertRGBASpan(src, TfSpan<float>(inputFloat, img.width * img.height * channelCount));
+    }
+
+    // Finally, copy the data to storage.data
+    if (outputIsHalf) {
+        if (inputHalf != nullptr) {
+            // copy rgb.pixels to storage.data
+            memcpy(storage.data, inputHalf,
+                   rgb.width * rgb.height * channelCount * sizeof(GfHalf));
+        }
+        else {
+            // convert float to half
+            ImageProcessor<float>::FloatToHalf(
+                                    inputFloat, (GfHalf*) storage.data,
+                                    rgb.width, rgb.height, channelCount);
         }
     }
     else {
-        // not resizing, finalize to float or half
-        if (outputIsFloat) {
-            ImageProcessor<uint16_t>::HalfToFloat(
-                                                  (GfHalf*) img.data, (float*) storage.data,
-                                                  img.width, img.height, channelCount);
+        // output float case
+        if (inputHalf != nullptr) {
+            // convert half to float
+            ImageProcessor<GfHalf>::HalfToFloat(
+                                    inputHalf, (float*) storage.data,
+                                    rgb.width, rgb.height, channelCount);
         }
         else {
-            memcpy(storage.data, img.data, img.dataSize);
+            // copy rgb.pixels to storage.data
+            memcpy(storage.data, inputFloat,
+                   rgb.width * rgb.height * channelCount * sizeof(float));
         }
     }
 
@@ -518,6 +567,15 @@ bool Hio_AVIFImage::_OpenForReading(std::string const &filename,
     }
     _width = _avifImage->width;
     _height = _avifImage->height;
+
+    // if the transfer function is unspecified, and the colorspace is Rec709
+    // set the transfer function to sRGB. This is to match behavior observed
+    // in Apple's Finder, and web browsers.
+    _imposeSRGBTransfer =
+        (sourceColorSpace == HioImage::SourceColorSpace::Auto ||
+         sourceColorSpace == HioImage::SourceColorSpace::SRGB) &&
+        (_avifImage->transferCharacteristics == AVIF_TRANSFER_CHARACTERISTICS_UNSPECIFIED) &&
+        (_avifImage->colorPrimaries == AVIF_COLOR_PRIMARIES_UNSPECIFIED);
     return true;
 }
 

@@ -160,7 +160,7 @@ public:
     GF_API 
     void ConvertRGBSpan(const GfColorSpace& srcColorSpace, TfSpan<float> rgb) const;
 
-    /// Convert in place a packed array of RGBA values from one color space to "this one.
+    /// Convert in place a packed array of RGBA values from one color space to "this" one.
     ///
     /// \param to The target color space.
     /// \param rgba The packed array of RGBA values to convert.

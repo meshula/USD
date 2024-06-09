@@ -5,6 +5,7 @@
 // https://openusd.org/license.
 //
 #include "pxr/pxr.h"
+#include "pxr/base/gf/half.h"
 #include "pxr/base/tf/diagnostic.h"
 #include "pxr/imaging/hio/image.h"
 #include <array>
@@ -50,6 +51,7 @@ main(int argc, char *argv[])
         pngSpec.data = readback.data();
         TF_VERIFY(image->Read(pngSpec));
 
+        // this write back is for a visual check, not directly used by the test
         std::string filename = "pngTestWriteback.png";
         HioImageSharedPtr writePngImage = HioImage::OpenForWriting(filename);
         TF_VERIFY(writePngImage);
@@ -73,6 +75,7 @@ main(int argc, char *argv[])
         avifSpec.data = readback.data();
         TF_VERIFY(image->Read(avifSpec));
         {
+            // this write back is for a visual check, not directly used by the test
             std::string filename = "avifTestWriteback16.exr";
             HioImageSharedPtr exrimage = HioImage::OpenForWriting(filename);
             TF_AXIOM(exrimage);
@@ -86,16 +89,44 @@ main(int argc, char *argv[])
         std::vector<unsigned char> readbackf32(width * height * sizeof(float) * 4);
         avifSpecF32.data = readbackf32.data();
         TF_VERIFY(image->Read(avifSpecF32));
-
         {
+            // this write back is for a visual check, not directly used by the test
             std::string filename = "avifTestWriteback32.exr";
             HioImageSharedPtr exrimage = HioImage::OpenForWriting(filename);
             TF_AXIOM(exrimage);
             TF_AXIOM(exrimage->Write(avifSpecF32));
         }
 
-        // compare the pixel data
-        TF_VERIFY(pngSpec.data == avifSpec.data);
+        // compare the pixel data of the read avif image and the reference png.
+        uint8_t* pngData = reinterpret_cast<uint8_t*>(pngSpec.data);
+        GfHalf* avifData = reinterpret_cast<GfHalf*>(avifSpec.data);
+        float* avif32Data = reinterpret_cast<float*>(readbackf32.data());
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                // fairly loose tolerance as this test is using a 2.2 gamma
+                // approximation for the srgb transfer function, which is good
+                // enough to know whether the png and avif data match or not.
+                const float tol = 0.01f;
+                float pngValueR = pow(pngData[(y*width+x) * 3 + 0] / 255.0f, 2.2f);
+                float pngValueG = pow(pngData[(y*width+x) * 3 + 1] / 255.0f, 2.2f);
+                float pngValueB = pow(pngData[(y*width+x) * 3 + 2] / 255.0f, 2.2f);
+                float avifValueR = avifData[(y*width+x) * 4 + 0];
+                float avifValueG = avifData[(y*width+x) * 4 + 1];
+                float avifValueB = avifData[(y*width+x) * 4 + 2];
+                float avif32ValueR = avif32Data[(y*width+x) * 4 + 0];
+                float avif32ValueG = avif32Data[(y*width+x) * 4 + 1];
+                float avif32ValueB = avif32Data[(y*width+x) * 4 + 2];
+                TF_AXIOM(fabs(pngValueR - avifValueR) < tol);
+                TF_AXIOM(fabs(pngValueG - avifValueG) < tol);
+                TF_AXIOM(fabs(pngValueB - avifValueB) < tol);
+                TF_AXIOM(fabs(pngValueR - avif32ValueR) < tol);
+                TF_AXIOM(fabs(pngValueG - avif32ValueG) < tol);
+                TF_AXIOM(fabs(pngValueB - avif32ValueB) < tol);
+                //printf("(%d, %d): %f %f %f / %f %f %f\n", x, y,
+                //       pngValueR, pngValueG, pngValueB,
+                //       avifValueR, avifValueG, avifValueB);
+            }
+        }
     }
 
     printf("OK\n");
