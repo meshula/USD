@@ -37,11 +37,11 @@ PXR_NAMESPACE_USING_DIRECTIVE
 const int w = 256;
 const int h = 256;
 
-const std::array<uint8_t, w * h>& GetGrey8Values()
+const std::vector<uint8_t>& GetGrey8Values()
 {
     // create a checkerboard pattern, with a stride of 32 pixels.
     static std::once_flag _once;
-    static std::array<uint8_t, w * h> _grey8Values;
+    static std::vector<uint8_t> _grey8Values(w * h);
     std::call_once(_once, []() {
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
@@ -62,10 +62,10 @@ const std::array<uint8_t, w * h>& GetGrey8Values()
     return _grey8Values;
 }
 
-const std::array<uint8_t, w * h * 3>& GetRgb8Values()
+const std::vector<uint8_t>& GetRgb8Values()
 {
     static std::once_flag _once;
-    static std::array<uint8_t, w * h * 3> _rgb8Values;
+    static std::vector<uint8_t> _rgb8Values(w * h * 3);
     std::call_once(_once, []() {
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
@@ -79,10 +79,10 @@ const std::array<uint8_t, w * h * 3>& GetRgb8Values()
     return _rgb8Values;
 }
 
-const std::array<float, w * h * 3>& GetRgbFloatValues()
+const std::vector<float>& GetRgbFloatValues()
 {
     static std::once_flag _once;
-    static std::array<float, w * h * 3> _rgbFloatValues;
+    static std::vector<float> _rgbFloatValues(w * h * 3);
     std::call_once(_once, []() {
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
@@ -149,7 +149,7 @@ main(int argc, char *argv[])
 
     // write out the greyscale values as png, then read it back in and compare
     {
-        const std::array<uint8_t, w * h>& grey8Values = GetGrey8Values();
+        const std::vector<uint8_t>& grey8Values = GetGrey8Values();
         std::string filename = "testGrey.png";
         HioImageSharedPtr image = HioImage::OpenForWriting(filename);
         TF_AXIOM(image);
@@ -171,7 +171,7 @@ main(int argc, char *argv[])
         TF_AXIOM(image->GetHeight() == h);
         TF_AXIOM(image->GetFormat() == HioFormatUNorm8);
         TF_AXIOM(image->GetBytesPerPixel() == 1);
-        std::array<uint8_t, w * h> readback;
+        std::vector<uint8_t> readback(w * h);
         auto readSpec = storageSpec;
         readSpec.data = readback.data();
         TF_AXIOM(image->Read(readSpec));
@@ -180,7 +180,7 @@ main(int argc, char *argv[])
 
     // write out rgb8values as png, then read it back in and compare
     {
-        const std::array<uint8_t, w * h * 3>& rgb8Values = GetRgb8Values();
+        const std::vector<uint8_t>& rgb8Values = GetRgb8Values();
         std::string filename = "test.png";
         HioImageSharedPtr image = HioImage::OpenForWriting(filename);
         TF_AXIOM(image);
@@ -202,7 +202,7 @@ main(int argc, char *argv[])
         TF_AXIOM(image->GetHeight() == h);
         TF_AXIOM(image->GetFormat() == HioFormatUNorm8Vec3srgb);
         TF_AXIOM(image->GetBytesPerPixel() == 3);
-        std::array<uint8_t, w * h * 3> readback;
+        std::vector<uint8_t> readback(w * h * 3);
         auto readSpec = storageSpec;
         readSpec.data = readback.data();
         TF_AXIOM(image->Read(readSpec));
@@ -211,7 +211,7 @@ main(int argc, char *argv[])
 
     // repeat for jpeg
     {
-        const std::array<uint8_t, w * h * 3>& rgb8Values = GetRgb8Values();
+        const std::vector<uint8_t>& rgb8Values = GetRgb8Values();
         std::string filename = "test.jpg";
         HioImageSharedPtr image = HioImage::OpenForWriting(filename);
         TF_AXIOM(image);
@@ -233,7 +233,7 @@ main(int argc, char *argv[])
         TF_AXIOM(image->GetHeight() == h);
         TF_AXIOM(image->GetFormat() == HioFormatUNorm8Vec3srgb);
         TF_AXIOM(image->GetBytesPerPixel() == 3);
-        std::array<uint8_t, w * h * 3> readback;
+        std::vector<uint8_t> readback(w * h * 3);
         auto readSpec = storageSpec;
         readSpec.data = readback.data();
         TF_AXIOM(image->Read(readSpec));
@@ -246,7 +246,7 @@ main(int argc, char *argv[])
 
     // do a lossless comparison for exr and float32
     {
-        const std::array<float, w * h * 3>& rgbFloatValues = GetRgbFloatValues();
+        const std::vector<float>& rgbFloatValues = GetRgbFloatValues();
         std::string filename = "test.exr";
         HioImageSharedPtr image = HioImage::OpenForWriting(filename);
         TF_AXIOM(image);
@@ -268,7 +268,7 @@ main(int argc, char *argv[])
         TF_AXIOM(image->GetHeight() == h);
         TF_AXIOM(image->GetFormat() == HioFormatFloat32Vec3);
         TF_AXIOM(image->GetBytesPerPixel() == sizeof(float) * 3);
-        std::array<float, w * h * 3> readback;
+        std::vector<float> readback(w * h * 3);
         auto readSpec = storageSpec;
         readSpec.data = readback.data();
         TF_AXIOM(image->Read(readSpec));
@@ -277,14 +277,14 @@ main(int argc, char *argv[])
     
     // test.exr now exists; read it requesting a half scale resize
     {
-        const std::array<float, w * h * 3>& rgbFloatValues = GetRgbFloatValues();
+        const std::vector<float>& rgbFloatValues = GetRgbFloatValues();
         HioImageSharedPtr image = HioImage::OpenForReading("test.exr");
         TF_AXIOM(image);
         TF_AXIOM(image->GetWidth() == w);
         TF_AXIOM(image->GetHeight() == h);
         TF_AXIOM(image->GetFormat() == HioFormatFloat32Vec3);
         TF_AXIOM(image->GetBytesPerPixel() == sizeof(float) * 3);
-        std::array<float, w * h * 3 / 4> readback; // 1/2 size in each dimension
+        std::vector<float> readback(w * h * 3 / 4); // 1/2 size in each dimension
 
         int w2 = w/2;
         int h2 = h/2;
@@ -318,7 +318,7 @@ main(int argc, char *argv[])
         TF_AXIOM(image->GetBytesPerPixel() == 3);
 
         std::cout << "Expecting an image format mismatch." << std::endl;
-        std::array<float, w * h * 3> readback;
+        std::vector<float> readback(w * h * 3);
         HioImage::StorageSpec readSpec;
         readSpec.width = w;
         readSpec.height = h;
@@ -337,7 +337,7 @@ main(int argc, char *argv[])
         TF_AXIOM(image->GetBytesPerPixel() == 3);
 
         std::cout << "Expecting an image format mismatch." << std::endl;
-        std::array<uint8_t, w * h * 4> readback;
+        std::vector<uint8_t> readback(w * h * 4);
         HioImage::StorageSpec readSpec;
         readSpec.width = w;
         readSpec.height = h;
@@ -355,7 +355,7 @@ main(int argc, char *argv[])
         TF_AXIOM(image->GetHeight() == h);
         TF_AXIOM(image->GetFormat() == HioFormatFloat32Vec3);
         TF_AXIOM(image->GetBytesPerPixel() == sizeof(float) * 3);
-        std::array<float, w * h * 4> readback;
+        std::vector<float> readback(w * h * 4);
         HioImage::StorageSpec readSpec;
         readSpec.width = w;
         readSpec.height = h;
@@ -363,7 +363,7 @@ main(int argc, char *argv[])
         readSpec.data = readback.data();
         TF_AXIOM(image->Read(readSpec));
         // verify that the pixel values are the same
-        const std::array<float, w * h * 3>& rgbFloatValues = GetRgbFloatValues();
+        const std::vector<float>& rgbFloatValues = GetRgbFloatValues();
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 int index = 4 * (y * w + x);
@@ -376,8 +376,7 @@ main(int argc, char *argv[])
         }
     }
 
-    // read the exr file as uint8_t rgba, and verify that the pixels are the
-    // same and that the alpha channel is full of ones.
+    // read the exr file as uint8_t rgba, verify this is not be supported.
     {
         HioImageSharedPtr image = HioImage::OpenForReading("test.exr");
         TF_AXIOM(image);
@@ -385,7 +384,7 @@ main(int argc, char *argv[])
         TF_AXIOM(image->GetHeight() == h);
         TF_AXIOM(image->GetFormat() == HioFormatFloat32Vec3);
         TF_AXIOM(image->GetBytesPerPixel() == sizeof(float) * 3);
-        std::array<uint8_t, w * h * 4> readback;
+        std::vector<uint8_t> readback(w * h * 4);
         HioImage::StorageSpec readSpec;
         readSpec.width = w;
         readSpec.height = h;

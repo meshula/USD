@@ -76,7 +76,7 @@ public:
     bool Write(StorageSpec const &storage,
                VtDictionary const &metadata) override;
 
-    // IsColorSpaceSRGB asks if the color space is SRGB, but
+    // IsColorSpaceSRGB asks if the color values are SRGB encoded against the SRGB curve although
     // what Hydra really wants to know is whether the pixels are gamma pixels.
     // OpenEXR images are always linear, so just return false.
     bool IsColorSpaceSRGB() const override { return false; }

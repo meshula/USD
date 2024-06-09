@@ -7,6 +7,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// Pixar:
+#define AVIF_CODEC_AOM_DECODE
+#define AVIF_CODEC_AOM
+// Pixar.
+
 #ifdef __cplusplus
 extern "C" {
 #endif

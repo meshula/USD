@@ -25,6 +25,10 @@ const char* pathEnvVarName      = TF_PP_STRINGIZE(PXR_PLUGINPATH_NAME);
 const char* buildLocation       = TF_PP_STRINGIZE(PXR_BUILD_LOCATION);
 const char* pluginBuildLocation = TF_PP_STRINGIZE(PXR_PLUGIN_BUILD_LOCATION);
 
+#ifndef PXR_BUILD_LOCATION
+xxx
+#endif
+
 #ifdef PXR_INSTALL_LOCATION
 const char* installLocation     = TF_PP_STRINGIZE(PXR_INSTALL_LOCATION); 
 #endif // PXR_INSTALL_LOCATION

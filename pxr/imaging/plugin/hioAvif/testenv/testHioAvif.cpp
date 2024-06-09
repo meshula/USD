@@ -1,27 +1,9 @@
 //
 // Copyright 2024 Pixar
 //
-// Licensed under the Apache License, Version 2.0 (the "Apache License")
-// with the following modification; you may not use this file except in
-// compliance with the Apache License and the following modification to it:
-// Section 6. Trademarks. is deleted and replaced with:
+// Licensed under the terms set forth in the LICENSE.txt file available at
+// https://openusd.org/license.
 //
-// 6. Trademarks. This License does not grant permission to use the trade
-//    names, trademarks, service marks, or product names of the Licensor
-//    and its affiliates, except as required to comply with Section 4(c) of
-//    the License and to reproduce the content of the NOTICE file.
-//
-// You may obtain a copy of the Apache License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the Apache License with the above modification is
-// distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied. See the Apache License for the specific
-// language governing permissions and limitations under the Apache License.
-//
-
 #include "pxr/pxr.h"
 #include "pxr/base/tf/diagnostic.h"
 #include "pxr/imaging/hio/image.h"
@@ -63,31 +45,54 @@ main(int argc, char *argv[])
         pngSpec.width = width;
         pngSpec.height = height;
         pngSpec.format = image->GetFormat();
-        storpngSpecageSpec.flipped = false;
-        pngSpec.data = std::vector<unsigned char>(width * height * 4);
-        TF_VERIFY(image->Read(storageSpec));
+        pngSpec.flipped = false;
+        std::vector<unsigned char> readback(width * height * 4);
+        pngSpec.data = readback.data();
+        TF_VERIFY(image->Read(pngSpec));
+
+        std::string filename = "pngTestWriteback.png";
+        HioImageSharedPtr writePngImage = HioImage::OpenForWriting(filename);
+        TF_VERIFY(writePngImage);
+        writePngImage->Write(pngSpec);
     }
 
     {
         // fetch basic information about the avif
         std::string path = rootPath + csGrayAvif;
         HioImageSharedPtr image = HioImage::OpenForReading(path);
-        if (!TF_VERIFY(image)) {
-            return 1;
-        }
-
+        TF_VERIFY(image);
         TF_VERIFY(image->GetWidth() == width);
         TF_VERIFY(image->GetHeight() == height);
-        TF_VERIFY(image->GetFormat() == pngSpec.format);
-        TF_VERIFY(image->GetFlipped() == pngSpec.flipped);
+        TF_VERIFY(image->GetFormat() == HioFormatFloat16Vec4);
 
         HioImage::StorageSpec avifSpec;
         avifSpec.width = width;
         avifSpec.height = height;
-        avifSpec.format = image->GetFormat();
-        avifSpec.flipped = image->GetFlipped();
-        avifSpec.data = std::vector<unsigned char>(width * height * 4);
+        avifSpec.format = image->GetFormat(); // f16v4 is native
+        std::vector<unsigned char> readback(width * height * sizeof(uint16_t) * 4);
+        avifSpec.data = readback.data();
         TF_VERIFY(image->Read(avifSpec));
+        {
+            std::string filename = "avifTestWriteback16.exr";
+            HioImageSharedPtr exrimage = HioImage::OpenForWriting(filename);
+            TF_AXIOM(exrimage);
+            TF_AXIOM(exrimage->Write(avifSpec));
+        }
+
+        HioImage::StorageSpec avifSpecF32;
+        avifSpecF32.width = width;
+        avifSpecF32.height = height;
+        avifSpecF32.format = HioFormatFloat32Vec4;
+        std::vector<unsigned char> readbackf32(width * height * sizeof(float) * 4);
+        avifSpecF32.data = readbackf32.data();
+        TF_VERIFY(image->Read(avifSpecF32));
+
+        {
+            std::string filename = "avifTestWriteback32.exr";
+            HioImageSharedPtr exrimage = HioImage::OpenForWriting(filename);
+            TF_AXIOM(exrimage);
+            TF_AXIOM(exrimage->Write(avifSpecF32));
+        }
 
         // compare the pixel data
         TF_VERIFY(pngSpec.data == avifSpec.data);

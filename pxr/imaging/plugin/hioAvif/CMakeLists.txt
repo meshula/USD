@@ -1,7 +1,7 @@
 set(PXR_PREFIX pxr/imaging)
 set(PXR_PACKAGE hioAvif)
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNUx|Clangx")
     # Enable hiding symbols and inlines by default
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden")
@@ -14,8 +14,6 @@ pxr_plugin(hioAvif
         gf
         hio
         tf
-        ${OIIO_LIBRARIES}
-        ${__OIIO_IMATH_LIBS}
 
     PRIVATE_HEADERS
         AVIF/src/avif/avif_cxx.h
@@ -88,6 +86,7 @@ pxr_plugin(hioAvif
         aom/av1/decoder/obu.c
         AVIF/src/alpha.c
         AVIF/src/avif.c
+        AVIF/src/codec_aom.c
         AVIF/src/colr.c
         AVIF/src/diag.c
         AVIF/src/exif.c
@@ -125,4 +124,9 @@ pxr_build_test(testHioAvif
         hioAvif
     CPPFILES
         testenv/testHioAvif.cpp
+)
+
+pxr_register_test(testHioAvif
+    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testHioAvif"
+    EXPECTED_RETURN_CODE 0
 )
