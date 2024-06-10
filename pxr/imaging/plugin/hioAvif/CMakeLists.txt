@@ -1,10 +1,10 @@
 set(PXR_PREFIX pxr/imaging)
 set(PXR_PACKAGE hioAvif)
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "GNUx|Clangx")
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     # Enable hiding symbols and inlines by default
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden")
+#    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden")
 endif()
 
 pxr_plugin(hioAvif
