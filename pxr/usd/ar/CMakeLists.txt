@@ -9,9 +9,11 @@ pxr_library(ar
         plug
         vt
         ${Boost_PYTHON_LIBRARY}
+        ${TBB_tbb_LIBRARY}
 
     INCLUDE_DIRS
         ${Boost_INCLUDE_DIRS}
+        ${TBB_INCLUDE_DIRS}
 
     PUBLIC_CLASSES
         asset
@@ -88,7 +90,6 @@ pxr_test_scripts(
 )
 
 pxr_build_test_shared_lib(TestArAdvancedAPI
-    CREATE_FRAMEWORK
     INSTALL_PREFIX ArPlugins
     LIBRARIES
         tf
@@ -98,7 +99,6 @@ pxr_build_test_shared_lib(TestArAdvancedAPI
 ) 
 
 pxr_build_test_shared_lib(TestArPackageResolver
-    CREATE_FRAMEWORK
     INSTALL_PREFIX ArPlugins
     LIBRARIES
         tf
@@ -108,7 +108,6 @@ pxr_build_test_shared_lib(TestArPackageResolver
 ) 
 
 pxr_build_test_shared_lib(TestArOptionalImplementation
-    CREATE_FRAMEWORK
     INSTALL_PREFIX ArPlugins
     LIBRARIES
         tf
@@ -186,7 +185,6 @@ pxr_register_test(testArOptionalImplementation_5
 # builds, so we only enable this test on shared library builds.
 if (BUILD_SHARED_LIBS)
     pxr_build_test_shared_lib(TestArURIResolver
-        CREATE_FRAMEWORK
         INSTALL_PREFIX ArPlugins
         LIBRARIES
             tf

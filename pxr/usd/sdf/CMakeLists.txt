@@ -6,14 +6,17 @@ pxr_library(sdf
         arch
         tf
         gf
+        pegtl
         trace
         vt
         work
         ar
         ${Boost_PYTHON_LIBRARY}
+        ${TBB_tbb_LIBRARY}
 
     INCLUDE_DIRS
         ${Boost_INCLUDE_DIRS}
+        ${TBB_INCLUDE_DIRS}
 
     PUBLIC_CLASSES
         abstractData
@@ -51,6 +54,7 @@ pxr_library(sdf
         pathExpression
         pathExpressionEval
         pathNode
+        pathPattern
         pathTable
         payload
         pool
@@ -94,8 +98,8 @@ pxr_library(sdf
         api.h
         accessorHelpers.h
         declareSpec.h
-        invoke.hpp
         layerHints.h
+        pathPatternParser.h
         predicateExpressionParser.h
         predicateProgram.h
         schemaTypeRegistration.h
@@ -152,6 +156,7 @@ pxr_library(sdf
         wrapOpaqueValue.cpp
         wrapPath.cpp
         wrapPathExpression.cpp
+        wrapPathPattern.cpp
         wrapPayload.cpp
         wrapPredicateExpression.cpp
         wrapPredicateFunctionResult.cpp
@@ -224,6 +229,7 @@ pxr_test_scripts(
     testenv/testSdfPayload.py
     testenv/testSdfPrim.py
     testenv/testSdfReference.py
+    testenv/testSdfRelocates.py
     testenv/testSdfSpecHash.py
     testenv/testSdfTimeCode.py
     testenv/testSdfTypes.py
@@ -232,7 +238,6 @@ pxr_test_scripts(
 )
 
 pxr_build_test_shared_lib(TestSdfFileFormatCapabilities
-    CREATE_FRAMEWORK
     INSTALL_PREFIX SdfPlugins
     LIBRARIES
         sdf
@@ -243,7 +248,6 @@ pxr_build_test_shared_lib(TestSdfFileFormatCapabilities
 )
 
 pxr_build_test_shared_lib(TestSdfNoAssetFileFormat
-    CREATE_FRAMEWORK
     INSTALL_PREFIX SdfPlugins
     LIBRARIES
         sdf
@@ -254,7 +258,6 @@ pxr_build_test_shared_lib(TestSdfNoAssetFileFormat
 )
 
 pxr_build_test_shared_lib(TestSdfStreamingFileFormat
-    CREATE_FRAMEWORK
     INSTALL_PREFIX SdfPlugins
     LIBRARIES
         sdf
@@ -265,7 +268,6 @@ pxr_build_test_shared_lib(TestSdfStreamingFileFormat
 )
 
 pxr_build_test_shared_lib(TestSdfTargetFileFormat
-    CREATE_FRAMEWORK
     INSTALL_PREFIX SdfPlugins
     LIBRARIES
         sdf
@@ -276,7 +278,6 @@ pxr_build_test_shared_lib(TestSdfTargetFileFormat
 )
 
 pxr_build_test_shared_lib(TestSdfResolver
-    CREATE_FRAMEWORK
     INSTALL_PREFIX SdfPlugins
     LIBRARIES
         ar
@@ -529,6 +530,10 @@ pxr_register_test(testSdfPrim
 pxr_register_test(testSdfReference
     PYTHON
     COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testSdfReference"
+)
+pxr_register_test(testSdfRelocates
+    PYTHON
+    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testSdfRelocates"
 )
 pxr_register_test(testSdfSpecHash
     PYTHON

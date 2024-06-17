@@ -1,25 +1,8 @@
 //
 // Copyright 2016 Pixar
 //
-// Licensed under the Apache License, Version 2.0 (the "Apache License")
-// with the following modification; you may not use this file except in
-// compliance with the Apache License and the following modification to it:
-// Section 6. Trademarks. is deleted and replaced with:
-//
-// 6. Trademarks. This License does not grant permission to use the trade
-//    names, trademarks, service marks, or product names of the Licensor
-//    and its affiliates, except as required to comply with Section 4(c) of
-//    the License and to reproduce the content of the NOTICE file.
-//
-// You may obtain a copy of the Apache License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the Apache License with the above modification is
-// distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, either express or implied. See the Apache License for the specific
-// language governing permissions and limitations under the Apache License.
+// Licensed under the terms set forth in the LICENSE.txt file available at
+// https://openusd.org/license.
 //
 #include "pxr/usdImaging/usdImaging/primAdapter.h"
 
@@ -88,10 +71,6 @@ TF_DEFINE_ENV_SETTING(USDIMAGING_ENABLE_POINT_INSTANCER_INDICES_CACHE, 1,
 static bool _IsEnabledPointInstancerIndicesCache() {
     static bool _v = TfGetEnvSetting(USDIMAGING_ENABLE_POINT_INSTANCER_INDICES_CACHE) == 1;
     return _v;
-}
-
-UsdImagingPrimAdapter::~UsdImagingPrimAdapter() 
-{
 }
 
 TfTokenVector
@@ -943,12 +922,16 @@ UsdImagingPrimAdapter::_MergePrimvar(
     bool indexed) const
 {
     HdPrimvarDescriptor primvar(name, interp, role, indexed);
-    HdPrimvarDescriptorVector::iterator it =
-        std::find(vec->begin(), vec->end(), primvar);
-    if (it == vec->end())
-        vec->push_back(primvar);
-    else
-        *it = primvar;
+
+    for (HdPrimvarDescriptorVector::iterator it = vec->begin();
+        it != vec->end(); ++it) {
+        if (it->name == name) {
+            *it =  primvar;
+            return;
+        }
+    }
+
+    vec->push_back(primvar);
 }
 
 void
@@ -1154,6 +1137,14 @@ bool
 UsdImagingPrimAdapter::_DoesDelegateSupportCoordSys() const
 {
     return _delegate->_coordSysEnabled;
+}
+
+SdfPath
+UsdImagingPrimAdapter::ResolveCachePath(
+    const SdfPath& usdPath,
+    const UsdImagingInstancerContext* /* unused */) const
+{
+    return usdPath;
 }
 
 bool 

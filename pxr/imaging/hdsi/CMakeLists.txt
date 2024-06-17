@@ -20,6 +20,7 @@ pxr_library(hdsi
         extComputationPrimvarPruningSceneIndex
         implicitSurfaceSceneIndex
         legacyDisplayStyleOverrideSceneIndex
+        lightLinkingSceneIndex
         materialBindingResolvingSceneIndex
         materialPrimvarTransferSceneIndex
         nurbsApproximatingSceneIndex
@@ -29,6 +30,8 @@ pxr_library(hdsi
         primTypePruningSceneIndex
         renderSettingsFilteringSceneIndex
         sceneGlobalsSceneIndex
+        tetMeshConversionSceneIndex
+        utils
 
     PUBLIC_HEADERS
         api.h

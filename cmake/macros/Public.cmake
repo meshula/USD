@@ -1,25 +1,8 @@
 #
 # Copyright 2016 Pixar
 #
-# Licensed under the Apache License, Version 2.0 (the "Apache License")
-# with the following modification; you may not use this file except in
-# compliance with the Apache License and the following modification to it:
-# Section 6. Trademarks. is deleted and replaced with:
-#
-# 6. Trademarks. This License does not grant permission to use the trade
-#    names, trademarks, service marks, or product names of the Licensor
-#    and its affiliates, except as required to comply with Section 4(c) of
-#    the License and to reproduce the content of the NOTICE file.
-#
-# You may obtain a copy of the Apache License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the Apache License with the above modification is
-# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied. See the Apache License for the specific
-# language governing permissions and limitations under the Apache License.
+# Licensed under the terms set forth in the LICENSE.txt file available at
+# https://openusd.org/license.
 #
 include(Private)
 
@@ -850,6 +833,10 @@ function(pxr_register_test TEST_NAME)
         set(testWrapperCmd ${testWrapperCmd} --env-var=${PXR_PLUGINPATH_NAME}=${CMAKE_INSTALL_PREFIX}/lib/usd)
     endif()
 
+    if (PXR_TEST_RUN_TEMP_DIR_PREFIX)
+          set(testWrapperCmd ${testWrapperCmd} --tempdirprefix=${PXR_TEST_RUN_TEMP_DIR_PREFIX})
+    endif()
+
     # Ensure that Python imports the Python files built by this build.
     # On Windows convert backslash to slash and don't change semicolons
     # to colons.
@@ -1334,3 +1321,29 @@ function(pxr_create_apple_framework)
      # Run the shell script for the primary configuration
     install(CODE "execute_process(COMMAND zsh ${PROJECT_BINARY_DIR}/AppleFrameworkBuild.zsh )")
 endfunction() # pxr_create_apple_framework
+
+# Adding support for a "docs-only" directory, needed when adding doxygen docs
+# not associated with a specific library/etc. 
+function(pxr_docs_only_dir NAME)
+    # Get list of doxygen files, which could include image files and/or 
+    # snippets example cpp files 
+    set(multiValueArgs
+        DOXYGEN_FILES
+    )
+    cmake_parse_arguments(args
+        ""
+        ""
+        "${multiValueArgs}"
+        ${ARGN}
+    )
+    if(PXR_BUILD_DOCUMENTATION)
+        _copy_doxygen_files(${NAME}
+            IS_LIB
+                FALSE
+            HEADER_INSTALL_PREFIX
+                "include/${PXR_PREFIX}"
+            DOXYGEN_FILES
+                ${args_DOXYGEN_FILES}
+        )
+    endif()
+endfunction() # pxr_docs_only_dir

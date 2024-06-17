@@ -118,10 +118,15 @@ that depend on Metal, including:
 
 ##### Vulkan
 
+Vulkan support for USD is currently experimental and disabled by default.
+
 Building USD with Vulkan enabled requires the Vulkan SDK and glslang to
-be installed. The VULKAN_SDK environment variable must point to the
-location of the SDK. The glslang compiler headers must be locatable during
-the build process.
+be installed. If you wish to build a debug build on Windows, please make sure 
+you have the optional component "Shader Toolchain Debug Symbols" installed as 
+part of the Vulkan SDK.
+
+The VULKAN_SDK environment variable must point to the location of the SDK. The 
+glslang compiler headers must be locatable during the build process.
 
 Support for Vulkan can optionally be enabled by specifying the cmake flag
 `PXR_ENABLE_VULKAN_SUPPORT=TRUE`.
@@ -373,6 +378,12 @@ ctest -C Release -R testUsdShade -V
 ```
 
 See the [ctest documentation](https://cmake.org/cmake/help/latest/manual/ctest.1.html) for more options.
+
+##### Test Run Directories
+
+Each test is run out of an automatically-created temporary directory containing any additional files required by the test. Set the cmake
+option `PXR_TEST_RUN_TEMP_DIR_PREFIX` to prepend a prefix string to the name of these directories. For example, setting this option to
+"foo-" will create test run directories named "foo-<test dir>"
 
 ##### Diagnosing Failed Tests
 

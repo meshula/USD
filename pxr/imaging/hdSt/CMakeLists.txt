@@ -20,17 +20,13 @@ if (${PXR_ENABLE_MATERIALX_SUPPORT})
         MaterialXCore
         MaterialXFormat
         MaterialXGenGlsl
+        MaterialXGenMsl
         hdMtlx
     )
     list(APPEND optionalPrivateClasses
          materialXFilter
          materialXShaderGen
     )
-    if (MaterialX_VERSION VERSION_GREATER_EQUAL "1.38.7")
-        list(APPEND optionalLibs
-            MaterialXGenMsl
-        )
-    endif()
 endif()
 if (PXR_ENABLE_PTEX_SUPPORT)
     list(APPEND optionalLibs ${PTEX_LIBRARY})
@@ -50,10 +46,12 @@ pxr_library(hdSt
         sdr
         tf
         trace
+        ${TBB_tbb_LIBRARY}
         ${OPENSUBDIV_LIBRARIES}
         ${optionalLibs}
 
     INCLUDE_DIRS
+        ${TBB_INCLUDE_DIRS}
         ${OPENSUBDIV_INCLUDE_DIR}
         ${optionalIncludeDirs}
 
@@ -122,6 +120,7 @@ pxr_library(hdSt
         stagingBuffer
         strategyBase
         subtextureIdentifier
+        tetMeshConversionSceneIndexPlugin
         textureBinder
         textureCpuData
         textureHandle
@@ -141,6 +140,7 @@ pxr_library(hdSt
     PUBLIC_HEADERS
         api.h
         dynamicUvTextureImplementation.h
+        enums.h
 
     PRIVATE_CLASSES
         assetUvTextureCpuData
@@ -211,6 +211,16 @@ pxr_library(hdSt
 
     DOXYGEN_FILES
         overview.dox
+)
+
+pxr_build_test(testHdStQualifiers
+    LIBRARIES
+        hdSt
+        hgi
+        hio
+        hd
+    CPPFILES
+        testenv/testHdStQualifiers.cpp
 )
 
 if (X11_FOUND OR APPLE)
@@ -568,18 +578,21 @@ pxr_build_test(testHdStTransition
     CPPFILES
         testenv/testHdStTransition.cpp
 )
+pxr_build_test(testHdStSubResourceRegistry
+    LIBRARIES
+        garch
+        gf
+        hd
+        hdSt
+        hgi
+        tf
+        vt
+    CPPFILES
+        testenv/testHdStSubResourceRegistry.cpp
+)
 endif()
 
-if (APPLE)
-    message(STATUS "Skipping ${PXR_PACKAGE} tests because they are currently unsupported on macOS")
-    return()
-endif()
-
-if (WIN32)
-    message(STATUS "Skipping ${PXR_PACKAGE} tests because they are currently unsupported on Windows")
-    return()
-endif()
-
+if (X11_FOUND)
 # Most HdSt tests require setup of a GL context and window. This is the 
 # exception.
 pxr_register_test(testHdStBufferSource
@@ -589,9 +602,34 @@ pxr_register_test(testHdStBufferSource
     ENV
         TF_DEBUG=HD_SAFE_MODE
 )
+endif()
 
 if (${PXR_HEADLESS_TEST_MODE})
     message(STATUS "Skipping ${PXR_PACKAGE} tests because PXR_HEADLESS_TEST_MODE is ON")
+    return()
+endif()
+
+# Unlike most hdSt tests currently, testHdStQualifiers can run on all platforms.
+pxr_install_test_dir(
+    SRC testenv/testHdStQualifiers
+    DEST testHdStQualifiers
+)
+
+pxr_register_test(testHdStQualifiers
+    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testHdStQualifiers --offscreen --flatQF FlatMember --nopersQF NoPerspectiveMember --centroidQF CentroidMember --sampleQF SampleMember"
+    EXPECTED_RETURN_CODE 0
+    TESTENV testHdStQualifiers
+    ENV
+        TF_DEBUG=HD_SAFE_MODE
+)
+
+if (APPLE)
+    message(STATUS "Skipping rest of ${PXR_PACKAGE} tests because they are currently unsupported on macOS")
+    return()
+endif()
+
+if (WIN32)
+    message(STATUS "Skipping rest of ${PXR_PACKAGE} tests because they are currently unsupported on Windows")
     return()
 endif()
 
@@ -2930,7 +2968,7 @@ pxr_register_test(testHdStMaterialXShaderGen_SStextured
     TESTENV testHdStMaterialXShaderGen
 )
 pxr_register_test(testHdStMaterialXShaderGen_UsdPSglass
-    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testHdStMaterialXShaderGen --filename usd_preview_surface_glass.mtlx --materialTag translucent"
+    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testHdStMaterialXShaderGen --filename usd_preview_surface_glass.mtlx"
     STDOUT_REDIRECT shadergen_UsdPSglass.out
     EXPECTED_RETURN_CODE 0
     POST_COMMAND "diff -B -b shadergen_UsdPSglass.out ${CMAKE_INSTALL_PREFIX}/tests/ctest/testHdStMaterialXShaderGen/baseline/shadergen_UsdPSglass.out"
@@ -3131,6 +3169,13 @@ pxr_register_test(testHdStTransitionRefinedCurves
     TESTENV testHdStTransitionRefinedCurves
     ENV
         HD_ENABLE_REFINED_CURVES=1
+        TF_DEBUG=HD_SAFE_MODE
+)
+pxr_register_test(testHdStSubResourceRegistry
+    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testHdStSubResourceRegistry"
+    EXPECTED_RETURN_CODE 0
+    TESTENV testHdStSubResourceRegistry
+    ENV
         TF_DEBUG=HD_SAFE_MODE
 )
 

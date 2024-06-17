@@ -1,25 +1,8 @@
 #
 # Copyright 2017 Pixar
 #
-# Licensed under the Apache License, Version 2.0 (the "Apache License")
-# with the following modification; you may not use this file except in
-# compliance with the Apache License and the following modification to it:
-# Section 6. Trademarks. is deleted and replaced with:
-#
-# 6. Trademarks. This License does not grant permission to use the trade
-#    names, trademarks, service marks, or product names of the Licensor
-#    and its affiliates, except as required to comply with Section 4(c) of
-#    the License and to reproduce the content of the NOTICE file.
-#
-# You may obtain a copy of the Apache License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the Apache License with the above modification is
-# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied. See the Apache License for the specific
-# language governing permissions and limitations under the Apache License.
+# Licensed under the terms set forth in the LICENSE.txt file available at
+# https://openusd.org/license.
 #
 # Check whether this script is being run under Python 2 first. Otherwise,
 # any Python 3-only code below will cause the script to fail with an
@@ -133,11 +116,11 @@ def GetVisualStudioCompilerAndVersion():
 
     msvcCompiler = which('cl')
     if msvcCompiler:
-        # VisualStudioVersion environment variable should be set by the
+        # VCToolsVersion environment variable should be set by the
         # Visual Studio Command Prompt.
         match = re.search(
             r"(\d+)\.(\d+)",
-            os.environ.get("VisualStudioVersion", ""))
+            os.environ.get("VCToolsVersion", ""))
         if match:
             return (msvcCompiler, tuple(int(v) for v in match.groups()))
     return None
@@ -152,16 +135,17 @@ def IsVisualStudioVersionOrGreater(desiredVersion):
         return version >= desiredVersion
     return False
 
+# Helpers to determine the version of "Visual Studio" (also support the Build Tools) based
+# on the version of the MSVC compiler.
+# See MSVC++ versions table on https://en.wikipedia.org/wiki/Microsoft_Visual_C%2B%2B
 def IsVisualStudio2022OrGreater():
-    VISUAL_STUDIO_2022_VERSION = (17, 0)
+    VISUAL_STUDIO_2022_VERSION = (14, 30)
     return IsVisualStudioVersionOrGreater(VISUAL_STUDIO_2022_VERSION)
-
 def IsVisualStudio2019OrGreater():
-    VISUAL_STUDIO_2019_VERSION = (16, 0)
+    VISUAL_STUDIO_2019_VERSION = (14, 20)
     return IsVisualStudioVersionOrGreater(VISUAL_STUDIO_2019_VERSION)
-
 def IsVisualStudio2017OrGreater():
-    VISUAL_STUDIO_2017_VERSION = (15, 0)
+    VISUAL_STUDIO_2017_VERSION = (14, 1)
     return IsVisualStudioVersionOrGreater(VISUAL_STUDIO_2017_VERSION)
 
 def GetPythonInfo(context):
@@ -281,8 +265,8 @@ def Run(cmd, logCommandOutput = True, env=None):
         if verbosity < 3:
             with open("log.txt", "r") as logfile:
                 Print(logfile.read())
-        raise RuntimeError("Failed to run '{cmd}'\nSee {log} for more details."
-                           .format(cmd=cmd, log=os.path.abspath("log.txt")))
+        raise RuntimeError("Failed to run '{cmd}' in {path}.\nSee {log} for more details."
+                           .format(cmd=cmd, path=os.getcwd(), log=os.path.abspath("log.txt")))
 
 @contextlib.contextmanager
 def CurrentWorkingDirectory(dir):
@@ -735,6 +719,9 @@ def InstallBoost_Helper(context, force, buildArgs):
     # However, there are some cases where a newer version is required.
     # - Building with Python 3.11 requires boost 1.82.0 or newer
     #   (https://github.com/boostorg/python/commit/a218ba)
+    # - Building on MacOS requires v1.82.0 or later for C++17 support starting 
+    #   with Xcode 15. We choose to use this version for all MacOS builds for 
+    #   simplicity."
     # - Building with Python 3.10 requires boost 1.76.0 or newer
     #   (https://github.com/boostorg/python/commit/cbd2d9)
     #   XXX: Due to a typo we've been using 1.78.0 in this case for a while.
@@ -750,8 +737,6 @@ def InstallBoost_Helper(context, force, buildArgs):
     elif context.buildPython and pyVer >= (3, 10):
         BOOST_URL = "https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.zip"
     elif IsVisualStudio2022OrGreater():
-        BOOST_URL = "https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.zip"
-    elif MacOS():
         BOOST_URL = "https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.zip"
     else:
         BOOST_URL = "https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.zip"
@@ -800,7 +785,7 @@ def InstallBoost_Helper(context, force, buildArgs):
                         primaryArch, secondaryArch)
 
             if macOSArch:
-                bootstrapCmd += " cxxflags=\"{0}\" " \
+                bootstrapCmd += " cxxflags=\"{0} -std=c++17 -stdlib=libc++\" " \
                                 " cflags=\"{0}\" " \
                                 " linkflags=\"{0}\"".format(macOSArch)
             bootstrapCmd += " --with-toolset=clang"
@@ -920,7 +905,7 @@ def InstallBoost_Helper(context, force, buildArgs):
             # https://github.com/boostorg/container/commit/79a75f470e75f35f5f2a91e10fcc67d03b0a2160
             b2_settings.append(f"define=BOOST_UNORDERED_HAVE_PIECEWISE_CONSTRUCT=0")
             if macOSArch:
-                b2_settings.append("cxxflags=\"{0}\"".format(macOSArch))
+                b2_settings.append("cxxflags=\"{0} -std=c++17 -stdlib=libc++\"".format(macOSArch))
                 b2_settings.append("cflags=\"{0}\"".format(macOSArch))
                 b2_settings.append("linkflags=\"{0}\"".format(macOSArch))
 
@@ -968,7 +953,8 @@ elif MacOS():
     TBB_URL = "https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2020.3.zip"
     TBB_INTEL_URL = "https://github.com/oneapi-src/oneTBB/archive/refs/tags/2018_U1.zip"
 else:
-    TBB_URL = "https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2020.3.zip"
+    # Use point release with fix https://github.com/oneapi-src/oneTBB/pull/833
+    TBB_URL = "https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2020.3.1.zip"
 
 def InstallTBB(context, force, buildArgs):
     if Windows():
@@ -1306,15 +1292,11 @@ def InstallOpenImageIO(context, force, buildArgs):
                      '-DUSE_PYTHON=OFF',
                      '-DSTOP_ON_WARNING=OFF']
 
-        # OIIO's FindOpenEXR module circumvents CMake's normal library 
-        # search order, which causes versions of OpenEXR installed in
-        # /usr/local or other hard-coded locations in the module to
-        # take precedence over the version we've built, which would 
-        # normally be picked up when we specify CMAKE_PREFIX_PATH. 
-        # This may lead to undefined symbol errors at build or runtime. 
-        # So, we explicitly specify the OpenEXR we want to use here.
-        extraArgs.append('-DOPENEXR_ROOT="{instDir}"'
-                         .format(instDir=context.instDir))
+        # USD natively supports reading .exr files. Disable support in
+        # OpenImageIO so we don't need to build OpenEXR as a dependency,
+        # and so we don't accidentally pick up an OpenEXR library outside
+        # of our build.
+        extraArgs.append('-DUSE_OPENEXR=OFF')
 
         # If Ptex support is disabled in USD, disable support in OpenImageIO
         # as well. This ensures OIIO doesn't accidentally pick up a Ptex
@@ -1386,6 +1368,8 @@ def InstallOpenSubdiv(context, force, buildArgs):
             '-DNO_TESTS=ON',
             '-DNO_GLEW=ON',
             '-DNO_GLFW=ON',
+            '-DNO_PTEX=ON',
+            '-DNO_TBB=ON',
         ]
 
         if MacOS():
@@ -1408,17 +1392,7 @@ def InstallOpenSubdiv(context, force, buildArgs):
         # Add on any user-specified extra arguments.
         extraArgs += buildArgs
 
-        # OpenSubdiv seems to error when building on windows w/ Ninja...
-        # ...so just use the default generator (ie, Visual Studio on Windows)
-        # until someone can sort it out
-        oldGenerator = context.cmakeGenerator
-        if oldGenerator == "Ninja" and Windows():
-            context.cmakeGenerator = None
-
-        try:
-            RunCMake(context, force, extraArgs)
-        finally:
-            context.cmakeGenerator = oldGenerator
+        RunCMake(context, force, extraArgs)
 
 OPENSUBDIV = Dependency("OpenSubdiv", InstallOpenSubdiv, 
                         "include/opensubdiv/version.h")
@@ -1526,19 +1500,10 @@ DRACO = Dependency("Draco", InstallDraco, "include/draco/compression/decode.h")
 ############################################################
 # MaterialX
 
-MATERIALX_URL = "https://github.com/materialx/MaterialX/archive/v1.38.7.zip"
+MATERIALX_URL = "https://github.com/materialx/MaterialX/archive/v1.38.10.zip"
 
 def InstallMaterialX(context, force, buildArgs):
     with CurrentWorkingDirectory(DownloadURL(MATERIALX_URL, context, force)):
-        # MaterialX 1.38.7 fails to build on windows using VS2017 because of a
-        # missing header include, following patch fixes the same. This patch
-        # should be removed when underlying issue is resolved.
-        # https://github.com/AcademySoftwareFoundation/MaterialX/issues/1401
-        if IsVisualStudio2017OrGreater() and not IsVisualStudio2019OrGreater():
-            PatchFile("source\\MaterialXGenMsl\\MslShaderGenerator.cpp",
-                    [("#include <MaterialXGenMsl/MslShaderGenerator.h>",
-                     "#include <cctype>\n" + 
-                     "#include <MaterialXGenMsl/MslShaderGenerator.h>")])
         cmakeOptions = ['-DMATERIALX_BUILD_SHARED_LIBS=ON',
                         '-DMATERIALX_BUILD_TESTS=OFF'
         ]
@@ -1578,9 +1543,9 @@ EMBREE = Dependency("Embree", InstallEmbree, "include/embree3/rtcore.h")
 ############################################################
 # AnimX
 
-# This GitHub project has no releases, so we take the latest.
-# As of 2023, there have been no commits since 2018.
-ANIMX_URL = "https://github.com/Autodesk/animx/archive/refs/heads/master.zip"
+# This GitHub project has no releases, so we fixed on the latest commit as of
+# 2024-02-06 - 5db8ee4, which was committed on 2018-11-05
+ANIMX_URL = "https://github.com/Autodesk/animx/archive/5db8ee416d5fa7050357f498d4dcfaa6ff3f7738.zip"
 
 def InstallAnimX(context, force, buildArgs):
     with CurrentWorkingDirectory(DownloadURL(ANIMX_URL, context, force)):
@@ -1867,7 +1832,7 @@ https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_dual_abi.html
 
 parser = argparse.ArgumentParser(
     formatter_class=argparse.RawDescriptionHelpFormatter,
-    description=programDescription)
+    allow_abbrev=False, description=programDescription)
 
 parser.add_argument("install_dir", type=str, 
                     help="Directory where USD will be installed")
@@ -2368,7 +2333,7 @@ if context.buildImaging:
         requiredDependencies += [BLOSC, BOOST, OPENEXR, OPENVDB, TBB]
     
     if context.buildOIIO:
-        requiredDependencies += [BOOST, JPEG, TIFF, PNG, OPENEXR, OPENIMAGEIO]
+        requiredDependencies += [BOOST, JPEG, TIFF, PNG, OPENIMAGEIO]
 
     if context.buildOCIO:
         requiredDependencies += [OPENCOLORIO]
@@ -2557,6 +2522,7 @@ summaryMsg += """\
       PRMan support:            {buildPrman}
     UsdImaging                  {buildUsdImaging}
       usdview:                  {buildUsdview}
+    MaterialX support           {buildMaterialX}
     Python support              {buildPython}
       Python Debug:             {debugPython}
       Python docs:              {buildPythonDocs}
@@ -2570,7 +2536,6 @@ summaryMsg += """\
     Alembic Plugin              {buildAlembic}
       HDF5 support:             {enableHDF5}
     Draco Plugin                {buildDraco}
-    MaterialX Plugin            {buildMaterialX}
 
   Dependencies                  {dependencies}"""
 
