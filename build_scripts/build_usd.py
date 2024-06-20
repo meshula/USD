@@ -941,6 +941,16 @@ def InstallBoost(context, force, buildArgs):
 BOOST = Dependency("boost", InstallBoost, *BOOST_VERSION_FILES)
 
 ############################################################
+# IOS toolchain
+def InstallIosToolchain(context, force, buildArgs):
+    os.mkdir('{instDir}/cmake'.format(instDir=context.instDir))
+    f = context.usdSrcDir + "/cmake/toolchains/ios.toolchain.cmake"
+    shutil.copyfile(f,
+                    '{instDir}/cmake/iOSToolchain.cmake'.format(instDir=context.instDir))
+
+IOS_TOOLCHAIN = Dependency("iosToolchain", InstallIosToolchain, "cmake/iOSToolchain.cmake")
+
+############################################################
 # Intel TBB
 
 if Windows():
@@ -2310,7 +2320,11 @@ if extraPythonPaths:
 
 # Determine list of dependencies that are required based on options
 # user has selected.
-requiredDependencies = [ZLIB, BOOST, TBB]
+requiredDependencies = []
+if context.targetIos:
+    requiredDependencies += [IOS_TOOLCHAIN]
+
+requiredDependencies += [ZLIB, BOOST, TBB]
 
 if context.buildAlembic:
     if context.enableHDF5:
