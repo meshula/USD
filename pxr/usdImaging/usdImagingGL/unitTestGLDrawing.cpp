@@ -836,6 +836,8 @@ UsdImagingGL_UnitTestGLDrawing::RunTest(int argc, char *argv[])
         _drawMode = UsdImagingGLDrawMode::DRAW_WIREFRAME_ON_SURFACE;
     } else if (args.shading.compare("flat") == 0 ) {
         _drawMode = UsdImagingGLDrawMode::DRAW_SHADED_FLAT;
+    } else if (args.shading.compare("constantLighting") == 0 ) {
+        _drawMode = UsdImagingGLDrawMode::DRAW_CONSTANT_LIGHTING;
     } else if (args.shading.compare("smooth") == 0 ) {
         _drawMode = UsdImagingGLDrawMode::DRAW_SHADED_SMOOTH;
     } else {

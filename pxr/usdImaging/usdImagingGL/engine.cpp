@@ -1751,6 +1751,9 @@ UsdImagingGLEngine::_UpdateHydraCollection(
         params.drawMode == UsdImagingGLDrawMode::DRAW_SHADED_FLAT) {
         // Flat shading
         reprSelector = HdReprSelector(HdReprTokens->hull);
+    } else if (params.drawMode == UsdImagingGLDrawMode::DRAW_CONSTANT_LIGHTING) {
+        // Constant lighting
+        reprSelector = HdReprSelector(HdReprTokens->hull);
     } else if (
         params.drawMode == UsdImagingGLDrawMode::DRAW_WIREFRAME_ON_SURFACE) {
         // Wireframe on surface

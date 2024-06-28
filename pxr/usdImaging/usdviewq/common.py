@@ -136,6 +136,7 @@ class RenderModes(ConstantsGroup):
     WIREFRAME_ON_SURFACE = "WireframeOnSurface"
     SMOOTH_SHADED = "Smooth Shaded"
     FLAT_SHADED = "Flat Shaded"
+    CONSTANT_LIGHTING = "Constant Lighting"
     POINTS = "Points"
     GEOM_ONLY = "Geom Only"
     GEOM_FLAT = "Geom Flat"
@@ -143,9 +144,10 @@ class RenderModes(ConstantsGroup):
     HIDDEN_SURFACE_WIREFRAME = "Hidden Surface Wireframe"
 
 class ShadedRenderModes(ConstantsGroup):
-    # Render modes which use shading
+    # Render modes which use shading (and hence require lights)
     SMOOTH_SHADED = RenderModes.SMOOTH_SHADED
     FLAT_SHADED = RenderModes.FLAT_SHADED
+    CONSTANT_LIGHTING = RenderModes.CONSTANT_LIGHTING
     WIREFRAME_ON_SURFACE = RenderModes.WIREFRAME_ON_SURFACE
     GEOM_FLAT = RenderModes.GEOM_FLAT
     GEOM_SMOOTH = RenderModes.GEOM_SMOOTH

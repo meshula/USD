@@ -605,6 +605,7 @@ class AppController(QtCore.QObject):
                 self._ui.actionWireframeOnSurface,
                 self._ui.actionSmooth_Shaded,
                 self._ui.actionFlat_Shaded,
+                self._ui.actionConstant_Lighting,
                 self._ui.actionPoints,
                 self._ui.actionGeom_Only,
                 self._ui.actionGeom_Smooth,

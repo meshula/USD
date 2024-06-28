@@ -414,6 +414,7 @@
              <addaction name="actionWireframeOnSurface"/>
              <addaction name="actionSmooth_Shaded"/>
              <addaction name="actionFlat_Shaded"/>
+             <addaction name="actionConstant_Lighting"/>
              <addaction name="actionPoints"/>
              <addaction name="actionGeom_Only"/>
              <addaction name="actionGeom_Smooth"/>
@@ -2029,6 +2030,14 @@
    <property name="shortcutContext">
     <enum>Qt::ApplicationShortcut</enum>
    </property>
+  </action>
+  <action name="actionConstant_Lighting">
+    <property name="checkable">
+     <bool>true</bool>
+    </property>
+    <property name="text">
+     <string>Constant Lighting</string>
+    </property>
   </action>
   <action name="actionPoints">
    <property name="checkable">

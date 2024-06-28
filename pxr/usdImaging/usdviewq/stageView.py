@@ -892,6 +892,7 @@ class StageView(QGLWidget):
             RenderModes.SMOOTH_SHADED: UsdImagingGL.DrawMode.DRAW_SHADED_SMOOTH,
             RenderModes.POINTS: UsdImagingGL.DrawMode.DRAW_POINTS,
             RenderModes.FLAT_SHADED: UsdImagingGL.DrawMode.DRAW_SHADED_FLAT,
+            RenderModes.CONSTANT_LIGHTING: UsdImagingGL.DrawMode.DRAW_CONSTANT_LIGHTING,
             RenderModes.GEOM_ONLY: UsdImagingGL.DrawMode.DRAW_GEOM_ONLY,
             RenderModes.GEOM_SMOOTH: UsdImagingGL.DrawMode.DRAW_GEOM_SMOOTH,
             RenderModes.GEOM_FLAT: UsdImagingGL.DrawMode.DRAW_GEOM_FLAT,

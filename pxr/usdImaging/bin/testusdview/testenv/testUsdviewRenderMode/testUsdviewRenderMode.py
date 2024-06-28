@@ -39,6 +39,11 @@ def _testFlatShading(appController):
     _setRenderModeAction(appController, appController._ui.actionFlat_Shaded)
     appController._takeShot("render_mode_flat.png")
 
+# Test constant lighting
+def _testConstantLighting(appController):
+    _setRenderModeAction(appController, appController._ui.actionConstant_Lighting)
+    appController._takeShot("render_mode_constant_lighting.png")
+
 # Test points.
 def _testPoints(appController):
     _setRenderModeAction(appController, appController._ui.actionPoints)

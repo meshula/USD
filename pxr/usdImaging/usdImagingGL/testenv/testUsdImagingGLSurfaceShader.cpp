@@ -213,6 +213,15 @@ My_TestGLDrawing::DrawTest(bool offscreen)
     _engine->Render(_stage->GetPseudoRoot(), params);
 
     WriteToFile(_engine.get(), HdAovTokens->color, "out5.png");
+
+    // Render #6
+    params.drawMode = UsdImagingGLDrawMode::DRAW_CONSTANT_LIGHTING;
+    params.complexity = _GetComplexity();
+    params.cullStyle = UsdImagingGLCullStyle::CULL_STYLE_BACK;
+
+    _engine->Render(_stage->GetPseudoRoot(), params);
+
+    WriteToFile(_engine.get(), HdAovTokens->color, "out6.png");
 }
 
 void

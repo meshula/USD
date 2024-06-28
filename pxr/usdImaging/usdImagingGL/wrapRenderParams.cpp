@@ -26,6 +26,7 @@ wrapRenderParams()
         .value("DRAW_WIREFRAME_ON_SURFACE", 
             UsdImagingGLDrawMode::DRAW_WIREFRAME_ON_SURFACE)
         .value("DRAW_SHADED_FLAT", UsdImagingGLDrawMode::DRAW_SHADED_FLAT)
+        .value("DRAW_CONSTANT_LIGHTING", UsdImagingGLDrawMode::DRAW_CONSTANT_LIGHTING)
         .value("DRAW_SHADED_SMOOTH", UsdImagingGLDrawMode::DRAW_SHADED_SMOOTH)
         .value("DRAW_GEOM_ONLY", UsdImagingGLDrawMode::DRAW_GEOM_ONLY)
         .value("DRAW_GEOM_FLAT", UsdImagingGLDrawMode::DRAW_GEOM_FLAT)
