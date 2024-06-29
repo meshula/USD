@@ -95,6 +95,8 @@ pxr_library(gf
         module.cpp
         wrapBBox3d.cpp
         wrapCamera.cpp
+        wrapColor.cpp
+        wrapColorSpace.cpp
         wrapDualQuatd.cpp
         wrapDualQuatf.cpp
         wrapDualQuath.cpp
