@@ -81,6 +81,13 @@ main(int argc, char *argv[])
         TF_AXIOM(c.GetColorSpace() == csLinearRec709);
         TF_AXIOM(c.GetRGB() == GfVec3f(0, 0, 0));
     }
+    // test copy construction
+    {
+        GfColor c(GfVec3f(0.5f, 0.5f, 0.5f), csSRGB);
+        GfColor c2(c);
+        TF_AXIOM(c2.GetColorSpace() == csSRGB);
+        TF_AXIOM(c.GetRGB() == GfVec3f(0.5f, 0.5f, 0.5f));
+    }
     // test construction with color space
     {
         GfColor c(csSRGB);

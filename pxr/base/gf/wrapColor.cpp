@@ -53,8 +53,9 @@ std::string __repr__(GfColor const &self)
 
 void wrapColor()
 {
-    class_<GfColor>("GfColor")
+    class_<GfColor>("Color")
         .def(init<>())
+        .def(init<const GfColor&>())
         .def(init<const GfColorSpace&>())
         .def(init<const GfVec3f&, const GfColorSpace&>())
         .def(init<const GfColor&, const GfColorSpace&>())

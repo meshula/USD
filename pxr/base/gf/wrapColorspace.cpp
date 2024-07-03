@@ -25,11 +25,14 @@
 #include "pxr/pxr.h"
 #include "pxr/base/gf/color.h"
 #include "pxr/base/gf/colorSpace.h"
+#include "pxr/base/tf/pyStaticTokens.h"
 #include "pxr/base/tf/pyUtils.h"
 #include "pxr/base/tf/stringUtils.h"
 #include "pxr/base/tf/wrapTypeHelpers.h"
 
 #include <boost/python/class.hpp>
+#include <boost/python/def.hpp>
+#include <boost/python/operators.hpp>
 #include <string>
 
 using namespace boost::python;
@@ -50,7 +53,7 @@ static std::string __repr__(GfColorSpace const &self)
 
 void wrapColorSpace()
 {
-    class_<GfColorSpace>("GfColorSpace", init<const TfToken&>())
+    class_<GfColorSpace>("ColorSpace", init<const TfToken&>())
         .def(init<const TfToken&, const GfVec2f&, const GfVec2f&, const GfVec2f&, const GfVec2f&, float, float>())
         .def(init<const TfToken&, const GfMatrix3f&, float, float>())
         .def("__repr__", &__repr__)
@@ -62,5 +65,10 @@ void wrapColorSpace()
         .def("GetGamma", &GfColorSpace::GetGamma)
         .def("GetLinearBias", &GfColorSpace::GetLinearBias)
         .def("GetTransferFunctionParams", &GfColorSpace::GetTransferFunctionParams)
-        .def("GetPrimariesAndWhitePoint", &GfColorSpace::GetPrimariesAndWhitePoint);
+        .def("GetPrimariesAndWhitePoint", &GfColorSpace::GetPrimariesAndWhitePoint)
+        .def(self == self)
+        .def(self != self);
+
+    TF_PY_WRAP_PUBLIC_TOKENS("ColorSpaceNames", GfColorSpaceNames, 
+                             GF_COLORSPACE_NAME_TOKENS);
 }
