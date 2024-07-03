@@ -63,6 +63,37 @@ def PrintError(error):
         traceback.print_exc()
     print ("ERROR:", error)
 
+# Helpers for benchmarking
+timingResults = []
+def LogTiming(description):
+    time = datetime.datetime.now()
+    timingResults.append((description, time))
+
+def PrintTimingResults():
+    if len(timingResults) < 2:
+        return
+
+    # Compute the deltas between each entry and the previous one.
+    deltas = [(timingResults[i][0], timingResults[i][1] - timingResults[i-1][1])
+              for i in range(1, len(timingResults))]
+
+    # Print the results in a table.
+    print("\n----------------------------------------------------------------------------")
+    print("Timing Results:")
+    print("{:<40} {:<20} {:<20}".format("Description", "Time", "Delta"))
+    print("{:<40} {:<20} {:<20}".format("---------------------------------------", 
+                                        "-------------------", "--------------"))
+    print("{:<40} {:<20} {:<20}".format(timingResults[0][0], 
+                                        timingResults[0][1].strftime('%Y-%m-%d %H:%M:%S'),
+                                        ""))
+    for i in range(len(deltas)):
+        print("{:<40} {:<20} {:<20}".format(timingResults[i+1][0], 
+                                            timingResults[i+1][1].strftime('%Y-%m-%d %H:%M:%S'), 
+                                            str(deltas[i][1])))
+    print("----------------------------------------------------------------------------")
+
+LogTiming("Starting build")
+
 # Helpers for determining platform
 def Windows():
     return platform.system() == "Windows"
@@ -283,6 +314,7 @@ def CurrentWorkingDirectory(dir):
 
 def CopyFiles(context, src, dest):
     """Copy files like shutil.copy, but src may be a glob pattern."""
+    LogTiming("CopyFiles: {src} -> {dest}".format(src=src, dest=dest))
     filesToCopy = glob.glob(src)
     if not filesToCopy:
         raise RuntimeError("File(s) to copy {src} not found".format(src=src))
@@ -299,9 +331,12 @@ def CopyFiles(context, src, dest):
         PrintCommandOutput("Copying {file} to {destDir}\n"
                            .format(file=f, destDir=instDestDir))
         shutil.copy(f, instDestDir)
+    LogTiming("CopyFiles complete")
 
 def CopyDirectory(context, srcDir, destDir):
     """Copy directory like shutil.copytree."""
+    LogTiming("CopyDirectory: {srcDir} -> {destDir}".format(
+        srcDir=srcDir, destDir=destDir))
     instDestDir = os.path.join(context.instDir, destDir)
     if os.path.isdir(instDestDir):
         shutil.rmtree(instDestDir)    
@@ -309,6 +344,7 @@ def CopyDirectory(context, srcDir, destDir):
     PrintCommandOutput("Copying {srcDir} to {destDir}\n"
                        .format(srcDir=srcDir, destDir=instDestDir))
     shutil.copytree(srcDir, instDestDir)
+    LogTiming("CopyDirectory complete")
 
 def AppendCXX11ABIArg(buildFlag, context, buildArgs):
     """Append a build argument that defines _GLIBCXX_USE_CXX11_ABI
@@ -369,6 +405,11 @@ def RunCMake(context, force, extraArgs = None):
     instDir = (context.usdInstDir if srcDir == context.usdSrcDir
                else context.instDir)
     buildDir = os.path.join(context.buildDir, os.path.split(srcDir)[1])
+
+    # report only the last path component of the source directory
+    projectName = os.path.split(srcDir)[1]
+    LogTiming("RunCMake: {projectName}".format(projectName=projectName))
+
     if force and os.path.isdir(buildDir):
         shutil.rmtree(buildDir)
 
@@ -457,6 +498,8 @@ def RunCMake(context, force, extraArgs = None):
             .format(config=config,
                     multiproc=FormatMultiProcs(context.numJobs, generator)))
 
+    LogTiming("RunCMake complete")
+
 def GetCMakeVersion():
     """
     Returns the CMake version as tuple of integers (major, minor) or
@@ -531,6 +574,9 @@ def DownloadURL(url, context, force, extractDir = None,
 
     Returns the absolute path to the directory where files have 
     been extracted."""
+
+    LogTiming("DownloadURL: {url}".format(url=url))
+
     with CurrentWorkingDirectory(context.srcDir):
         # Extract filename from URL and see if file already exists. 
         filename = url.split("/")[-1]       
@@ -628,6 +674,7 @@ def DownloadURL(url, context, force, extractDir = None,
                                 extractedPath)
                     shutil.rmtree(tmpExtractedPath)
 
+                LogTiming("DownloadURL complete")
                 return extractedPath
         except Exception as e:
             # If extraction failed for whatever reason, assume the
@@ -935,6 +982,7 @@ def InstallBoost(context, force, buildArgs):
     # building its libraries. We make sure to remove it in case of
     # any failure to ensure that the build script detects boost as a 
     # dependency to build the next time it's run.
+    LogTiming("InstallBoost")
     try:
         InstallBoost_Helper(context, force, buildArgs)
     except:
@@ -945,6 +993,7 @@ def InstallBoost(context, force, buildArgs):
                 try: os.remove(versionHeader)
                 except: pass
         raise
+    LogTiming("InstallBoost complete")
 
 BOOST = Dependency("boost", InstallBoost, *BOOST_VERSION_FILES)
 
@@ -965,12 +1014,14 @@ else:
     TBB_URL = "https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2020.3.1.zip"
 
 def InstallTBB(context, force, buildArgs):
+    LogTiming("InstallTBB")
     if Windows():
         InstallTBB_Windows(context, force, buildArgs)
     elif MacOS():
         InstallTBB_MacOS(context, force, buildArgs)
     else:
         InstallTBB_Linux(context, force, buildArgs)
+    LogTiming("InstallTBB complete")
 
 def InstallTBB_Windows(context, force, buildArgs):
     with CurrentWorkingDirectory(DownloadURL(TBB_URL, context, force, 
@@ -1891,6 +1942,9 @@ if MacOS():
         group.add_argument("--ignore-homebrew", action="store_true",
                            help="Specify that CMake should ignore Homebrew packages.")
 
+group.add_argument("--timing", dest="print_timing", action="store_true",
+                   help="Time the build and print results")
+
 group.add_argument("--build-args", type=str, nargs="*", default=[],
                    help=("Custom arguments to pass to build system when "
                          "building libraries (see docs above)"))
@@ -2158,6 +2212,8 @@ class InstallContext:
         self.cmakeGenerator = args.generator
         self.cmakeToolset = args.toolset
         self.cmakeBuildArgs = args.cmake_build_args
+
+        self.print_timing = args.print_timing
 
         # Number of jobs
         self.numJobs = args.jobs
@@ -2641,6 +2697,8 @@ if pythonDependencies:
         Print(dep.getInstructions())
     sys.exit(1)
 
+LogTiming("Create directory structure")
+
 # Ensure directory structure is created and is writable.
 for dir in [context.usdInstDir, context.instDir, context.srcDir, 
             context.buildDir]:
@@ -2668,6 +2726,8 @@ except Exception as e:
     PrintError(str(e))
     sys.exit(1)
 
+LogTiming("Completed creating directory structure")
+
 # Done. Print out a final status message.
 requiredInPythonPath = set([
     os.path.join(context.usdInstDir, "lib", "python")
@@ -2688,7 +2748,12 @@ if Windows():
 
 if MacOS():
     if context.macOSCodesign:
+        LogTiming("Code signing")
         apple_utils.Codesign(context.usdInstDir, verbosity > 1)
+        LogTiming("Completed code signing")
+
+if context.print_timing:
+    PrintTimingResults()
 
 additionalInstructions = any([context.buildPython, context.buildTools, context.buildPrman])
 if additionalInstructions:
