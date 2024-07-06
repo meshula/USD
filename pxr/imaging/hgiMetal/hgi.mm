@@ -37,6 +37,11 @@ TF_REGISTRY_FUNCTION(TfType)
     t.SetFactory<HgiFactory<HgiMetal>>();
 }
 
+
+namespace {
+    id<MTLCommandQueue> defaultCommandQueue = nil;
+}
+
 struct HgiMetal::AutoReleasePool
 {
 #if !__has_feature(objc_arc)
@@ -63,6 +68,7 @@ struct HgiMetal::AutoReleasePool
 
 HgiMetal::HgiMetal(id<MTLDevice> device)
 : _device(device)
+, _commandQueue(nullptr)
 , _currentCmds(nullptr)
 , _frameDepth(0)
 , _workToFlush(false)
@@ -126,6 +132,81 @@ HgiMetal::HgiMetal(id<MTLDevice> device)
     [[MTLCaptureManager sharedCaptureManager]
         setDefaultCaptureScope:_captureScopeFullFrame];
 }
+
+
+HgiMetal::HgiMetal(id<MTLDevice> device, id<MTLCommandQueue> commandQueue)
+: _device(device)
+, _commandQueue(commandQueue)
+, _currentCmds(nullptr)
+, _frameDepth(0)
+, _workToFlush(false)
+, _pool(std::make_unique<AutoReleasePool>())
+{
+    if (!_device) {
+#if defined(ARCH_OS_OSX)
+        if( TfGetenvBool("HGIMETAL_USE_INTEGRATED_GPU", false)) {
+            auto devices = MTLCopyAllDevices();
+            for (id<MTLDevice> d in devices) {
+                if ([d isLowPower]) {
+                    _device = d;
+                    break;
+                }
+            }
+        }
+#endif
+        
+        if (!_device) {
+            _device = MTLCreateSystemDefaultDevice();
+        }
+    }
+    
+    static int const commandBufferPoolSize = 256;
+    if (_commandQueue) {
+        [_commandQueue retain];
+    }
+    else {
+        _commandQueue = [_device newCommandQueueWithMaxCommandBufferCount:
+                         commandBufferPoolSize];
+    }
+    _commandBuffer = [_commandQueue commandBuffer];
+    [_commandBuffer retain];
+    
+    _capabilities.reset(new HgiMetalCapabilities(_device));
+    _indirectCommandEncoder.reset(new HgiMetalIndirectCommandEncoder(this));
+    
+    MTLArgumentDescriptor *argumentDescBuffer =
+    [[MTLArgumentDescriptor alloc] init];
+    argumentDescBuffer.dataType = MTLDataTypePointer;
+    _argEncoderBuffer = [_device newArgumentEncoderWithArguments:
+                         @[argumentDescBuffer]];
+    [argumentDescBuffer release];
+    
+    MTLArgumentDescriptor *argumentDescSampler =
+    [[MTLArgumentDescriptor alloc] init];
+    argumentDescSampler.dataType = MTLDataTypeSampler;
+    _argEncoderSampler = [_device newArgumentEncoderWithArguments:
+                          @[argumentDescSampler]];
+    [argumentDescSampler release];
+    
+    MTLArgumentDescriptor *argumentDescTexture =
+    [[MTLArgumentDescriptor alloc] init];
+    argumentDescTexture.dataType = MTLDataTypeTexture;
+    _argEncoderTexture = [_device newArgumentEncoderWithArguments:
+                          @[argumentDescTexture]];
+    [argumentDescTexture release];
+    
+    HgiMetalSetupMetalDebug();
+    
+    _captureScopeFullFrame =
+    [[MTLCaptureManager sharedCaptureManager]
+     newCaptureScopeWithDevice:_device];
+    _captureScopeFullFrame.label =
+    [NSString stringWithFormat:@"Full Hydra Frame"];
+    
+    [[MTLCaptureManager sharedCaptureManager]
+     setDefaultCaptureScope:_captureScopeFullFrame];
+}
+
 
 HgiMetal::~HgiMetal()
 {

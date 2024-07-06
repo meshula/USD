@@ -41,6 +41,9 @@ public:
     
     HGIMETAL_API
     HgiMetal(id<MTLDevice> device = nil);
+    
+    HGIMETAL_API
+    HgiMetal(id<MTLDevice> device, id<MTLCommandQueue> queue);
 
     HGIMETAL_API
     ~HgiMetal() override;
