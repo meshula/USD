@@ -629,6 +629,10 @@ UsdImagingDrawModeAdapter::Get(UsdPrim const& prim,
             drawModeColor = _schemaColor;
         }
 
+// @DISPLAYCOLOR transform the displayColor to the rendering color space here???
+// however we have no access to the render color space here, maybe we have to find
+// everywhere Get is called with displayColor and do the conversion there
+
         color[0] = drawModeColor;
         value = color;
     } else if (key == HdTokens->displayOpacity) {

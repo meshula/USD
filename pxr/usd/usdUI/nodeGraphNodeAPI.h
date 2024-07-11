@@ -226,8 +226,8 @@ public:
     // DISPLAYCOLOR 
     // --------------------------------------------------------------------- //
     /// 
-    /// This hint defines what tint the node should have in the node graph.
-    /// 
+    /// This hint defines what color the node should have in the node graph.
+    /// The color is expected to be an SRGB value.
     ///
     /// | ||
     /// | -- | -- |

@@ -537,8 +537,12 @@ _SetCoreUIAttributes(const UsdObject& usd, const mx::ConstElementPtr& mtlx)
 
             mx::Vector3 color;
             if (_Value(&color, mtlx, names.uicolor)) {
-                ui.CreateDisplayColorAttr(
+                UsdAttribute attr = ui.CreateDisplayColorAttr(
                     VtValue(GfVec3f(color[0], color[1], color[2])));
+                auto colorSpace = mtlx->getActiveColorSpace();
+                if (!colorSpace.empty()) {
+                    attr.SetColorSpace(TfToken(colorSpace));
+                }
             }
         }
     }
