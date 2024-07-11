@@ -563,6 +563,9 @@ _GetSubtextureIdentifier(
     const bool premultiplyAlpha,
     const TfToken &sourceColorSpace)
 {
+    /// @MATERIALCOLOR need to wire the rendering color space to the ptex texture
+    /// unless that is actually only SRGB?
+
     if (textureType == HdStTextureType::Uv) {
         const bool flipVertically = (nodeType == _tokens->HwUvTexture_1);
         return std::make_unique<HdStAssetUvSubtextureIdentifier>(flipVertically, 
@@ -634,6 +637,13 @@ _MakeMaterialParamsForTexture(
         } 
     }
     texParam.isPremultiplied = premultiplyTexture;
+
+    /// @MATERIALCOLOR the source color space here should be the color space name
+    /// or "raw". This will be part of the texture hash key, and passed to Hio.
+    /// we need to pass the rendering color space to the texture system as well
+    /// so that the texture key can incorporate the render color space that the
+    /// cached texture has is part of the key.
+
 
     // Get texture's sourceColorSpace hint 
     // XXX: This is a workaround for Presto. If there's no colorspace token, 
@@ -709,7 +719,11 @@ _MakeMaterialParamsForTexture(
                 if (HdStIsSupportedUdimTexture(filePath)) {
                     texParam.textureType = HdStTextureType::Udim;
                 }
-                
+                /// @MATERIALCOLOR find where the sourceColorSpace is used, most likely Hio.
+                /// the rendering color space should be passed to the texture system so that
+                /// when all the things like flips and premultiplication are done, the texture
+                /// is also translated to the correct color space.
+
                 useTexturePrimToFindTexture = false;
                 textureId = HdStTextureIdentifier(
                     TfToken(filePath),

@@ -164,6 +164,8 @@ UsdImagingDrawModeAdapter::UsdImagingDrawModeAdapter()
     : BaseAdapter()
     , _schemaColor(0)
 {
+    /// @MATERIALCOLOR should set a default color space in the schema registry
+}
     // Look up the default color in the schema registry.
     const UsdPrimDefinition *primDef =
         UsdSchemaRegistry::GetInstance()
@@ -723,6 +725,8 @@ UsdImagingDrawModeAdapter::GetMaterialResource(UsdPrim const& prim,
     terminal.identifier = UsdImagingTokens->UsdPreviewSurface;
 
     if (model) {
+        /// @MATERIALCOLOR nothing to do?
+
         GfVec3f drawModeColor;
         model.GetModelDrawModeColorAttr().Get(&drawModeColor);
         VtValue fallback = VtValue(GfVec4f(
@@ -761,6 +765,8 @@ UsdImagingDrawModeAdapter::GetMaterialResource(UsdPrim const& prim,
             textureNode.parameters[_tokens->wrapT] = _tokens->clamp;
             textureNode.parameters[_tokens->file] = textureFile;
             network.nodes.emplace_back(std::move(textureNode));
+
+/// @MATERIALCOLOR nothing to do
 
             // Insert connection between texture node and terminal color input
             HdMaterialRelationship colorRel;
@@ -801,10 +807,12 @@ UsdImagingDrawModeAdapter::GetMaterialResource(UsdPrim const& prim,
             // cutouts are not combinable with translucency/partial presence.
             terminal.parameters[_tokens->opacityThreshold] = VtValue(0.1f);
         } else {
+/// @MATERIALCOLOR nothing to do, already conformed?
             terminal.parameters[_tokens->diffuseColor] = drawModeColor;
             terminal.parameters[_tokens->opacity] = VtValue(1.f);
         }
     } else {
+/// @MATERIALCOLOR nothing to do, already conformed?
         terminal.parameters[_tokens->diffuseColor] = _schemaColor;
         terminal.parameters[_tokens->opacity] = VtValue(1.f);
     }
@@ -912,6 +920,8 @@ UsdImagingDrawModeAdapter::UpdateForTime(UsdPrim const& prim,
     }
 
     if (requestedBits & HdChangeTracker::DirtyPrimvar) {
+        /// @MATERIALCOLOR nothing to do, already conformed?
+
         _MergePrimvar(&primvars, HdTokens->displayColor,
                       HdInterpolationConstant, HdPrimvarRoleTokens->color);
         _MergePrimvar(&primvars, HdTokens->displayOpacity,

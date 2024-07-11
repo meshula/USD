@@ -264,6 +264,7 @@ _AddMaterialXNode(
             continue;
         }
 
+// @MATERIALCOLOR nothing to do
         // Set the input value, and colorspace  on the mxNode
         mx::InputPtr mxInput = mxNode->setInputValue(
             mxInputName, mxInputValue, _GetInputType(mxNodeDef, mxInputName));
@@ -485,6 +486,7 @@ _AddParameterInputsToTerminalNode(
             netInterface->GetNodeParameterData(terminalNodeName, paramName);
         const std::string mxInputValue = HdMtlxConvertToString(paramData.value);
 
+/// @MATERIALCOLOR nothing to do
         // Skip Colorspace parameter, this is already captured in the paramData.
         // Note: Colorspace inputNames are of the form 'colorSpace:inputName'
         const std::pair<std::string, bool> result = 
