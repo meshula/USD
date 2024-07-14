@@ -223,6 +223,7 @@ struct HdModelDrawMode {
     , cardGeometry(HdModelDrawModeTokens->cross)
     {}
 
+    /// DrawModeColor is specified in the rendering color space
     HdModelDrawMode(
         TfToken const& drawMode_,
         bool applyDrawMode_=false,

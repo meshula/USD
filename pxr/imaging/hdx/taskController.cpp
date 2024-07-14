@@ -114,6 +114,9 @@ HdxTaskController::_Delegate::GetTransform(SdfPath const& id)
     return GfMatrix4d(1.0);
 }
 
+/// @COLOR_LIGHT GetLightParamValue should probably take a working color space
+/// since it knows the param value's color space, and can convert it.
+
 /* virtual */
 VtValue
 HdxTaskController::_Delegate::GetLightParamValue(SdfPath const& id, 

@@ -128,6 +128,10 @@ HdStLight::_ApproximateAreaLight(SdfPath const &id,
         return l;
     }
 
+    /// @COLOR_LIGHT Should the working color space be passed to GetLightParamValue?
+    /// GetLightParamValue knows the color space of the light, but it doesn't know
+    /// the color space of the renderer.
+
     // Get the color of the light
     GfVec3f hdc = sceneDelegate->GetLightParamValue(id, HdLightTokens->color)
             .Get<GfVec3f>();
@@ -277,6 +281,10 @@ HdStLight::_PrepareDomeLight(
         return l;
     }
     
+    /// @COLOR_LIGHT Should the working color space be passed to GetLightParamValue?
+    /// GetLightParamValue knows the color space of the light, but it doesn't know
+    /// the color space of the renderer.
+
     // Get the color of the light
     GfVec3f hdc = sceneDelegate->GetLightParamValue(id, HdLightTokens->color)
         .Get<GfVec3f>();

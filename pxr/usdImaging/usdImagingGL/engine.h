@@ -288,7 +288,8 @@ public:
     USDIMAGINGGL_API
     void AddSelected(SdfPath const &path, int instanceIndex);
 
-    /// Sets the selection highlighting color.
+    /// Sets the selection highlighting color, in the renderer's working 
+    /// color space
     USDIMAGINGGL_API
     void SetSelectionColor(GfVec4f const& color);
 
