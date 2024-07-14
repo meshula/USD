@@ -182,12 +182,12 @@ public:
     }
 
     GfVec3f GetTypedValue(const Time shutterOffset) {
-        // @DISPLAYCOLOR convert to rendering color space here? but we have no access
+        // @COLOR_DISPLAY convert to rendering color space here? but we have no access
         // to the rendering color space here, so maybe it has to happen upstream
         if (HdVec3fDataSourceHandle src = _schema.GetDrawModeColor()) {
             return src->GetTypedValue(shutterOffset);
         }
-        // @DISPLAYCOLOR create a 50% grey fallback in the correct color space here,
+        // @COLOR_DISPLAY create a 50% grey fallback in the correct color space here,
         // but we have no access to the rendering color space here, so maybe it has to
         // happen upstream
         return {0.18f, 0.18f, 0.18f};
@@ -198,7 +198,7 @@ public:
         Time endTime,
         std::vector<Time> * outSampleTimes)
     {
-        // @DISPLAYCOLOR convert to rendering color space here? no access to the rendering color space
+        // @COLOR_DISPLAY convert to rendering color space here? no access to the rendering color space
         // here, so maybe it has to happen upstream
         if (HdVec3fDataSourceHandle src = _schema.GetDrawModeColor()) {
             return src->GetContributingSampleTimesForInterval(
@@ -212,7 +212,7 @@ private:
     _DisplayColorVec3fDataSource(const UsdImagingGeomModelSchema schema)
       : _schema(schema)
     {
-        // @DISPLAYCOLOR is it possible to bake in the color space here in order to do it only once?
+        // @COLOR_DISPLAY is it possible to bake in the color space here in order to do it only once?
         // or does it have to be done upstream? Or pass the rendering color space into the constructor?
     }
 
@@ -348,7 +348,7 @@ public:
             /// _PrimvarDataSource which pulls the drawModeColor from model
             /// every time it is needed.
             ///
-            // @DISPLAYCOLOR does the color conversion happen upstream? Should the
+            // @COLOR_DISPLAY does the color conversion happen upstream? Should the
             // rendering color space be passed in to the constructor?
             return _PrimvarDataSource::New(
                 _DisplayColorVec3fDataSource::New(
@@ -898,7 +898,7 @@ public:
         if (dirtyColor) {
             // Display color is given by model:drawModeColor, so
             // dirty it as well.
-            // @DISPLAYCOLOR are we passing a color space here?
+            // @COLOR_DISPLAY are we passing a color space here?
             HdDataSourceLocatorSet primDirtyLocators = dirtyLocators;
             static const HdDataSourceLocator displayColorValue =
                 HdPrimvarsSchema::GetDefaultLocator()
@@ -1298,7 +1298,7 @@ _CardsDataCache::_SchemaValues::_SchemaValues(UsdImagingGeomModelSchema schema)
         }
     }
 
-//@DISPLAYCOLOR do we know the rendering color space here? Is this where the color space should be baked?
+//@COLOR_DISPLAY do we know the rendering color space here? Is this where the color space should be baked?
     drawModeColor = _DisplayColorVec3fDataSource::New(schema);
 }
 
@@ -2160,7 +2160,7 @@ public:
             entries->push_back(
                 {_path.AppendChild(_primNameTokens->cardsMesh),
                     primDirtyLocators});
-                    //@DISPLAYCOLOR do we have to bake in the color space ... in the HdDataSourceLocatorSet??
+                    //@COLOR_DISPLAY do we have to bake in the color space ... in the HdDataSourceLocatorSet??
             static const HdDataSourceLocatorSet materialColorInputs =
                 _ComputeMaterialColorInputLocators();
             for (const auto &kv : _dataCache->GetMaterials()) {

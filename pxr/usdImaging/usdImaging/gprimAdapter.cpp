@@ -366,7 +366,7 @@ UsdImagingGprimAdapter::UpdateForTime(UsdPrim const& prim,
         TfToken colorInterp;
         VtValue color;
         VtIntArray colorIndices(0);
-        // @DISPLAYCOLOR we need to bake and cache the display color in its color space here
+        // @COLOR_DISPLAY we need to bake and cache the display color in its color space here
         if (GetColor(prim, time, &colorInterp, &color, &colorIndices)) {
             _MergePrimvar(
                 &vPrimvars,
@@ -375,7 +375,7 @@ UsdImagingGprimAdapter::UpdateForTime(UsdPrim const& prim,
                 HdPrimvarRoleTokens->color,
                 !colorIndices.empty());
         } else {
-        // @DISPLAYCOLOR we need to bake and cache the display color in its color space here
+        // @COLOR_DISPLAY we need to bake and cache the display color in its color space here
             UsdGeomPrimvar pv =
                 _GetInheritedPrimvar(prim, HdTokens->displayColor);
             if (pv) {
@@ -667,7 +667,7 @@ UsdImagingGprimAdapter::Get(UsdPrim const& prim,
         // if not present, we try to get if through inheritance,
         // and lastly, we use a fallback value.
         TfToken interp;
-        /// @DISPLAYCOLOR bake here or in GetColor?
+        /// @COLOR_DISPLAY bake here or in GetColor?
         if (GetColor(prim, time, &interp, &value, outIndices)) {
             return value;
         } 
@@ -676,12 +676,12 @@ UsdImagingGprimAdapter::Get(UsdPrim const& prim,
         UsdGeomPrimvar pv = _GetInheritedPrimvar(prim, HdTokens->displayColor);
         if (outIndices) {
             if (pv && pv.Get(&value, time)) {
-                // @DISPLAYCOLOR bake color space
+                // @COLOR_DISPLAY bake color space
                 pv.GetIndices(outIndices, time);
                 return value;
             }
         } else if (pv && pv.ComputeFlattened(&value, time)) {
-                // @DISPLAYCOLOR bake color space
+                // @COLOR_DISPLAY bake color space
             return value;
         }
 
@@ -841,7 +841,7 @@ UsdImagingGprimAdapter::GetColor(UsdPrim const& prim,
                 UsdPrim matPrim(
                     prim.GetStage()->GetPrimAtPath(matTargets.front()));
 
-/// @DISPLAYCOLOR bake colorspace
+/// @COLOR_DISPLAY bake colorspace
                 if (matPrim &&
                     matPrim.GetAttribute(HdTokens->displayColor)
                         .Get(&result[0], time)) {
@@ -856,7 +856,7 @@ UsdImagingGprimAdapter::GetColor(UsdPrim const& prim,
         // -- Prim local prim var --
         if (!hasAuthoredColor) { // did not get color from material
             UsdGeomGprim gprimSchema(prim);
-/// @DISPLAYCOLOR bake colorspace
+/// @COLOR_DISPLAY bake colorspace
             const UsdGeomPrimvar& primvar = 
                 gprimSchema.GetDisplayColorPrimvar();
             colorInterp = primvar.GetInterpolation();
@@ -912,7 +912,7 @@ UsdImagingGprimAdapter::GetColor(UsdPrim const& prim,
         *indices = colorIndices;
     }
     if (color) {
-/// @DISPLAYCOLOR bake colorspace
+/// @COLOR_DISPLAY bake colorspace
         *color = VtValue(result);
     }
     

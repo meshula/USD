@@ -1061,7 +1061,7 @@ UsdSkelImagingSkeletonAdapter::_GetSkeletonDisplayColor(
     if (UsdGeomPrimvar pv = primvars.GetPrimvar(
             UsdGeomTokens->primvarsDisplayColor)) {
         // May be stored as a constant.
-        /// @DISPLAYCOLOR conform to rendering space? Rec709?
+        /// @COLOR_DISPLAY conform to rendering space? Rec709?
         GfVec3f color;
         if (pv.Get(&color, time))
             return color;
@@ -2314,7 +2314,7 @@ UsdSkelImagingSkeletonAdapter::_UpdateBoneMeshForTime(
                       HdTokens->points,
                       HdInterpolationVertex,
                       HdPrimvarRoleTokens->point);
-       /// @DISPLAYCOLOR we don't have working color space available. Rec709?
+       /// @COLOR_DISPLAY we don't have working color space available. Rec709?
         _MergePrimvar(&primvarDescCache->GetPrimvars(cachePath),
                       HdTokens->displayColor,
                       HdInterpolationConstant,

@@ -2326,7 +2326,7 @@ static
 void
 _WriteMayaColor(_PrimWriterContext* context)
 {
-    // @DISPLAYCOLOR convert to SRGB for Alembic.
+    // @COLOR_DISPLAY convert to SRGB for Alembic.
     static const TfToken displayColor("primvars:displayColor");
     static const TfToken name("adskDiffuseColor");
 
