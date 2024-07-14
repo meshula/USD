@@ -219,7 +219,7 @@ HdSt_GenMaterialXShader(
     cms->loadLibrary(stdLibraries);
     mxContext.getShaderGenerator().setColorManagementSystem(cms);
 
-/// @MATERIALCOLOR do we need to add the default source color space? Isn't lin_rec709 sufficient?
+/// @COLOR_MATERIAL do we need to add the default source color space? Isn't lin_rec709 sufficient?
 /// if it's a schema, where does it go?
 
     // Set the colorspace
@@ -348,7 +348,7 @@ _AddDefaultMtlxTextureValues(
         (*hdTextureParams)[HdStTextureTokens->wrapT] = 
             VtValue(HdStTextureTokens->repeat);
 
-/// @MATERIALCOLOR nothing to do
+/// @COLOR_MATERIAL nothing to do
 
         // Set the default colorSpace to be 'raw'. This allows MaterialX to 
         // handle colorspace transforms.
@@ -1353,7 +1353,7 @@ size_t _BuildEquivalentMaterialNetwork(
                 if (colorManagedInput.second) {
                     outNode.parameters.insert(param);
 
-/// @MATERIALCOLOR do we conform these to render color space here?
+/// @COLOR_MATERIAL do we conform these to render color space here?
 
                     // Get the parameter value for the input
                     const TfToken colorInputParam(colorManagedInput.first);
