@@ -165,7 +165,6 @@ UsdImagingDrawModeAdapter::UsdImagingDrawModeAdapter()
     , _schemaColor(0)
 {
     /// @COLOR_MATERIAL should set a default color space in the schema registry
-}
     // Look up the default color in the schema registry.
     const UsdPrimDefinition *primDef =
         UsdSchemaRegistry::GetInstance()
