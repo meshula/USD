@@ -15,6 +15,7 @@ if sys.version_info.major == 2:
 import argparse
 import codecs
 import contextlib
+import copy
 import ctypes
 import datetime
 import fnmatch
@@ -407,7 +408,8 @@ def RunCMake(context, force, extraArgs = None):
         # For macOS cross compilation, set the Xcode architecture flags.
         targetArch = apple_utils.GetTargetArch(context)
 
-        if context.targetNative or targetArch == apple_utils.GetHostArch():
+        if context.targetNative or targetArch == apple_utils.GetTargetArch(context) \
+                and not context.targetIos:
             extraArgs.append('-DCMAKE_XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH=YES')
         else:
             extraArgs.append('-DCMAKE_XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH=NO')
@@ -419,6 +421,44 @@ def RunCMake(context, force, extraArgs = None):
         ignoredPaths = ";".join(context.ignorePaths)
         extraArgs.append("-DCMAKE_IGNORE_PATH={0}".format(ignoredPaths))
         extraArgs.append("-DCMAKE_IGNORE_PREFIX_PATH={0}".format(ignoredPaths))
+
+    if context.targetIos:
+        extraArgs.append('-DCMAKE_IGNORE_PATH="/usr/lib;/usr/local/lib;/lib" ')
+    if context.targetIos:
+        sdkPath = GetCommandOutput('xcrun --sdk iphoneos --show-sdk-path').strip()
+        extraArgs.append('-DCMAKE_OSX_SYSROOT="' + sdkPath + '" ')
+        # Add the default iOS toolchain file if one isn't aready specified
+        if not any("-DCMAKE_TOOLCHAIN_FILE=" in s for s in extraArgs):
+            extraArgs.append(
+                '-DCMAKE_TOOLCHAIN_FILE={srcDir}'
+                '/cmake/toolchains/ios.toolchain.cmake'
+                .format(srcDir=context.usdSrcDir))
+            extraArgs.append("-DPLATFORM=\'OS64\' ")
+            extraArgs.append("-DENABLE_BITCODE=False")
+            extraArgs.append("-DENABLE_VISIBILITY=True")
+            extraArgs.append("-DNAMED_LANGUAGE_SUPPORT=False")
+
+        CODE_SIGN_ID = apple_utils.GetCodeSignID()
+        DEVELOPMENT_TEAM = apple_utils.GetDevelopmentTeamID()
+        # Edge case for iOS
+        if CODE_SIGN_ID == "-":
+            CODE_SIGN_ID = ""
+        pyVers = ".".join(platform.python_version().split()[0:1])
+        extraArgs.append(
+            '-DENABLE_BITCODE=False '
+            '-DNAMED_LANGUAGE_SUPPORT=False '
+            '-DENABLE_VISIBILITY=1 '
+            '-DAPPLEIOS=1 '
+            '-DENABLE_ARC=0 '
+            '-DDEPLOYMENT_TARGET={iosVersion} '
+            '-DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="{codesignid}" '
+            '-DCMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM={developmentTeam} '
+            '-DPYTHON_EXECUTABLE:FILEPATH={executable} '.format(
+                iosVersion=context.iosVersion,
+                codesignid=CODE_SIGN_ID,
+                developmentTeam=DEVELOPMENT_TEAM,
+                version=pyVers,
+                executable=sys.executable))
 
     # We use -DCMAKE_BUILD_TYPE for single-configuration generators 
     # (Ninja, make), and --config for multi-configuration generators 
