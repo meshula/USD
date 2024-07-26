@@ -6,7 +6,7 @@
 //
 
 // OCIO 2.4, with nanocolor, elides or renames much of the API this task requires.
-#ifdef PXR_OCIO_PLUGIN_ENABLED
+#if defined(PXR_OCIO_PLUGIN_ENABLED) && !defined(OCIO_LUT_AND_FILETRANSFORM_SUPPORT)
 #undef PXR_OCIO_PLUGIN_ENABLED
 #endif
 
