@@ -1415,16 +1415,38 @@ OPENIMAGEIO = Dependency("OpenImageIO", InstallOpenImageIO,
 ############################################################
 # OpenColorIO
 
-OCIO_URL = "https://github.com/AcademySoftwareFoundation/OpenColorIO/archive/refs/tags/v2.1.3.zip"
+OCIO_URL = "https://github.com/AcademySoftwareFoundation/OpenColorIO.git"
+
+def GitClone(url, context, force):
+    print("Cloning OpenColorIO from {url}".format(url=url))
+    if not os.path.exists("OpenColorIO"):
+        Run("git clone {url}".format(url=url))
+    print("OpenColorIO cloned")
+    # within the current directory, checkout the "feature/nanocolor" branch
+    # CurrentWorkingDirectory needs a full path to OpenColorIO so compute
+    # the full path and pass it to the function
+    clonePath = os.path.abspath("OpenColorIO")
+    with CurrentWorkingDirectory(clonePath):
+        Run("git checkout feature/nanocolor")
+    print("OpenColorIO checked out in directory {path}".format(path=clonePath))
+    return clonePath
 
 def InstallOpenColorIO(context, force, buildArgs):
-    with CurrentWorkingDirectory(DownloadURL(OCIO_URL, context, force)):
+    # with the current directory, git clone the OpenColorIO repository
+    # and switch to the "feature/nanocolor" branch.
+    # set the extraArgs, and RunCMake, similar to the code below, except
+    # using git clone instead of downloading a zip file.
+
+    with CurrentWorkingDirectory(GitClone(OCIO_URL, context, force)):
+        print("Setting up cmake for OpenColorIO")
         extraArgs = ['-DOCIO_BUILD_APPS=OFF',
                      '-DOCIO_BUILD_NUKE=OFF',
                      '-DOCIO_BUILD_DOCS=OFF',
                      '-DOCIO_BUILD_TESTS=OFF',
                      '-DOCIO_BUILD_GPU_TESTS=OFF',
                      '-DOCIO_BUILD_PYTHON=OFF']
+    #                 "-DOCIO_FEATURE_SET=Nano"]
+    # Note, the nanocolor feature set elides features HdxColorCorrectionTask needs.
 
         if MacOS():
             if apple_utils.IsTargetArm(context):
@@ -1433,6 +1455,7 @@ def InstallOpenColorIO(context, force, buildArgs):
         # Add on any user-specified extra arguments.
         extraArgs += buildArgs
 
+        print("Running CMake for OpenColorIO")
         RunCMake(context, force, extraArgs)
 
 OPENCOLORIO = Dependency("OpenColorIO", InstallOpenColorIO,

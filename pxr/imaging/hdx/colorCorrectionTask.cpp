@@ -4,6 +4,12 @@
 // Licensed under the terms set forth in the LICENSE.txt file available at
 // https://openusd.org/license.
 //
+
+// OCIO 2.4, with nanocolor, elides or renames much of the API this task requires.
+#ifdef PXR_OCIO_PLUGIN_ENABLED
+#undef PXR_OCIO_PLUGIN_ENABLED
+#endif
+
 #include "pxr/imaging/hdx/colorCorrectionTask.h"
 #include "pxr/imaging/hdx/package.h"
 #include "pxr/imaging/hd/aov.h"
