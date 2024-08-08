@@ -11,6 +11,7 @@ pxr_library(usd
         plug
         tf
         trace
+        ts
         vt
         work
         ${Boost_PYTHON_LIBRARY}
@@ -260,6 +261,7 @@ pxr_test_scripts(
     testenv/testUsdSchemaRegistryThreadedInit.py
     testenv/testUsdSchemaVersioning.py
     testenv/testUsdSpecializes.py
+    testenv/testUsdSplines.py
     testenv/testUsdStage.py
     testenv/testUsdStageCache.py
     testenv/testUsdStageDefaultResolver.py
@@ -297,6 +299,13 @@ pxr_build_test_shared_lib(TestUsdResolverChangedResolver
 
     CPPFILES
         testenv/TestUsdResolverChangedResolver.cpp
+)
+
+pxr_build_test(testUsdCoreValidators
+        LIBRARIES
+        usd
+        CPPFILES
+        testenv/testUsdCoreValidators.cpp
 )
 
 pxr_build_test(testUsdAttributeBlockingCpp
@@ -763,6 +772,11 @@ pxr_install_test_dir(
     DEST testUsdZipFile_CPP
 )
 
+pxr_register_test(testUsdCoreValidators
+        COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdCoreValidators"
+        EXPECTED_RETURN_CODE 0
+)
+
 pxr_register_test(testUsdAppliedAPISchemas
     PYTHON
     COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdAppliedAPISchemas"
@@ -1139,6 +1153,12 @@ pxr_register_test(testUsdResolveTargetPy
 pxr_register_test(testUsdSpecializes
     PYTHON
     COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdSpecializes"
+    EXPECTED_RETURN_CODE 0
+)
+
+pxr_register_test(testUsdSplines
+    PYTHON
+    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdSplines"
     EXPECTED_RETURN_CODE 0
 )
 

@@ -693,26 +693,27 @@ models.
 Build and Runtime Issues
 ========================
 
-How do I use the TF_DEBUG mechanism?
+How do I use the ``TF_DEBUG`` mechanism?
 ####################################
 
-The TF_DEBUG mechanism is a powerful tool for debugging USD applications. It
+The ``TF_DEBUG`` mechanism is a powerful tool for debugging USD applications. It
 allows you to enable and disable debugging output at runtime, and to control
-which debug output is generated. The TF_DEBUG mechanism is controlled by an
-environment variable, :envvar:`TF_DEBUG`. The value of the variable is a 
+which debug output is generated. The ``TF_DEBUG`` mechanism is controlled by an
+environment variable, :envvar:``TF_DEBUG``. The value of the variable is a 
 space-separated list of debug categories.
 
-Searching the OpenUSD source code for the `TF_DEBUG` macro reveals all the 
+Searching the OpenUSD source code for the ``TF_DEBUG`` macro reveals all the 
 possible debug categories.
 
-For example, searching the code base, we discover HD_VARYING_STATE is a debug
+For example, searching the code base, we discover ``HD_VARYING_STATE`` is a debug
+>>>>>>> pixar/dev
 category that can be enabled to print out the varying state of Hydra prims.
 
 .. code-block:: cpp
 
   TF_DEBUG(HD_VARYING_STATE).Msg("New Varying State %s: %s\n", ...
 
-We can enable that debug output by setting :envvar:`TF_DEBUG` to include that
+We can enable that debug output by setting :envvar:``TF_DEBUG`` to include that
 category:
 
 .. code-block:: sh
@@ -720,7 +721,7 @@ category:
   $ export TF_DEBUG="HD_VARYING_STATE"
 
 Simple wildcards are supported, but only at the end of a category name. For
-example, to enable all debug output from the `HD` category, you can use:
+example, to enable all debug output from the ``HD`` category, you can use:
 
 .. code-block:: sh
 
@@ -730,14 +731,14 @@ Categories may be suppressed with a leading `-` character. This example
 
 .. code-block:: sh
 
-  $ export TF_DEBUG="STAF_* SIC* -SIC_REGISTRY_ENUMS HD_VARYING_STATE"
+  $ export TF_DEBUG="FOO_* BAR_* -BAR_VERY_NOISY HD_VARYING_STATE"
 
-enables everything in the `STAF_` and `SIC` categories, adds 
-`HD_VARYING_STATE` and specifically disables `SIC_REGISTRY_ENUMS` from the
-`SIC` category.
+enables everything in the ``FOO_`` and ``BAR_`` categories, adds 
+``HD_VARYING_STATE`` and specifically disables ``BAR_VERY_NOISY`` from the
+``BAR`` category.
 
 It is also possible to control the debug output from C++ or Python code using
-the `TfDebug` API; please refer to the header file, :file:`pxr/base/tf/debug.h` 
+the ``TfDebug`` API; please refer to the header file, :file:`pxr/base/tf/debug.h` 
 for more information.
 
 Why Isn't Python Finding USD Modules?
@@ -771,7 +772,7 @@ See `Advanced Build Configuration
 <https://github.com/PixarAnimationStudios/OpenUSD/blob/release/BUILDING.md>`_ for
 instructions on how to enable these plugins.
 
-why doesn't the OpenUSD runtime recognize the usd file format?
+Why doesn't the OpenUSD runtime recognize the USD file format?
 ##############################################################
 
 If you get an error message like this:
