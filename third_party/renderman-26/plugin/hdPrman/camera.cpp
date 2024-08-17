@@ -8,6 +8,7 @@
 #include "hdPrman/cameraContext.h"
 
 #include "pxr/imaging/hd/sceneDelegate.h"
+#include "pxr/imaging/hd/version.h"
 
 #include <cmath>
 
@@ -93,10 +94,6 @@ HdPrmanCamera::Sync(HdSceneDelegate *sceneDelegate,
     // Save state of dirtyBits before HdCamera::Sync clears them.
     const HdDirtyBits bits = *dirtyBits;
 
-    if (bits & DirtyTransform) {
-        sceneDelegate->SampleTransform(id, &_sampleXforms);
-    }
-
     if (bits & AllDirty) {
         param->GetCameraContext().MarkCameraInvalid(id);
     }
@@ -175,6 +172,20 @@ HdPrmanCamera::Sync(HdSceneDelegate *sceneDelegate,
             param->SetRileyShutterIntervalFromCameraContextCameraPath(
                 &sceneDelegate->GetRenderIndex());
         }
+    }
+
+    if (bits & DirtyTransform) {
+        // Do SampleTranform last.
+        //
+        // This is because it needs the shutter interval which is computed above.
+        //
+        sceneDelegate->SampleTransform(
+            id,
+#if HD_API_VERSION >= 68
+            param->GetShutterInterval()[0],
+            param->GetShutterInterval()[1],
+#endif
+            &_sampleXforms);
     }
 
     // XXX: Should we flip the proj matrix (RHS vs LHS) as well here?
