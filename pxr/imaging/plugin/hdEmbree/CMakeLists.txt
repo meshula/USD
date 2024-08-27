@@ -43,6 +43,7 @@ pxr_plugin(hdEmbree
 
     PUBLIC_HEADERS
         context.h
+        debugCodes.h
         renderParam.h
 
     PRIVATE_HEADERS
