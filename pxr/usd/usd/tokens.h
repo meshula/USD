@@ -85,6 +85,10 @@ struct UsdTokensType {
     /// 
     /// UsdCollectionAPI
     const TfToken collection_MultipleApplyTemplate_MembershipExpression;
+    /// \brief "colorSpace"
+    /// 
+    /// UsdColorSpaceAPI
+    const TfToken colorSpace;
     /// \brief "exclude"
     /// 
     ///  This is the token used to exclude a path from a collection.  Although it is not a possible value for the "expansionRule" attribute, it is used as the expansionRule for excluded paths  in UsdCollectionAPI::MembershipQuery::IsPathIncluded. 
@@ -105,6 +109,10 @@ struct UsdTokensType {
     /// 
     ///  A dictionary metadata that maps the name of a concrete schema prim type to an ordered list of schema prim types to use instead if the schema prim type doesn't exist in version of USD being used. 
     const TfToken fallbackPrimTypes;
+    /// \brief "lin_rec709"
+    /// 
+    /// Fallback value for UsdColorSpaceAPI::GetColorSpaceAttr()
+    const TfToken lin_rec709;
     /// \brief "APISchemaBase"
     /// 
     /// Schema identifer and family for UsdAPISchemaBase
@@ -117,6 +125,10 @@ struct UsdTokensType {
     /// 
     /// Schema identifer and family for UsdCollectionAPI
     const TfToken CollectionAPI;
+    /// \brief "ColorSpaceAPI"
+    /// 
+    /// Schema identifer and family for UsdColorSpaceAPI
+    const TfToken ColorSpaceAPI;
     /// \brief "ModelAPI"
     /// 
     /// Schema identifer and family for UsdModelAPI

@@ -139,6 +139,33 @@ class "ModelAPI"
 {
 }
 
+class "ColorSpaceAPI" 
+(
+    inherits = </APISchemaBase>
+    doc = """UsdColorSpaceAPI is an API schema that provides an interface to a prim's
+    color space information.
+    
+    In the absence of authored color space information on an attribute, the
+    colorSpace property on a prim indicates the color space to use on such an
+    attribute, as well as for any attribute without authored color space on a
+    descendant prim which does not itself specify a colorSpace.
+    
+    """
+    customData = {
+        string apiSchemaType = "singleApply"
+        string extraIncludes = """
+#include "pxr/base/gf/colorSpace.h"
+"""
+    }
+)
+{
+    uniform token colorSpace = "lin_rec709" (
+        doc = """The default color space that applies to attributes with
+        unauthored color spaces on this prim and its descendents.
+        """
+    )
+}
+
 class "CollectionAPI"
 (
     inherits = </APISchemaBase>

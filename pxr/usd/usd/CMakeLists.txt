@@ -27,6 +27,7 @@ pxr_library(usd
         collectionAPI
         collectionMembershipQuery
         collectionPredicateLibrary
+        colorSpaceAPI
         common
         crateInfo
         debugCodes
@@ -120,6 +121,7 @@ pxr_library(usd
         wrapClipsAPI.cpp
         wrapCollectionAPI.cpp
         wrapCollectionMembershipQuery.cpp
+        wrapColorSpaceAPI.cpp
         wrapCommon.cpp
         wrapCrateInfo.cpp
         wrapEditContext.cpp

@@ -27,14 +27,17 @@ void wrapUsdTokens()
     _ADD_TOKEN(cls, collection_MultipleApplyTemplate_IncludeRoot);
     _ADD_TOKEN(cls, collection_MultipleApplyTemplate_Includes);
     _ADD_TOKEN(cls, collection_MultipleApplyTemplate_MembershipExpression);
+    _ADD_TOKEN(cls, colorSpace);
     _ADD_TOKEN(cls, exclude);
     _ADD_TOKEN(cls, expandPrims);
     _ADD_TOKEN(cls, expandPrimsAndProperties);
     _ADD_TOKEN(cls, explicitOnly);
     _ADD_TOKEN(cls, fallbackPrimTypes);
+    _ADD_TOKEN(cls, lin_rec709);
     _ADD_TOKEN(cls, APISchemaBase);
     _ADD_TOKEN(cls, ClipsAPI);
     _ADD_TOKEN(cls, CollectionAPI);
+    _ADD_TOKEN(cls, ColorSpaceAPI);
     _ADD_TOKEN(cls, ModelAPI);
     _ADD_TOKEN(cls, Typed);
 }
