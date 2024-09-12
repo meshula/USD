@@ -594,21 +594,19 @@ public:
     /// The color space in which a given color or texture valued attribute is 
     /// authored is set as token-valued metadata 'colorSpace' on the attribute. 
     /// For color or texture attributes that don't have an authored 'colorSpace'
-    /// value, the fallback color-space is gleaned from whatever color 
-    /// management system is specified by UsdStage::GetColorManagementSystem().
+    /// value, the fallback color space may be determined by applying the 
+    /// UsdColorSpaceAPI to the owning prim of the attribute.
     /// 
     /// @{
     // ---------------------------------------------------------------------- //
 
     /// Gets the color space in which the attribute is authored.
     /// \sa SetColorSpace()
-    /// \ref Usd_ColorConfigurationAPI "UsdStage Color Configuration API"
     USD_API
     TfToken GetColorSpace() const;
 
     /// Sets the color space of the attribute to \p colorSpace.
     /// \sa GetColorSpace()
-    /// \ref Usd_ColorConfigurationAPI "UsdStage Color Configuration API"
     USD_API
     void SetColorSpace(const TfToken &colorSpace) const;
 

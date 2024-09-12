@@ -145,7 +145,37 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 PXR_NAMESPACE_OPEN_SCOPE
 
-TfToken UsdColorSpaceAPI::ResolveColorSpace(const SdfPath& attribute) const 
+TfToken UsdColorSpaceAPI::ComputeColorSpace() const 
+{
+    // Check for a colorSpace property on this prim.
+    if (UsdAttribute colorSpaceAttr = GetColorSpaceAttr()) {
+        TfToken colorSpace;
+        if (colorSpaceAttr.Get(&colorSpace)) {
+            if (GfColorSpace::IsConstructable(colorSpace)) {
+                return colorSpace;
+            }
+        }
+    }
+
+    // Check the prim's parents for a colorSpace property.
+    UsdPrim prim = GetPrim().GetParent();
+    while (prim) {
+        if (UsdAttribute colorSpaceAttr = UsdColorSpaceAPI(prim).GetColorSpaceAttr()) {
+            TfToken colorSpace;
+            if (colorSpaceAttr.Get(&colorSpace)) {
+                if (GfColorSpace::IsConstructable(colorSpace)) {
+                    return colorSpace;
+                }
+            }
+        }
+        prim = prim.GetParent();
+    }
+
+    return GfColorSpaceNames->LinearRec709;
+}
+
+
+TfToken UsdColorSpaceAPI::ComputeColorSpace(const SdfPath& attribute) const 
 {
     UsdAttribute attr = GetPrim().GetAttribute(TfToken(attribute.GetName()));
     if (!attr) {
@@ -162,29 +192,8 @@ TfToken UsdColorSpaceAPI::ResolveColorSpace(const SdfPath& attribute) const
         }
     }
 
-    // Check for a colorSpace property on this prim.
-    if (UsdAttribute colorSpaceAttr = GetColorSpaceAttr()) {
-        if (colorSpaceAttr.Get(&colorSpace)) {
-            if (GfColorSpace::IsConstructable(colorSpace)) {
-                return colorSpace;
-            }
-        }
-    }
-
-    // Check the prim's parents for a colorSpace property.
-    UsdPrim prim = GetPrim().GetParent();
-    while (prim) {
-        if (UsdAttribute colorSpaceAttr = UsdColorSpaceAPI(prim).GetColorSpaceAttr()) {
-            if (colorSpaceAttr.Get(&colorSpace)) {
-                if (GfColorSpace::IsConstructable(colorSpace)) {
-                    return colorSpace;
-                }
-            }
-        }
-        prim = prim.GetParent();
-    }
-
-    return GfColorSpaceNames->LinearRec709;
+    return ComputeColorSpace();
 }
+
 
 PXR_NAMESPACE_CLOSE_SCOPE

@@ -198,7 +198,7 @@ public:
     // ===================================================================== //
     // --(BEGIN CUSTOM CODE)--
 
-    /// Resolve the color space for the given attribute on this prim. If the
+    /// Calculate the color space for the given attribute on this prim. If the
     /// attribute is not on this prim, a TF_CODING_ERROR is issued. Otherwise,
     /// the color space is resolved by checking the colorSpace property on this
     /// attribute. If it is not authored there, this prim is checked for a
@@ -206,7 +206,34 @@ public:
     /// the prim's parents are checked until a colorSpace property is found or
     /// the root prim is reached. If no colorSpace property is found, the
     /// fallback color space, lin_rec709, is returned.
-    TfToken ResolveColorSpace(const SdfPath& attribute) const;
+    ///
+    /// This function should be considered a reference implementation for
+    /// determining the color space of an attribute. As the algorithm is
+    /// implemented as an exhaustive search performed on the prim hierarchy, an
+    /// application may wish to implement a caching mechanism to avoid
+    /// redundant searches.
+    ///
+    /// \sa UsdColorSpaceAPI::Apply
+    /// \sa UsdColorSpaceAPI::GetColorSpaceAttr
+    /// \param attribute The attribute to compute the color space for.
+    TfToken ComputeColorSpace(const SdfPath& attribute) const;
+
+    /// Calculate the color space for this prim.
+    /// The color space is resolved by checking this prim for a
+    /// colorSpace property. If no colorSpace property is authored,
+    /// the prim's parents are checked until a colorSpace property is found or
+    /// the root prim is reached. If no colorSpace property is found, the
+    /// fallback color space, lin_rec709, is returned.
+    ///
+    /// This function should be considered a reference implementation for
+    /// determining the color space of an attribute. As the algorithm is
+    /// implemented as an exhaustive search performed on the prim hierarchy, an
+    /// application may wish to implement a caching mechanism to avoid
+    /// redundant searches.
+    ///
+    /// \sa UsdColorSpaceAPI::Apply
+    /// \sa UsdColorSpaceAPI::GetColorSpaceAttr
+    TfToken ComputeColorSpace() const;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE
