@@ -9,6 +9,13 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_DETAIL_AIX_INIT_MODULE_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_DETAIL_AIX_INIT_MODULE_HPP
+
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/detail/aix_init_module.hpp>
+#else
 # ifdef _AIX
 # include "pxr/external/boost/python/detail/prefix.hpp"
 # include <cstdio>
@@ -16,7 +23,7 @@
 #  include <iostream> // this works around a problem in KCC 4.0f
 # endif 
 
-namespace boost { namespace python { namespace detail { 
+namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail { 
 
 extern "C"
 {
@@ -25,7 +32,8 @@ extern "C"
 
 void aix_init_module(so_load_function, char const* name, void (*init_module)());
 
-}}} // namespace boost::python::detail
+}}} // namespace PXR_BOOST_NAMESPACE::python::detail
 # endif
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_DETAIL_AIX_INIT_MODULE_HPP

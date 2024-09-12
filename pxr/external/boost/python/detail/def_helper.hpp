@@ -10,6 +10,13 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_DETAIL_DEF_HELPER_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_DETAIL_DEF_HELPER_HPP
 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/detail/def_helper.hpp>
+#else
+
 # include "pxr/external/boost/python/args.hpp"
 # include "pxr/external/boost/python/detail/indirect_traits.hpp"
 # include "pxr/external/boost/python/detail/type_traits.hpp"
@@ -22,7 +29,7 @@
 # include "pxr/external/boost/python/detail/not_specified.hpp"
 # include "pxr/external/boost/python/detail/def_helper_fwd.hpp"
 
-namespace boost { namespace python {
+namespace PXR_BOOST_NAMESPACE { namespace python {
 
 struct default_call_policies;
 
@@ -211,6 +218,7 @@ namespace detail
   };
 }
 
-}} // namespace boost::python::detail
+}} // namespace PXR_BOOST_NAMESPACE::python::detail
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_DETAIL_DEF_HELPER_HPP

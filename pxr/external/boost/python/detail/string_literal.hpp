@@ -10,13 +10,20 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_DETAIL_STRING_LITERAL_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_DETAIL_STRING_LITERAL_HPP
 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/detail/string_literal.hpp>
+#else
+
 # include <cstddef>
 # include <boost/type.hpp>
 # include "pxr/external/boost/python/detail/type_traits.hpp"
 # include <boost/mpl/bool.hpp>
 # include <boost/detail/workaround.hpp>
 
-namespace boost { namespace python { namespace detail { 
+namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail { 
 
 template <class T>
 struct is_string_literal : mpl::false_
@@ -49,6 +56,7 @@ struct is_string_literal<T[n]>
 };
 #  endif 
 
-}}} // namespace boost::python::detail
+}}} // namespace PXR_BOOST_NAMESPACE::python::detail
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_DETAIL_STRING_LITERAL_HPP

@@ -10,16 +10,23 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_INSTANCE_HOLDER_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_INSTANCE_HOLDER_HPP
 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/instance_holder.hpp>
+#else
+
 # include "pxr/external/boost/python/detail/prefix.hpp"
 
 # include <boost/noncopyable.hpp>
 # include "pxr/external/boost/python/type_id.hpp"
 # include <cstddef>
 
-namespace boost { namespace python { 
+namespace PXR_BOOST_NAMESPACE { namespace python { 
 
 // Base class for all holders
-struct BOOST_PYTHON_DECL instance_holder : private noncopyable
+struct PXR_BOOST_PYTHON_DECL instance_holder : private noncopyable
 {
  public:
     instance_holder();
@@ -53,7 +60,7 @@ struct BOOST_PYTHON_DECL instance_holder : private noncopyable
 };
 
 // This macro is needed for implementation of derived holders
-# define BOOST_PYTHON_UNFORWARD(N,ignored) (typename unforward<A##N>::type)(a##N)
+# define PXR_BOOST_PYTHON_UNFORWARD(N,ignored) (typename unforward<A##N>::type)(a##N)
 
 //
 // implementation
@@ -63,6 +70,7 @@ inline instance_holder* instance_holder::next() const
     return m_next;
 }
 
-}} // namespace boost::python
+}} // namespace PXR_BOOST_NAMESPACE::python
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_INSTANCE_HOLDER_HPP

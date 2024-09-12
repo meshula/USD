@@ -1,6 +1,13 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_OTHER_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_OTHER_HPP
 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/other.hpp>
+#else
+
 # include "pxr/external/boost/python/detail/prefix.hpp"
 //
 // Copyright 2024 Pixar
@@ -14,7 +21,7 @@
 
 # include <boost/config.hpp>
 
-namespace boost { namespace python {
+namespace PXR_BOOST_NAMESPACE { namespace python {
 
 template<class T> struct other
 { 
@@ -52,6 +59,7 @@ namespace detail
   };
 }
 
-}} // namespace boost::python
+}} // namespace PXR_BOOST_NAMESPACE::python
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif

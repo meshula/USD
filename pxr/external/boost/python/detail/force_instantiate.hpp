@@ -10,7 +10,14 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_DETAIL_FORCE_INSTANTIATE_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_DETAIL_FORCE_INSTANTIATE_HPP
 
-namespace boost { namespace python { namespace detail { 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/detail/force_instantiate.hpp>
+#else
+
+namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail { 
 
 // Allows us to force the argument to be instantiated without
 // incurring unused variable warnings
@@ -18,6 +25,7 @@ namespace boost { namespace python { namespace detail {
 template <class T>
 inline void force_instantiate(T const&) {}
 
-}}} // namespace boost::python::detail
+}}} // namespace PXR_BOOST_NAMESPACE::python::detail
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_DETAIL_FORCE_INSTANTIATE_HPP

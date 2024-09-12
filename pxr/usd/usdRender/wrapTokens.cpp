@@ -5,7 +5,7 @@
 // https://openusd.org/license.
 //
 // GENERATED FILE.  DO NOT EDIT.
-#include <boost/python/class.hpp>
+#include "pxr/external/boost/python/class.hpp"
 #include "pxr/usd/usdRender/tokens.h"
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -15,8 +15,8 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 void wrapUsdRenderTokens()
 {
-    boost::python::class_<UsdRenderTokensType, boost::noncopyable>
-        cls("Tokens", boost::python::no_init);
+    pxr_boost::python::class_<UsdRenderTokensType, boost::noncopyable>
+        cls("Tokens", pxr_boost::python::no_init);
     _ADD_TOKEN(cls, adjustApertureHeight);
     _ADD_TOKEN(cls, adjustApertureWidth);
     _ADD_TOKEN(cls, adjustPixelAspectRatio);
@@ -30,7 +30,6 @@ void wrapUsdRenderTokens()
     _ADD_TOKEN(cls, dataWindowNDC);
     _ADD_TOKEN(cls, deepRaster);
     _ADD_TOKEN(cls, denoiseEnable);
-    _ADD_TOKEN(cls, denoisePass);
     _ADD_TOKEN(cls, disableDepthOfField);
     _ADD_TOKEN(cls, disableMotionBlur);
     _ADD_TOKEN(cls, expandAperture);
@@ -59,7 +58,6 @@ void wrapUsdRenderTokens()
     _ADD_TOKEN(cls, resolution);
     _ADD_TOKEN(cls, sourceName);
     _ADD_TOKEN(cls, sourceType);
-    _ADD_TOKEN(cls, RenderDenoisePass);
     _ADD_TOKEN(cls, RenderPass);
     _ADD_TOKEN(cls, RenderProduct);
     _ADD_TOKEN(cls, RenderSettings);

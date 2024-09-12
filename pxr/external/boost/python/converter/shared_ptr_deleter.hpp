@@ -10,9 +10,16 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_CONVERTER_SHARED_PTR_DELETER_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_CONVERTER_SHARED_PTR_DELETER_HPP
 
-namespace boost { namespace python { namespace converter { 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
 
-struct BOOST_PYTHON_DECL shared_ptr_deleter
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/converter/shared_ptr_deleter.hpp>
+#else
+
+namespace PXR_BOOST_NAMESPACE { namespace python { namespace converter { 
+
+struct PXR_BOOST_PYTHON_DECL shared_ptr_deleter
 {
     shared_ptr_deleter(handle<> owner);
     ~shared_ptr_deleter();
@@ -22,6 +29,7 @@ struct BOOST_PYTHON_DECL shared_ptr_deleter
     handle<> owner;
 };
 
-}}} // namespace boost::python::converter
+}}} // namespace PXR_BOOST_NAMESPACE::python::converter
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_CONVERTER_SHARED_PTR_DELETER_HPP

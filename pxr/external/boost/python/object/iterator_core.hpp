@@ -10,13 +10,21 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_OBJECT_ITERATOR_CORE_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_OBJECT_ITERATOR_CORE_HPP
 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/object/iterator_core.hpp>
+#else
+
 # include "pxr/external/boost/python/object_fwd.hpp"
 
-namespace boost { namespace python { namespace objects {
+namespace PXR_BOOST_NAMESPACE { namespace python { namespace objects {
 
-BOOST_PYTHON_DECL object const& identity_function();
-BOOST_PYTHON_DECL void stop_iteration_error();
+PXR_BOOST_PYTHON_DECL object const& identity_function();
+PXR_BOOST_PYTHON_DECL void stop_iteration_error();
 
-}}} // namespace boost::python::object
+}}} // namespace PXR_BOOST_NAMESPACE::python::object
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_OBJECT_ITERATOR_CORE_HPP

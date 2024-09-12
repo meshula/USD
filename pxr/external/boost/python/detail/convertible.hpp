@@ -10,6 +10,13 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_DETAIL_CONVERTIBLE_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_DETAIL_CONVERTIBLE_HPP
 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/detail/convertible.hpp>
+#else
+
 # if defined(__EDG_VERSION__) && __EDG_VERSION__ <= 241
 #  include <boost/mpl/if.hpp>
 #  include "pxr/external/boost/python/detail/type_traits.hpp"
@@ -17,7 +24,7 @@
 
 // Supplies a runtime is_convertible check which can be used with tag
 // dispatching to work around the Metrowerks Pro7 limitation with boost/std::is_convertible
-namespace boost { namespace python { namespace detail { 
+namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail { 
 
 typedef char* yes_convertible;
 typedef int* no_convertible;
@@ -38,6 +45,7 @@ struct convertible
 # endif 
 };
 
-}}} // namespace boost::python::detail
+}}} // namespace PXR_BOOST_NAMESPACE::python::detail
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_DETAIL_CONVERTIBLE_HPP

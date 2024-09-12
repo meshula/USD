@@ -1,28 +1,89 @@
 set(PXR_PREFIX pxr/external/boost)
 set(PXR_PACKAGE python)
 
-# XXX:
-# Elide this library in monolithic builds for now. Otherwise, we'll
-# get multiple symbol definitions because the build will embed this
-# library *and* link against boost::python. We should be able to
-# remove this when the rest of the build solely links against this
-# library.
-if (PXR_BUILD_MONOLITHIC)
-    return()
+set(libs "")
+set(include_dirs "")
+set(cppfiles "")
+
+# If we're building our own pxr_boost::python library, then we need
+# to specify the source files as well as our dependency on Python.
+# Otherwise, this library is just a pass-through for boost::python.
+if (PXR_USE_INTERNAL_BOOST_PYTHON)
+    set(libs
+        Python3::Python
+    )
+
+    # Ideally we'd use the modern Boost::boost or Boost::headers
+    # targets in the LIBRARIES list above. However, Boost::boost
+    # doesn't publish INTERFACE_INCLUDE_DIRECTORIES, which breaks
+    # _pxr_target_link_libraries in monolithic builds, and
+    # Boost::headers is only available in CMake 3.15+.
+    set(include_dirs
+        ${Boost_INCLUDE_DIRS}
+    )
+
+    set(cppfiles
+        src/converter/arg_to_python_base.cpp
+        src/converter/builtin_converters.cpp
+        src/converter/from_python.cpp
+        src/converter/registry.cpp
+        src/converter/type_id.cpp
+        src/dict.cpp
+        src/errors.cpp
+        src/exec.cpp
+        src/import.cpp
+        src/list.cpp
+        src/long.cpp
+        src/module.cpp
+        src/object/class.cpp
+        src/object/enum.cpp
+        src/object/function.cpp
+        src/object/function_doc_signature.cpp
+        src/object/inheritance.cpp
+        src/object/iterator.cpp
+        src/object/life_support.cpp
+        src/object/pickle_support.cpp
+        src/object/stl_iterator.cpp
+        src/object_operators.cpp
+        src/object_protocol.cpp
+        src/slice.cpp
+        src/str.cpp
+        src/tuple.cpp
+        src/wrapper.cpp
+
+        # These source files are for boost::python's numpy extension.
+        # We do not build these because we don't use this extension
+        # and don't want to add a numpy dependency to the build.
+        #
+        # src/numpy/dtype.cpp
+        # src/numpy/matrix.cpp
+        # src/numpy/ndarray.cpp
+        # src/numpy/numpy.cpp
+        # src/numpy/scalars.cpp
+        # src/numpy/ufunc.cpp
+    )
+else()
+    set(libs
+        ${Boost_PYTHON_LIBRARY}
+    )
+
+    set(include_dirs
+        ${Boost_INCLUDE_DIRS}
+    )
+
+    # Workaround lack of build support for header-only libs.
+    set(cppfiles 
+        build-workaround.cpp
+    )
 endif()
 
 pxr_library(python
     LIBRARIES
         boost
-        Python3::Python
+        ${libs}
 
     INCLUDE_DIRS
-        # Ideally we'd use the modern Boost::boost or Boost::headers
-        # targets in the LIBRARIES list above. However, Boost::boost
-        # doesn't publish INTERFACE_INCLUDE_DIRECTORIES, which breaks
-        # _pxr_target_link_libraries in monolithic builds, and
-        # Boost::headers is only available in CMake 3.15+.
-        ${Boost_INCLUDE_DIRS}
+        ${include_dirs}
 
     PUBLIC_HEADERS
         arg_from_python.hpp
@@ -37,6 +98,7 @@ pxr_library(python
         cast.hpp
         class.hpp
         class_fwd.hpp
+        common.hpp
         converter/arg_from_python.hpp
         converter/arg_to_python.hpp
         converter/arg_to_python_base.hpp
@@ -250,52 +312,38 @@ pxr_library(python
         # numpy.hpp
 
     CPPFILES
-        src/converter/arg_to_python_base.cpp
-        src/converter/builtin_converters.cpp
-        src/converter/from_python.cpp
-        src/converter/registry.cpp
-        src/converter/type_id.cpp
-        src/dict.cpp
-        src/errors.cpp
-        src/exec.cpp
-        src/import.cpp
-        src/list.cpp
-        src/long.cpp
-        src/module.cpp
-        src/object/class.cpp
-        src/object/enum.cpp
-        src/object/function.cpp
-        src/object/function_doc_signature.cpp
-        src/object/inheritance.cpp
-        src/object/iterator.cpp
-        src/object/life_support.cpp
-        src/object/pickle_support.cpp
-        src/object/stl_iterator.cpp
-        src/object_operators.cpp
-        src/object_protocol.cpp
-        src/slice.cpp
-        src/str.cpp
-        src/tuple.cpp
-        src/wrapper.cpp
-
-        # These source files are for boost::python's numpy extension.
-        # We do not build these because we don't use this extension
-        # and don't want to add a numpy dependency to the build.
-        #
-        # src/numpy/dtype.cpp
-        # src/numpy/matrix.cpp
-        # src/numpy/ndarray.cpp
-        # src/numpy/numpy.cpp
-        # src/numpy/scalars.cpp
-        # src/numpy/ufunc.cpp
+        ${cppfiles}
 
     DISABLE_PRECOMPILED_HEADERS
 )
 
-# Add BOOST_PYTHON_SOURCE when building this library to ensure symbols
-# decorated with BOOST_PYTHON_DECL are exported.
-target_compile_definitions(python
-    PRIVATE BOOST_PYTHON_SOURCE)
+if (PXR_USE_INTERNAL_BOOST_PYTHON)
+    # Add PXR_BOOST_PYTHON_SOURCE when building this library to ensure symbols
+    # decorated with PXR_BOOST_PYTHON_DECL are exported.
+    target_compile_definitions(python
+        PRIVATE PXR_BOOST_PYTHON_SOURCE
+    )
+else()
+    # Ensure symbol in build-workaround.cpp is exported on Windows,
+    # otherwise the build will error out at link time because no
+    # .lib file will be generated. Using this setting is OK because
+    # we only expect there to be one exportable symbol in this library.
+    set_target_properties(python
+        PROPERTIES 
+            WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+    )
+
+    # Skip building tests, since in this case this library doesn't
+    # have any functionality on its own -- it's just a pass-through
+    # for boost::python.
+    return()
+endif()
+
+# Since we're not going through the normal pxr_build_test macros
+# we need to elide tests here if requested.
+if (NOT PXR_BUILD_TESTS)
+    return()
+endif()
 
 ####
 # Helper functions for unit tests
@@ -313,7 +361,14 @@ function(boost_python_cpp_target TARGET_NAME)
         set(destination "tests")
     endif()
 
-    target_link_libraries(${TARGET_NAME} python)
+    # If the monolithic shared library target exists the build will
+    # fold our library into that target, so link against that instead.
+    if (TARGET usd_ms)
+        target_link_libraries(${TARGET_NAME} usd_ms)
+    else()
+        target_link_libraries(${TARGET_NAME} python)
+    endif()
+
     target_include_directories(${TARGET_NAME}
         PRIVATE $<TARGET_PROPERTY:python,INCLUDE_DIRECTORIES>
         )
@@ -585,7 +640,7 @@ boost_python_cpp_test_lib("select_holder")
 # here, we'll run into duplicate symbol errors at link time.
 #
 # Because we're compiling in this extra source file, we need to set
-# BOOST_PYTHON_STATIC_LIB to ensure the symbols from that file
+# PXR_BOOST_PYTHON_STATIC_LIB to ensure the symbols from that file
 # aren't set to be exported, which will cause conflicts with
 # the header files that say they should be imported.
 if (NOT PXR_BUILD_MONOLITHIC)
@@ -598,6 +653,6 @@ boost_python_cpp_test("select_from_python_test"
         ${extracppfiles}
 )
 target_compile_definitions(select_from_python_test 
-    PRIVATE BOOST_PYTHON_STATIC_LIB)
+    PRIVATE PXR_BOOST_PYTHON_STATIC_LIB)
 
 boost_python_cpp_test_lib("select_arg_to_python_test")

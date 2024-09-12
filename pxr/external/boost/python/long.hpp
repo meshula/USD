@@ -10,23 +10,30 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_LONG_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_LONG_HPP
 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/long.hpp>
+#else
+
 # include "pxr/external/boost/python/detail/prefix.hpp"
 
 # include "pxr/external/boost/python/object.hpp"
 # include "pxr/external/boost/python/converter/pytype_object_mgr_traits.hpp"
 
-namespace boost { namespace python { 
+namespace PXR_BOOST_NAMESPACE { namespace python { 
 
 namespace detail
 {
-  struct BOOST_PYTHON_DECL long_base : object
+  struct PXR_BOOST_PYTHON_DECL long_base : object
   {
    protected:
       long_base(); // new long_
       explicit long_base(object_cref rhs);
       explicit long_base(object_cref rhs, object_cref base);
       
-      BOOST_PYTHON_FORWARD_OBJECT_CONSTRUCTORS(long_base, object)
+      PXR_BOOST_PYTHON_FORWARD_OBJECT_CONSTRUCTORS(long_base, object)
           
    private:
       static detail::new_reference call(object const&);
@@ -53,7 +60,7 @@ class long_ : public detail::long_base
     }
     
  public: // implementation detail -- for internal use only
-    BOOST_PYTHON_FORWARD_OBJECT_CONSTRUCTORS(long_, base)
+    PXR_BOOST_PYTHON_FORWARD_OBJECT_CONSTRUCTORS(long_, base)
 };
 
 //
@@ -68,6 +75,7 @@ namespace converter
   };
 }
 
-}} // namespace boost::python
+}} // namespace PXR_BOOST_NAMESPACE::python
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_LONG_HPP
