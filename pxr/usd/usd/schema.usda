@@ -153,12 +153,12 @@ class "ColorSpaceAPI"
     This schema may be applied to any prim to hierarchly introduce a color
     space at any point in a compositional hierarchy.
 
-    ComputeColorSpace is supplied to calculate the effective color space of
+    ComputeColorSpaceName is supplied to calculate the effective color space of
     a prim, as defined by its most local color space opinion, if any exists.
     If none is found, the default is lin_rec709.
 
     Color space conversions may be performed by creating a GfColorSpace using
-    the token returned by ComputeColorSpace, assigning that color space and
+    the token returned by ComputeColorSpaceName, assigning that color space and
     the color property values of interest to a GfColor, and finally creating 
     a new GfColor using the GfColor of interest and a target GfColorSpace.
 
@@ -174,10 +174,28 @@ class "ColorSpaceAPI"
     }
 )
 {
-    uniform token colorSpace = "lin_rec709" (
-        doc = """The default color space that applies to attributes with
+    uniform token colorSpace:name = "lin_rec709" (
+        doc = """The color space that applies to attributes with
         unauthored color spaces on this prim and its descendents.
         """
+    )
+    float2 colorSpace:redChroma = (0.640, 0.330) (
+        doc = "Red chromaticity coordinates"
+    )
+    float2 colorSpace:greenChroma = (0.300, 0.600) (
+        doc = "Green chromaticity coordinates"
+    )
+    float2 colorSpace:blueChroma = (0.150, 0.060) (
+        doc = "Blue chromaticity coordinates"
+    )
+    float2 colorSpace:whitePoint = (0.3127, 0.3290) (
+        doc = "Whitepoint chromaticity coordinates"
+    )
+    float colorSpace:gamma = 1.0 (
+        doc = "Gamma value of the log section"
+    )
+    float colorSpace:linearBias = 0.0 (
+        doc = "Linear bias of the log section"
     )
 }
 

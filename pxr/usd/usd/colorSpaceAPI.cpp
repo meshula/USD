@@ -86,18 +86,120 @@ UsdColorSpaceAPI::_GetTfType() const
 }
 
 UsdAttribute
-UsdColorSpaceAPI::GetColorSpaceAttr() const
+UsdColorSpaceAPI::GetColorSpaceNameAttr() const
 {
-    return GetPrim().GetAttribute(UsdTokens->colorSpace);
+    return GetPrim().GetAttribute(UsdTokens->colorSpaceName);
 }
 
 UsdAttribute
-UsdColorSpaceAPI::CreateColorSpaceAttr(VtValue const &defaultValue, bool writeSparsely) const
+UsdColorSpaceAPI::CreateColorSpaceNameAttr(VtValue const &defaultValue, bool writeSparsely) const
 {
-    return UsdSchemaBase::_CreateAttr(UsdTokens->colorSpace,
+    return UsdSchemaBase::_CreateAttr(UsdTokens->colorSpaceName,
                        SdfValueTypeNames->Token,
                        /* custom = */ false,
                        SdfVariabilityUniform,
+                       defaultValue,
+                       writeSparsely);
+}
+
+UsdAttribute
+UsdColorSpaceAPI::GetColorSpaceRedChromaAttr() const
+{
+    return GetPrim().GetAttribute(UsdTokens->colorSpaceRedChroma);
+}
+
+UsdAttribute
+UsdColorSpaceAPI::CreateColorSpaceRedChromaAttr(VtValue const &defaultValue, bool writeSparsely) const
+{
+    return UsdSchemaBase::_CreateAttr(UsdTokens->colorSpaceRedChroma,
+                       SdfValueTypeNames->Float2,
+                       /* custom = */ false,
+                       SdfVariabilityVarying,
+                       defaultValue,
+                       writeSparsely);
+}
+
+UsdAttribute
+UsdColorSpaceAPI::GetColorSpaceGreenChromaAttr() const
+{
+    return GetPrim().GetAttribute(UsdTokens->colorSpaceGreenChroma);
+}
+
+UsdAttribute
+UsdColorSpaceAPI::CreateColorSpaceGreenChromaAttr(VtValue const &defaultValue, bool writeSparsely) const
+{
+    return UsdSchemaBase::_CreateAttr(UsdTokens->colorSpaceGreenChroma,
+                       SdfValueTypeNames->Float2,
+                       /* custom = */ false,
+                       SdfVariabilityVarying,
+                       defaultValue,
+                       writeSparsely);
+}
+
+UsdAttribute
+UsdColorSpaceAPI::GetColorSpaceBlueChromaAttr() const
+{
+    return GetPrim().GetAttribute(UsdTokens->colorSpaceBlueChroma);
+}
+
+UsdAttribute
+UsdColorSpaceAPI::CreateColorSpaceBlueChromaAttr(VtValue const &defaultValue, bool writeSparsely) const
+{
+    return UsdSchemaBase::_CreateAttr(UsdTokens->colorSpaceBlueChroma,
+                       SdfValueTypeNames->Float2,
+                       /* custom = */ false,
+                       SdfVariabilityVarying,
+                       defaultValue,
+                       writeSparsely);
+}
+
+UsdAttribute
+UsdColorSpaceAPI::GetColorSpaceWhitePointAttr() const
+{
+    return GetPrim().GetAttribute(UsdTokens->colorSpaceWhitePoint);
+}
+
+UsdAttribute
+UsdColorSpaceAPI::CreateColorSpaceWhitePointAttr(VtValue const &defaultValue, bool writeSparsely) const
+{
+    return UsdSchemaBase::_CreateAttr(UsdTokens->colorSpaceWhitePoint,
+                       SdfValueTypeNames->Float2,
+                       /* custom = */ false,
+                       SdfVariabilityVarying,
+                       defaultValue,
+                       writeSparsely);
+}
+
+UsdAttribute
+UsdColorSpaceAPI::GetColorSpaceGammaAttr() const
+{
+    return GetPrim().GetAttribute(UsdTokens->colorSpaceGamma);
+}
+
+UsdAttribute
+UsdColorSpaceAPI::CreateColorSpaceGammaAttr(VtValue const &defaultValue, bool writeSparsely) const
+{
+    return UsdSchemaBase::_CreateAttr(UsdTokens->colorSpaceGamma,
+                       SdfValueTypeNames->Float,
+                       /* custom = */ false,
+                       SdfVariabilityVarying,
+                       defaultValue,
+                       writeSparsely);
+}
+
+UsdAttribute
+UsdColorSpaceAPI::GetColorSpaceLinearBiasAttr() const
+{
+    return GetPrim().GetAttribute(UsdTokens->colorSpaceLinearBias);
+}
+
+UsdAttribute
+UsdColorSpaceAPI::CreateColorSpaceLinearBiasAttr(VtValue const &defaultValue, bool writeSparsely) const
+{
+    return UsdSchemaBase::_CreateAttr(UsdTokens->colorSpaceLinearBias,
+                       SdfValueTypeNames->Float,
+                       /* custom = */ false,
+                       SdfVariabilityVarying,
                        defaultValue,
                        writeSparsely);
 }
@@ -119,7 +221,13 @@ const TfTokenVector&
 UsdColorSpaceAPI::GetSchemaAttributeNames(bool includeInherited)
 {
     static TfTokenVector localNames = {
-        UsdTokens->colorSpace,
+        UsdTokens->colorSpaceName,
+        UsdTokens->colorSpaceRedChroma,
+        UsdTokens->colorSpaceGreenChroma,
+        UsdTokens->colorSpaceBlueChroma,
+        UsdTokens->colorSpaceWhitePoint,
+        UsdTokens->colorSpaceGamma,
+        UsdTokens->colorSpaceLinearBias,
     };
     static TfTokenVector allNames =
         _ConcatenateAttributeNames(
@@ -145,13 +253,55 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 PXR_NAMESPACE_OPEN_SCOPE
 
-TfToken UsdColorSpaceAPI::ComputeColorSpace() const 
+void UsdColorSpaceAPI::CreateColorSpaceByName(const TfToken& name)
+{
+    if (GfColorSpace::IsConstructable(name)) {
+        CreateColorSpaceNameAttr(name);
+    } 
+    else {
+        TF_CODING_ERROR("Invalid color space name: %s", name.GetText());
+    }
+}
+
+void UsdColorSpaceAPI::CreateColorSpaceWithChroma(const GfVec2f& redChroma,
+                                                  const GfVec2f& greenChroma,
+                                                  const GfVec2f& blueChroma,
+                                                  const GfVec2f& whitePoint,
+                                                  float gamma, float linearBias)
+{
+    // Create the colorSpaceName attribute.
+    CreateColorSpaceNameAttr(GfColorSpaceNames->Custom);
+    CreateColorSpaceRedChromaAttr(redChroma);
+    CreateColorSpaceGreenChromaAttr(greenChroma);
+    CreateColorSpaceBlueChromaAttr(blueChroma);
+    CreateColorSpaceWhitePointAttr(whitePoint);
+    CreateColorSpaceGammaAttr(gamma);
+    CreateColorSpaceLinearBiasAttr(linearBias);
+}
+
+void UsdColorSpaceAPI::CreateColorSpaceWithMatrix(const GfMatrix3f& rgbToXYZ,
+                                                  float gamma, float linearBias)
+{
+    // Create the colorSpaceName attribute.
+    CreateColorSpaceNameAttr(GfColorSpaceNames->Custom);
+    CreateColorSpaceGammaAttr(gamma);
+    CreateColorSpaceLinearBiasAttr(linearBias);
+
+    GfColorSpace colorSpace(rgbToXYZ, gamma, linearBias);
+    CreateColorSpaceRedChromaAttr(colorSpace.GetRedChroma());
+    CreateColorSpaceGreenChromaAttr(colorSpace.GetGreenChroma());
+    CreateColorSpaceBlueChromaAttr(colorSpace.GetBlueChroma());
+    CreateColorSpaceWhitePointAttr(colorSpace.GetWhitePoint());
+}
+
+TfToken UsdColorSpaceAPI::ComputeColorSpaceName() const 
 {
     // Check for a colorSpace property on this prim.
-    if (UsdAttribute colorSpaceAttr = GetColorSpaceAttr()) {
+    if (UsdAttribute colorSpaceAttr = GetColorSpaceNameAttr()) {
         TfToken colorSpace;
         if (colorSpaceAttr.Get(&colorSpace)) {
-            if (GfColorSpace::IsConstructable(colorSpace)) {
+            if ((colorSpace == GfColorSpaceNames->Custom) ||
+                GfColorSpace::IsConstructable(colorSpace)) {
                 return colorSpace;
             }
         }
@@ -160,10 +310,11 @@ TfToken UsdColorSpaceAPI::ComputeColorSpace() const
     // Check the prim's parents for a colorSpace property.
     UsdPrim prim = GetPrim().GetParent();
     while (prim) {
-        if (UsdAttribute colorSpaceAttr = UsdColorSpaceAPI(prim).GetColorSpaceAttr()) {
+        if (UsdAttribute colorSpaceAttr = UsdColorSpaceAPI(prim).GetColorSpaceNameAttr()) {
             TfToken colorSpace;
             if (colorSpaceAttr.Get(&colorSpace)) {
-                if (GfColorSpace::IsConstructable(colorSpace)) {
+                if ((colorSpace == GfColorSpaceNames->Custom) ||
+                    GfColorSpace::IsConstructable(colorSpace)) {
                     return colorSpace;
                 }
             }
@@ -171,29 +322,115 @@ TfToken UsdColorSpaceAPI::ComputeColorSpace() const
         prim = prim.GetParent();
     }
 
-    return GfColorSpaceNames->LinearRec709;
+    return GfColorSpaceNames->Raw;
 }
 
 
-TfToken UsdColorSpaceAPI::ComputeColorSpace(const SdfPath& attribute) const 
+TfToken UsdColorSpaceAPI::ComputeColorSpaceName(const UsdAttribute& attribute) const
 {
-    UsdAttribute attr = GetPrim().GetAttribute(TfToken(attribute.GetName()));
-    if (!attr) {
-        TF_CODING_ERROR("Attribute <%s> not found on prim <%s>",
-                        attribute.GetString().c_str(),
-                        GetPrim().GetPath().GetString().c_str());
-        return UsdTokens->lin_rec709;
+    UsdPrim prim = GetPrim();
+    UsdPrim attrPrim = attribute.GetPrim();
+
+    if (prim != attrPrim) {
+        TF_CODING_ERROR("Attribute <%s> does not belong to the prim <%s>",
+                        attribute.GetPath().GetText(),
+                        prim.GetPath().GetText());
+        return GfColorSpaceNames->LinearRec709;
     }
 
     TfToken colorSpace = attr.GetColorSpace();
     if (!colorSpace.IsEmpty()) {
+        if ((colorSpace == GfColorSpaceNames->Custom) ||
+             GfColorSpace::IsConstructable(colorSpace)) {
+            return colorSpace;
+        }
+    }
+
+    return ComputeColorSpaceName();
+}
+
+GfColorSpace UsdColorSpaceAPI::ComputeColorSpace() const
+{
+    // Check for a colorSpace property on this prim.
+    if (UsdAttribute colorSpaceAttr = GetColorSpaceNameAttr()) {
+        TfToken colorSpace;
+        if (colorSpaceAttr.Get(&colorSpace)) {
+            if (colorSpace == GfColorSpaceNames->Custom) {
+                return _ColorSpaceFromAttributes();
+            }
+            if (GfColorSpace::IsConstructable(colorSpace)) {
+                return GfColorSpace(colorSpace);
+            }
+            return GfColorSpace(GfColorSpaceNames->Raw);
+        }
+    }
+
+    // Check the prim's parents for a colorSpace property.
+    UsdPrim prim = GetPrim().GetParent();
+    while (prim) {
+        if (UsdAttribute colorSpaceAttr = UsdColorSpaceAPI(prim).GetColorSpaceNameAttr()) {
+            TfToken colorSpace;
+            if (colorSpaceAttr.Get(&colorSpace)) {
+                if (colorSpace == GfColorSpaceNames->Custom) {
+                    return _ColorSpaceFromAttributes();
+                }
+                if (GfColorSpace::IsConstructable(colorSpace)) {
+                    return GfColorSpace(colorSpace);
+                }
+                return GfColorSpace(GfColorSpaceNames->Raw);
+            }
+        }
+        prim = prim.GetParent();
+    }
+
+    return GfColorSpace(GfColorSpaceNames->Raw);
+}
+
+GfColorSpace UsdColorSpaceAPI::ComputeColorSpace(const UsdAttribute& attr) const
+{
+    UsdPrim prim = GetPrim();
+    UsdPrim attrPrim = attr.GetPrim();
+
+    if (prim != attrPrim) {
+        TF_CODING_ERROR("Attribute <%s> does not belong to the prim <%s>",
+                        attr.GetPath().GetText(),
+                        prim.GetPath().GetText());
+        return GfColorSpace(GfColorSpaceNames->Raw);
+    }
+
+    TfToken colorSpace = attr.GetColorSpace();
+    if (!colorSpace.IsEmpty()) {
+        if ((colorSpace == GfColorSpaceNames->Custom)) {
+            return _ColorSpaceFromAttributes();
+        }
         if (GfColorSpace::IsConstructable(colorSpace)) {
             return colorSpace;
         }
+        return GfColorSpace(GfColorSpaceNames->Raw);
     }
 
     return ComputeColorSpace();
 }
 
+GfColorSpace UsdColorSpaceAPI::_ColorSpaceFromAttributes() const
+{
+    // Check for a colorSpace property on this prim.
+    if (UsdAttribute colorSpaceAttr = GetColorSpaceNameAttr()) {
+        TfToken colorSpace;
+        if (colorSpaceAttr.Get(&colorSpace)) {
+            if (colorSpace == GfColorSpaceNames->Custom) {
+                return GfColorSpace(
+                    GetColorSpaceRedChromaAttr().Get<GfVec2f>(),
+                    GetColorSpaceGreenChromaAttr().Get<GfVec2f>(),
+                    GetColorSpaceBlueChromaAttr().Get<GfVec2f>(),
+                    GetColorSpaceWhitePointAttr().Get<GfVec2f>(),
+                    GetColorSpaceGammaAttr().Get<float>(),
+                    GetColorSpaceLinearBiasAttr().Get<float>());
+            }
+        }
+    }
+
+    return GfColorSpace(GfColorSpaceNames->Raw);
+}
 
 PXR_NAMESPACE_CLOSE_SCOPE
