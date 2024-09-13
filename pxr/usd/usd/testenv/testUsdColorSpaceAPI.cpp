@@ -188,7 +188,7 @@ int main() {
 
     // Compute the color space.
     TF_VERIFY(rootCsAPI.ComputeColorSpaceName() == GfColorSpaceNames->LinearRec2020);
-    TF_VERIFY(rootCsAPI.ComputeColorSpaceName(rootCsAttr.GetPath()) == GfColorSpaceNames->LinearRec2020);
+    TF_VERIFY(rootCsAPI.ComputeColorSpaceName(rootCsAttr) == GfColorSpaceNames->LinearRec2020);
 
     // Create a color attribute on rootPrim, and verify it inherits the color space from rootPrim
     UsdAttribute colorAttr = rootPrim.CreateAttribute(TfToken("color"), SdfValueTypeNames->Color3f);

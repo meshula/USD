@@ -389,7 +389,7 @@ public:
     /// \sa UsdColorSpaceAPI::GetColorSpaceAttr
     /// \param attribute The attribute to compute the color space for.
     USD_API
-    ComputeColorSpaceName(const UsdAttribute& attribute) const;
+    TfToken ComputeColorSpaceName(const UsdAttribute& attribute) const;
 
     /// Calculate the color space for this prim.
     /// The color space is resolved by checking this prim for a

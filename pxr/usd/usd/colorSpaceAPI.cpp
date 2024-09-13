@@ -256,7 +256,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 void UsdColorSpaceAPI::CreateColorSpaceByName(const TfToken& name)
 {
     if (GfColorSpace::IsConstructable(name)) {
-        CreateColorSpaceNameAttr(name);
+        CreateColorSpaceNameAttr(VtValue(name));
     } 
     else {
         TF_CODING_ERROR("Invalid color space name: %s", name.GetText());
@@ -270,28 +270,36 @@ void UsdColorSpaceAPI::CreateColorSpaceWithChroma(const GfVec2f& redChroma,
                                                   float gamma, float linearBias)
 {
     // Create the colorSpaceName attribute.
-    CreateColorSpaceNameAttr(GfColorSpaceNames->Custom);
-    CreateColorSpaceRedChromaAttr(redChroma);
-    CreateColorSpaceGreenChromaAttr(greenChroma);
-    CreateColorSpaceBlueChromaAttr(blueChroma);
-    CreateColorSpaceWhitePointAttr(whitePoint);
-    CreateColorSpaceGammaAttr(gamma);
-    CreateColorSpaceLinearBiasAttr(linearBias);
+    CreateColorSpaceNameAttr(VtValue(GfColorSpaceNames->Custom));
+    CreateColorSpaceRedChromaAttr(VtValue(redChroma));
+    CreateColorSpaceGreenChromaAttr(VtValue(greenChroma));
+    CreateColorSpaceBlueChromaAttr(VtValue(blueChroma));
+    CreateColorSpaceWhitePointAttr(VtValue(whitePoint));
+    CreateColorSpaceGammaAttr(VtValue(gamma));
+    CreateColorSpaceLinearBiasAttr(VtValue(linearBias));
 }
 
 void UsdColorSpaceAPI::CreateColorSpaceWithMatrix(const GfMatrix3f& rgbToXYZ,
                                                   float gamma, float linearBias)
 {
     // Create the colorSpaceName attribute.
-    CreateColorSpaceNameAttr(GfColorSpaceNames->Custom);
-    CreateColorSpaceGammaAttr(gamma);
-    CreateColorSpaceLinearBiasAttr(linearBias);
+    CreateColorSpaceNameAttr(VtValue(GfColorSpaceNames->Custom));
+    CreateColorSpaceGammaAttr(VtValue(gamma));
+    CreateColorSpaceLinearBiasAttr(VtValue(linearBias));
 
-    GfColorSpace colorSpace(rgbToXYZ, gamma, linearBias);
-    CreateColorSpaceRedChromaAttr(colorSpace.GetRedChroma());
-    CreateColorSpaceGreenChromaAttr(colorSpace.GetGreenChroma());
-    CreateColorSpaceBlueChromaAttr(colorSpace.GetBlueChroma());
-    CreateColorSpaceWhitePointAttr(colorSpace.GetWhitePoint());
+    GfColorSpace colorSpace(GfColorSpaceNames->Custom, rgbToXYZ, gamma, linearBias);
+
+    std::tuple<GfVec2f, GfVec2f, GfVec2f, GfVec2f> primariesAndWhitePoint = 
+        colorSpace.GetPrimariesAndWhitePoint();
+    GfVec2f redChroma   = std::get<0>(primariesAndWhitePoint);
+    GfVec2f greenChroma = std::get<1>(primariesAndWhitePoint);
+    GfVec2f blueChroma  = std::get<2>(primariesAndWhitePoint);
+    GfVec2f whitePoint  = std::get<3>(primariesAndWhitePoint);
+
+    CreateColorSpaceRedChromaAttr(VtValue(redChroma));
+    CreateColorSpaceGreenChromaAttr(VtValue(greenChroma));
+    CreateColorSpaceBlueChromaAttr(VtValue(blueChroma));
+    CreateColorSpaceWhitePointAttr(VtValue(whitePoint));
 }
 
 TfToken UsdColorSpaceAPI::ComputeColorSpaceName() const 
@@ -325,15 +333,14 @@ TfToken UsdColorSpaceAPI::ComputeColorSpaceName() const
     return GfColorSpaceNames->Raw;
 }
 
-
-TfToken UsdColorSpaceAPI::ComputeColorSpaceName(const UsdAttribute& attribute) const
+TfToken UsdColorSpaceAPI::ComputeColorSpaceName(const UsdAttribute& attr) const
 {
     UsdPrim prim = GetPrim();
-    UsdPrim attrPrim = attribute.GetPrim();
+    UsdPrim attrPrim = attr.GetPrim();
 
     if (prim != attrPrim) {
         TF_CODING_ERROR("Attribute <%s> does not belong to the prim <%s>",
-                        attribute.GetPath().GetText(),
+                        attr.GetPath().GetText(),
                         prim.GetPath().GetText());
         return GfColorSpaceNames->LinearRec709;
     }
@@ -404,7 +411,7 @@ GfColorSpace UsdColorSpaceAPI::ComputeColorSpace(const UsdAttribute& attr) const
             return _ColorSpaceFromAttributes();
         }
         if (GfColorSpace::IsConstructable(colorSpace)) {
-            return colorSpace;
+            return GfColorSpace(colorSpace);
         }
         return GfColorSpace(GfColorSpaceNames->Raw);
     }
@@ -419,13 +426,26 @@ GfColorSpace UsdColorSpaceAPI::_ColorSpaceFromAttributes() const
         TfToken colorSpace;
         if (colorSpaceAttr.Get(&colorSpace)) {
             if (colorSpace == GfColorSpaceNames->Custom) {
+                GfVec2f redChroma;
+                GfVec2f greenChroma;
+                GfVec2f blueChroma;
+                GfVec2f whitePoint;
+                float gamma;
+                float linearBias;
+                GetColorSpaceRedChromaAttr().Get(&redChroma);
+                GetColorSpaceGreenChromaAttr().Get(&greenChroma);
+                GetColorSpaceBlueChromaAttr().Get(&blueChroma);
+                GetColorSpaceWhitePointAttr().Get(&whitePoint);
+                GetColorSpaceGammaAttr().Get(&gamma);
+                GetColorSpaceLinearBiasAttr().Get(&linearBias);
                 return GfColorSpace(
-                    GetColorSpaceRedChromaAttr().Get<GfVec2f>(),
-                    GetColorSpaceGreenChromaAttr().Get<GfVec2f>(),
-                    GetColorSpaceBlueChromaAttr().Get<GfVec2f>(),
-                    GetColorSpaceWhitePointAttr().Get<GfVec2f>(),
-                    GetColorSpaceGammaAttr().Get<float>(),
-                    GetColorSpaceLinearBiasAttr().Get<float>());
+                    GfColorSpaceNames->Custom,
+                    redChroma,
+                    greenChroma,
+                    blueChroma,
+                    whitePoint,
+                    gamma,
+                    linearBias);
             }
         }
     }
