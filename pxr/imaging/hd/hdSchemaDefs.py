@@ -1141,6 +1141,8 @@
         SCHEMA_NAME = 'ExtComputationPrimvars',
         SCHEMA_TOKEN = 'extComputationPrimvars',
         ADD_DEFAULT_LOCATOR = True,
+        GENERIC_MEMBER = ('extComputationPrimvar', 'HdExtComputationPrimvarSchema', {}),
+        
         SCHEMA_INCLUDES = ['{{LIBRARY_PATH}}/extComputationPrimvarSchema'],
     ),
 
@@ -1149,7 +1151,6 @@
     dict(
         SCHEMA_NAME = 'ExtComputationInputComputation',
         MEMBERS = [
-            ('name', T_TOKEN, {}),
             ('sourceComputation', T_PATH, {}),
             ('sourceComputationOutputName', T_TOKEN, {}),
         ],
@@ -1160,7 +1161,6 @@
     dict(
         SCHEMA_NAME = 'ExtComputationOutput',
         MEMBERS = [
-            ('name', T_TOKEN, {}),
             ('valueType', T_TUPLE, {}),
         ],
     ),
@@ -1171,12 +1171,13 @@
         SCHEMA_NAME = 'ExtComputation',
         SCHEMA_TOKEN = 'extComputation',
         ADD_DEFAULT_LOCATOR = True,
+        SCHEMA_INCLUDES = ['{{LIBRARY_PATH}}/schemaTypeDefs'],
         MEMBERS = [
             ('ALL_MEMBERS', '', dict(ADD_LOCATOR = True)),
             # inputValues should be a vector schema of typed data sources
-            ('inputValues', T_CONTAINER, {}),
-            ('inputComputations', T_VECTOR, {}),
-            ('outputs', T_VECTOR, {}),
+            ('inputValues', 'HdSampledDataSourceContainerSchema', {}),
+            ('inputComputations', 'HdExtComputationInputComputationContainerSchema', {}),
+            ('outputs', 'HdExtComputationOutputContainerSchema', {}),
             ('glslKernel', T_STRING, {}),
             ('cpuCallback', T_BASE, {}),
             ('dispatchCount', T_SIZET, {}),

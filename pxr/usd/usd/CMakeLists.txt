@@ -2,6 +2,8 @@ set(PXR_PREFIX pxr/usd)
 set(PXR_PACKAGE usd)
 
 pxr_library(usd
+    INCLUDE_SCHEMA_FILES
+
     LIBRARIES
         arch
         kind
@@ -20,11 +22,8 @@ pxr_library(usd
         ${TBB_INCLUDE_DIRS}
 
     PUBLIC_CLASSES
-        apiSchemaBase
         attribute
-        clipsAPI
         attributeQuery
-        collectionAPI
         collectionMembershipQuery
         collectionPredicateLibrary
         colorSpaceAPI
@@ -37,7 +36,6 @@ pxr_library(usd
         flattenUtils
         inherits
         interpolation
-        modelAPI
         namespaceEditor
         notice
         object
@@ -65,8 +63,6 @@ pxr_library(usd
         stageLoadRules
         stagePopulationMask
         timeCode
-        tokens
-        typed
         validator
         validatorTokens
         validationError
@@ -114,12 +110,8 @@ pxr_library(usd
         moduleDeps.cpp
 
     PYMODULE_CPPFILES
-        module.cpp
-        wrapAPISchemaBase.cpp
         wrapAttribute.cpp
         wrapAttributeQuery.cpp
-        wrapClipsAPI.cpp
-        wrapCollectionAPI.cpp
         wrapCollectionMembershipQuery.cpp
         wrapColorSpaceAPI.cpp
         wrapCommon.cpp
@@ -129,7 +121,6 @@ pxr_library(usd
         wrapFlattenUtils.cpp
         wrapInherits.cpp
         wrapInterpolation.cpp
-        wrapModelAPI.cpp
         wrapNamespaceEditor.cpp
         wrapNotice.cpp
         wrapObject.cpp
@@ -153,9 +144,7 @@ pxr_library(usd
         wrapStageCacheContext.cpp
         wrapStageLoadRules.cpp
         wrapStagePopulationMask.cpp
-        wrapTokens.cpp
         wrapTimeCode.cpp
-        wrapTyped.cpp
         wrapUsdFileFormat.cpp
         wrapUtils.cpp
         wrapValidationError.cpp
@@ -168,9 +157,6 @@ pxr_library(usd
         __init__.py
 
     RESOURCE_FILES
-        plugInfo.json
-        generatedSchema.usda
-        schema.usda:usd/schema.usda
         codegenTemplates/api.h
         codegenTemplates/plugInfo.json:no_subst
         codegenTemplates/schemaClass.cpp
@@ -228,6 +214,7 @@ pxr_test_scripts(
     testenv/testUsdCollectionAPI.py
     testenv/testUsdCratePayloadConversionFromVersion07.py
     testenv/testUsdCrateRelocates.py
+    testenv/testUsdCrateSpecific.py
     testenv/testUsdCreateProperties.py
     testenv/testUsdDataFormats.py
     testenv/testUsdExternalAssetDependencies.py
@@ -1135,6 +1122,12 @@ pxr_register_test(testUsdCratePayloadConversionFromVersion07
 pxr_register_test(testUsdCrateRelocates
     PYTHON
     COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdCrateRelocates"
+    EXPECTED_RETURN_CODE 0
+)
+
+pxr_register_test(testUsdCrateSpecific
+    PYTHON
+    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdCrateSpecific"
     EXPECTED_RETURN_CODE 0
 )
 
