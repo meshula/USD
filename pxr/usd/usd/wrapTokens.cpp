@@ -5,7 +5,7 @@
 // https://openusd.org/license.
 //
 // GENERATED FILE.  DO NOT EDIT.
-#include <boost/python/class.hpp>
+#include "pxr/external/boost/python/class.hpp"
 #include "pxr/usd/usd/tokens.h"
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -15,8 +15,8 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 void wrapUsdTokens()
 {
-    boost::python::class_<UsdTokensType, boost::noncopyable>
-        cls("Tokens", boost::python::no_init);
+    pxr_boost::python::class_<UsdTokensType, boost::noncopyable>
+        cls("Tokens", pxr_boost::python::no_init);
     _ADD_TOKEN(cls, apiSchemas);
     _ADD_TOKEN(cls, clips);
     _ADD_TOKEN(cls, clipSets);
@@ -27,7 +27,13 @@ void wrapUsdTokens()
     _ADD_TOKEN(cls, collection_MultipleApplyTemplate_IncludeRoot);
     _ADD_TOKEN(cls, collection_MultipleApplyTemplate_Includes);
     _ADD_TOKEN(cls, collection_MultipleApplyTemplate_MembershipExpression);
-    _ADD_TOKEN(cls, colorSpace);
+    _ADD_TOKEN(cls, colorSpaceBlueChroma);
+    _ADD_TOKEN(cls, colorSpaceGamma);
+    _ADD_TOKEN(cls, colorSpaceGreenChroma);
+    _ADD_TOKEN(cls, colorSpaceLinearBias);
+    _ADD_TOKEN(cls, colorSpaceName);
+    _ADD_TOKEN(cls, colorSpaceRedChroma);
+    _ADD_TOKEN(cls, colorSpaceWhitePoint);
     _ADD_TOKEN(cls, exclude);
     _ADD_TOKEN(cls, expandPrims);
     _ADD_TOKEN(cls, expandPrimsAndProperties);

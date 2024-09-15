@@ -12,6 +12,13 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_NUMPY_INTERNAL_HPP
 #define PXR_EXTERNAL_BOOST_PYTHON_NUMPY_INTERNAL_HPP
 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/numpy/internal.hpp>
+#else
+
 /**
  *  @file boost/python/numpy/internal.hpp
  *  @brief Internal header file to include the Numpy C-API headers.
@@ -21,11 +28,11 @@
 
 #include "pxr/external/boost/python.hpp"
 #include "pxr/external/boost/python/numpy/config.hpp"
-#ifdef BOOST_PYTHON_NUMPY_INTERNAL
+#ifdef PXR_BOOST_PYTHON_NUMPY_INTERNAL
 #define NO_IMPORT_ARRAY
 #define NO_IMPORT_UFUNC
 #else
-#ifndef BOOST_PYTHON_NUMPY_INTERNAL_MAIN
+#ifndef PXR_BOOST_PYTHON_NUMPY_INTERNAL_MAIN
 ERROR_internal_hpp_is_for_internal_use_only
 #endif
 #endif
@@ -38,4 +45,5 @@ ERROR_internal_hpp_is_for_internal_use_only
 #define NUMPY_OBJECT_MANAGER_TRAITS_IMPL(pytype,manager)                \
     PyTypeObject const * object_manager_traits<manager>::get_pytype() { return &pytype; }
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif

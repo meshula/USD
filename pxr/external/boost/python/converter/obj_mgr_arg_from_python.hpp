@@ -10,6 +10,13 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_CONVERTER_OBJ_MGR_ARG_FROM_PYTHON_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_CONVERTER_OBJ_MGR_ARG_FROM_PYTHON_HPP
 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/converter/obj_mgr_arg_from_python.hpp>
+#else
+
 # include "pxr/external/boost/python/detail/prefix.hpp"
 # include "pxr/external/boost/python/detail/referent_storage.hpp"
 # include "pxr/external/boost/python/detail/destroy.hpp"
@@ -22,7 +29,7 @@
 // arg_from_python converters for Python type wrappers, to be used as
 // base classes for specializations.
 //
-namespace boost { namespace python { namespace converter { 
+namespace PXR_BOOST_NAMESPACE { namespace python { namespace converter { 
 
 template <class T>
 struct object_manager_value_arg_from_python
@@ -121,6 +128,7 @@ inline Ref object_manager_ref_arg_from_python<Ref>::operator()() const
         this->m_result.bytes, (Ref(*)())0);
 }
 
-}}} // namespace boost::python::converter
+}}} // namespace PXR_BOOST_NAMESPACE::python::converter
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_CONVERTER_OBJ_MGR_ARG_FROM_PYTHON_HPP

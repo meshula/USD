@@ -10,13 +10,20 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_OBJECT_ITEMS_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_OBJECT_ITEMS_HPP
 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/object_items.hpp>
+#else
+
 # include "pxr/external/boost/python/detail/prefix.hpp"
 
 # include "pxr/external/boost/python/proxy.hpp"
 # include "pxr/external/boost/python/object_core.hpp"
 # include "pxr/external/boost/python/object_protocol.hpp"
 
-namespace boost { namespace python { namespace api {
+namespace PXR_BOOST_NAMESPACE { namespace python { namespace api {
 
 struct const_item_policies
 {
@@ -86,6 +93,7 @@ inline void item_policies::del(
     delitem(target, key);
 }
 
-}}} // namespace boost::python::api
+}}} // namespace PXR_BOOST_NAMESPACE::python::api
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_OBJECT_ITEMS_HPP

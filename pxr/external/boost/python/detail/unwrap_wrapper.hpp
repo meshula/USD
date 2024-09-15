@@ -9,12 +9,19 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_DETAIL_UNWRAP_WRAPPER_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_DETAIL_UNWRAP_WRAPPER_HPP
 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/detail/unwrap_wrapper.hpp>
+#else
+
 # include "pxr/external/boost/python/detail/prefix.hpp"
 # include "pxr/external/boost/python/detail/is_wrapper.hpp"
 # include <boost/mpl/eval_if.hpp>
 # include <boost/mpl/identity.hpp>
 
-namespace boost { namespace python { namespace detail { 
+namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail { 
 
 template <class T>
 struct unwrap_wrapper_helper
@@ -34,6 +41,7 @@ unwrap_wrapper(T*)
     return 0;
 }
 
-}}} // namespace boost::python::detail
+}}} // namespace PXR_BOOST_NAMESPACE::python::detail
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_DETAIL_UNWRAP_WRAPPER_HPP

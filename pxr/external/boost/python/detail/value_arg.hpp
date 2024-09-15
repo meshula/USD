@@ -9,11 +9,18 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_DETAIL_VALUE_ARG_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_DETAIL_VALUE_ARG_HPP
 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/detail/value_arg.hpp>
+#else
+
 # include "pxr/external/boost/python/detail/copy_ctor_mutates_rhs.hpp"
 # include <boost/mpl/if.hpp>
 # include "pxr/external/boost/python/detail/indirect_traits.hpp"
 
-namespace boost { namespace python { namespace detail { 
+namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail { 
 
 template <class T>
 struct value_arg
@@ -26,6 +33,7 @@ struct value_arg
   >
 {};
   
-}}} // namespace boost::python::detail
+}}} // namespace PXR_BOOST_NAMESPACE::python::detail
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_DETAIL_VALUE_ARG_HPP

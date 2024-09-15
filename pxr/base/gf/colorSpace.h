@@ -70,6 +70,7 @@ PXR_NAMESPACE_OPEN_SCOPE
     ((SRGBTexture, "srgb_texture"))          \
     ((SRGB, "sRGB"))                         \
     ((SRGBDisplayP3, "srgb_displayp3"))      \
+    ((Custom, "custom"))
 
 TF_DECLARE_PUBLIC_TOKENS(GfColorSpaceNames, GF_API, 
                          GF_COLORSPACE_NAME_TOKENS);
@@ -111,9 +112,7 @@ public:
     /// \param whitePoint The white point chromaticity coordinates.
     /// \param gamma The gamma value of the log section.
     /// \param linearBias The linear bias of the log section.
-    /// \param K0 The linear break point.
-    /// \param phi The slope of the linear section.
-    GF_API 
+    GF_API
     explicit GfColorSpace(const TfToken& name,
                           const GfVec2f &redChroma,
                           const GfVec2f &greenChroma,
@@ -128,8 +127,6 @@ public:
     /// \param rgbToXYZ The RGB to XYZ conversion matrix.
     /// \param gamma The gamma value of the log section.
     /// \param linearBias The linear bias of the log section.
-    /// \param K0 The linear break point.
-    /// \param phi The slope of the linear section.
     GF_API 
     explicit GfColorSpace(const TfToken& name,
                           const GfMatrix3f &rgbToXYZ,

@@ -85,10 +85,34 @@ struct UsdTokensType {
     /// 
     /// UsdCollectionAPI
     const TfToken collection_MultipleApplyTemplate_MembershipExpression;
-    /// \brief "colorSpace"
+    /// \brief "colorSpace:blueChroma"
     /// 
     /// UsdColorSpaceAPI
-    const TfToken colorSpace;
+    const TfToken colorSpaceBlueChroma;
+    /// \brief "colorSpace:gamma"
+    /// 
+    /// UsdColorSpaceAPI
+    const TfToken colorSpaceGamma;
+    /// \brief "colorSpace:greenChroma"
+    /// 
+    /// UsdColorSpaceAPI
+    const TfToken colorSpaceGreenChroma;
+    /// \brief "colorSpace:linearBias"
+    /// 
+    /// UsdColorSpaceAPI
+    const TfToken colorSpaceLinearBias;
+    /// \brief "colorSpace:name"
+    /// 
+    /// UsdColorSpaceAPI
+    const TfToken colorSpaceName;
+    /// \brief "colorSpace:redChroma"
+    /// 
+    /// UsdColorSpaceAPI
+    const TfToken colorSpaceRedChroma;
+    /// \brief "colorSpace:whitePoint"
+    /// 
+    /// UsdColorSpaceAPI
+    const TfToken colorSpaceWhitePoint;
     /// \brief "exclude"
     /// 
     ///  This is the token used to exclude a path from a collection.  Although it is not a possible value for the "expansionRule" attribute, it is used as the expansionRule for excluded paths  in UsdCollectionAPI::MembershipQuery::IsPathIncluded. 
@@ -111,7 +135,7 @@ struct UsdTokensType {
     const TfToken fallbackPrimTypes;
     /// \brief "lin_rec709"
     /// 
-    /// Fallback value for UsdColorSpaceAPI::GetColorSpaceAttr()
+    /// Fallback value for UsdColorSpaceAPI::GetColorSpaceNameAttr()
     const TfToken lin_rec709;
     /// \brief "APISchemaBase"
     /// 

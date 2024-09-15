@@ -10,6 +10,13 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_RETURN_INTERNAL_REFERENCE_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_RETURN_INTERNAL_REFERENCE_HPP
 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/return_internal_reference.hpp>
+#else
+
 # include "pxr/external/boost/python/detail/prefix.hpp"
 
 # include "pxr/external/boost/python/default_call_policies.hpp"
@@ -17,7 +24,7 @@
 # include "pxr/external/boost/python/with_custodian_and_ward.hpp"
 # include <boost/mpl/if.hpp>
 
-namespace boost { namespace python { 
+namespace PXR_BOOST_NAMESPACE { namespace python { 
 
 namespace detail
 {
@@ -43,6 +50,7 @@ struct return_internal_reference
     >::type result_converter;
 };
 
-}} // namespace boost::python
+}} // namespace PXR_BOOST_NAMESPACE::python
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_RETURN_INTERNAL_REFERENCE_HPP

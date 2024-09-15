@@ -10,10 +10,17 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_REFCOUNT_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_REFCOUNT_HPP
 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/refcount.hpp>
+#else
+
 # include "pxr/external/boost/python/detail/prefix.hpp"
 # include "pxr/external/boost/python/cast.hpp"
 
-namespace boost { namespace python { 
+namespace PXR_BOOST_NAMESPACE { namespace python { 
 
 template <class T>
 inline T* incref(T* p)
@@ -43,6 +50,7 @@ inline void xdecref(T* p)
     Py_XDECREF(python::upcast<PyObject>(p));
 }
 
-}} // namespace boost::python
+}} // namespace PXR_BOOST_NAMESPACE::python
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_REFCOUNT_HPP

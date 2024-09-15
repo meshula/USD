@@ -10,7 +10,14 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_DETAIL_DEPENDENT_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_DETAIL_DEPENDENT_HPP
 
-namespace boost { namespace python { namespace detail { 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python/detail/dependent.hpp>
+#else
+
+namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail { 
 
 // A way to turn a concrete type T into a type dependent on U. This
 // keeps conforming compilers (those implementing proper 2-phase
@@ -27,6 +34,7 @@ struct dependent
     typedef T type;
 };
 
-}}} // namespace boost::python::detail
+}}} // namespace PXR_BOOST_NAMESPACE::python::detail
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_DETAIL_DEPENDENT_HPP

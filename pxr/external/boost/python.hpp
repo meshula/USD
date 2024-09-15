@@ -13,6 +13,13 @@
 #ifndef PXR_EXTERNAL_BOOST_PYTHON_HPP
 # define PXR_EXTERNAL_BOOST_PYTHON_HPP
 
+#include "pxr/pxr.h"
+#include "pxr/external/boost/python/common.hpp"
+
+#ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include <boost/python.hpp>
+#else
+
 # include "pxr/external/boost/python/args.hpp"
 # include "pxr/external/boost/python/args_fwd.hpp"
 # include "pxr/external/boost/python/back_reference.hpp"
@@ -77,4 +84,5 @@
 # include "pxr/external/boost/python/type_id.hpp"
 # include "pxr/external/boost/python/with_custodian_and_ward.hpp"
 
+#endif // PXR_USE_INTERNAL_BOOST_PYTHON
 #endif // PXR_EXTERNAL_BOOST_PYTHON_HPP

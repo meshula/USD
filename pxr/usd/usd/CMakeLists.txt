@@ -327,6 +327,13 @@ pxr_build_test(testUsdAttributeInterpolationCpp
         testenv/testUsdAttributeInterpolationCpp.cpp
 )
 
+pxr_build_test(testUsdColorSpaceAPI
+    LIBRARIES
+        usd
+    CPPFILES
+        testenv/testUsdColorSpaceAPI.cpp
+)
+
 pxr_build_test(testUsdCreateAttributeCpp
     LIBRARIES
         usd
