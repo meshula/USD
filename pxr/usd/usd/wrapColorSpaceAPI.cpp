@@ -223,9 +223,8 @@ namespace {
 
 WRAP_CUSTOM {
     _class
-        .def("ResolveColorSpace", 
-                &This::ResolveColorSpace, 
-                (arg("attribute")=object()))
+        .def("ComputeColorSpaceName", 
+                &UsdColorSpaceAPI::ComputeColorSpaceName)
     ;
 }
 

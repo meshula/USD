@@ -50,7 +50,8 @@ static GfVec3f _ISO17321_ap0[24] = {
     { 0.21743f, 0.07070f, 0.05130f },
     { 0.58921f, 0.53944f, 0.09157f },
     { 0.30904f, 0.14818f, 0.27426f },
-    { 0.14900f, 0.23377f, 0.35939f }, // slightly out of Rec709 gamut r709!
+    //{ 0.14900f, 0.23377f, 0.35939f }, // spec is slightly out of Rec709 gamut.
+    { 0.0f, 0.23377f, 0.35939f }, // tweaked red channel
     { 0.86653f, 0.86792f, 0.85818f },
     { 0.57356f, 0.57256f, 0.57169f },
     { 0.35346f, 0.35337f, 0.35391f },
@@ -151,7 +152,7 @@ pxr::SdfPath _CreateColorCheckerChart(pxr::UsdStageRefPtr stage,
         binding.Bind(material);
 
         pxr::UsdGeomXformable xformable(cube);
-        double x = (5 - (i % 6)) * 2.0;
+        double x = (i % 6) * 2.0;
         double y = ((23-i) / 6) * 2.0;
         double z = 0;
         xformable.ClearXformOpOrder();

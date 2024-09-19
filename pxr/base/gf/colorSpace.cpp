@@ -27,7 +27,6 @@ bool GfColorSpace::IsConstructable(const TfToken& name) {
     return colorSpace != nullptr;
 }
 
-
 GfColorSpace::GfColorSpace(const TfToken& name)
 : _data(new _Data())
 {
