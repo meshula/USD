@@ -33,12 +33,6 @@
 # include "pxr/external/boost/python/detail/void_return.hpp"
 # include <boost/call_traits.hpp>
 
-#if BOOST_WORKAROUND(BOOST_INTEL_WIN, <= 900)
-# define BOOST_EXTRACT_WORKAROUND ()
-#else
-# define BOOST_EXTRACT_WORKAROUND
-#endif
-
 namespace PXR_BOOST_NAMESPACE { namespace python {
 
 namespace api
@@ -113,10 +107,10 @@ namespace converter
           bool, obj_mgr = is_object_manager<T>::value);
 
       BOOST_STATIC_CONSTANT(
-          bool, ptr = is_pointer<T>::value);
+          bool, ptr = python::detail::is_pointer<T>::value);
     
       BOOST_STATIC_CONSTANT(
-          bool, ref = is_reference<T>::value);
+          bool, ref = python::detail::is_reference<T>::value);
 
       typedef typename mpl::if_c<
           obj_mgr

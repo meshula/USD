@@ -25,20 +25,6 @@
 #else
 
 # include <boost/config.hpp>
-# include <boost/detail/workaround.hpp>
-
-# ifdef BOOST_NO_OPERATORS_IN_NAMESPACE
-   // A gcc bug forces some symbols into the global namespace
-#  define PXR_BOOST_PYTHON_BEGIN_CONVERSION_NAMESPACE
-#  define PXR_BOOST_PYTHON_END_CONVERSION_NAMESPACE
-#  define PXR_BOOST_PYTHON_CONVERSION
-#  define PXR_BOOST_PYTHON_IMPORT_CONVERSION(x) using ::x
-# else
-#  define PXR_BOOST_PYTHON_BEGIN_CONVERSION_NAMESPACE namespace PXR_BOOST_NAMESPACE { namespace python {
-#  define PXR_BOOST_PYTHON_END_CONVERSION_NAMESPACE }} // namespace PXR_BOOST_NAMESPACE::python
-#  define PXR_BOOST_PYTHON_CONVERSION PXR_BOOST_NAMESPACE::python
-#  define PXR_BOOST_PYTHON_IMPORT_CONVERSION(x) void never_defined() // so we can follow the macro with a ';'
-# endif
 
 # if defined(BOOST_MSVC)
 
@@ -51,15 +37,6 @@
 
 #  pragma warning(disable: 985) // identifier was truncated in debug information
 
-# endif
-
-// The STLport puts all of the standard 'C' library names in std (as far as the
-// user is concerned), but without it you need a fix if you're using MSVC or
-// Intel C++
-# if defined(BOOST_NO_STDC_NAMESPACE)
-#  define BOOST_CSTD_
-# else
-#  define BOOST_CSTD_ std
 # endif
 
 /*****************************************************************************
@@ -102,13 +79,7 @@
 #  define PXR_BOOST_PYTHON_DECL_EXCEPTION
 #endif
 
-#if BOOST_WORKAROUND(__DECCXX_VER, BOOST_TESTED_AT(60590042))
-// Replace broken Tru64/cxx offsetof macro
-# define PXR_BOOST_PYTHON_OFFSETOF(s_name, s_member) \
-        ((size_t)__INTADDR__(&(((s_name *)0)->s_member)))
-#else
 # define PXR_BOOST_PYTHON_OFFSETOF offsetof
-#endif
 
 //  enable automatic library variant selection  ------------------------------// 
 

@@ -18,7 +18,6 @@
 #else
 
 # include "pxr/external/boost/python/detail/signature.hpp"
-# include <boost/detail/workaround.hpp>
 # include <boost/mpl/size.hpp>
 # include <memory>
 
@@ -147,11 +146,7 @@ struct py_function
     {}
 
     py_function(py_function const& rhs)
-#if defined(BOOST_NO_CXX11_SMART_PTR)
-      : m_impl(rhs.m_impl)
-#else
       : m_impl(std::move(rhs.m_impl))
-#endif
     {}
 
     PyObject* operator()(PyObject* args, PyObject* kw) const

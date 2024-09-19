@@ -75,10 +75,10 @@ namespace detail
           bool, obj_mgr = is_object_manager<T>::value);
 
       BOOST_STATIC_CONSTANT(
-          bool, ptr = is_pointer<T>::value);
+          bool, ptr = python::detail::is_pointer<T>::value);
     
       BOOST_STATIC_CONSTANT(
-          bool, ref = is_reference<T>::value);
+          bool, ref = python::detail::is_reference<T>::value);
 
       typedef typename mpl::if_c<
           obj_mgr
@@ -111,9 +111,6 @@ struct return_from_python<void>
     result_type operator()(PyObject* x) const
     {
         (void_result_from_python)(x);
-# ifdef BOOST_NO_VOID_RETURNS
-        return result_type();
-# endif 
     }
 };
 

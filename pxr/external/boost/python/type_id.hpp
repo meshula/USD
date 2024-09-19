@@ -24,8 +24,6 @@
 # include <typeinfo>
 # include <cstring>
 # include <ostream>
-# include <boost/static_assert.hpp>
-# include <boost/detail/workaround.hpp>
 # include "pxr/external/boost/python/detail/type_traits.hpp"
 
 #  ifndef PXR_BOOST_PYTHON_HAVE_GCC_CP_DEMANGLE
@@ -87,12 +85,7 @@ template <class T>
 inline type_info type_id()
 {
     return type_info(
-#  if !defined(_MSC_VER)                                       \
-      || !BOOST_WORKAROUND(BOOST_INTEL_CXX_VERSION, <= 700)
         typeid(T)
-#  else // strip the decoration which Intel mistakenly leaves in
-        python::detail::msvc_typeid((boost::type<T>*)0)
-#  endif 
         );
 }
 
@@ -183,13 +176,11 @@ inline type_info type_id<void>()
 {
     return type_info (typeid (void *));
 }
-#   ifndef BOOST_NO_CV_VOID_SPECIALIZATIONS
 template<>
 inline type_info type_id<const volatile void>()
 {
     return type_info (typeid (void *));
 }
-#  endif
 
 }} // namespace PXR_BOOST_NAMESPACE::python
 

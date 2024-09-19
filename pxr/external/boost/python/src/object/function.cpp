@@ -60,11 +60,7 @@ extern PyTypeObject function_type;
 
 function::function(
     py_function const& implementation
-#if BOOST_WORKAROUND(__EDG_VERSION__, == 245)
-    , python::detail::keyword const*       names_and_defaults
-#else
     , python::detail::keyword const* const names_and_defaults
-#endif
     , unsigned num_keywords
     )
     : m_fn(implementation)
@@ -387,7 +383,7 @@ namespace
   {
       bool operator()(char const* x, char const* y) const
       {
-          return BOOST_CSTD_::strcmp(x,y) < 0;
+          return std::strcmp(x,y) < 0;
       }
   };
   

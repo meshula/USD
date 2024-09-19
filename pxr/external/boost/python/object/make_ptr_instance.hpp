@@ -21,7 +21,6 @@
 # include "pxr/external/boost/python/converter/registry.hpp"
 # include "pxr/external/boost/python/detail/type_traits.hpp"
 # include <boost/get_pointer.hpp>
-# include <boost/detail/workaround.hpp>
 # include <typeinfo>
 
 namespace PXR_BOOST_NAMESPACE {
@@ -37,11 +36,7 @@ struct make_ptr_instance
     template <class Arg>
     static inline Holder* construct(void* storage, PyObject*, Arg& x)
     {
-#if defined(BOOST_NO_CXX11_SMART_PTR)
-      return new (storage) Holder(x);
-#else
       return new (storage) Holder(std::move(x));
-#endif
     }
     
     template <class Ptr>
