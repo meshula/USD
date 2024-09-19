@@ -101,7 +101,9 @@ public:
     GF_API 
     explicit GfColorSpace(const TfToken& name);
 
-    static bool IsConstructable(const TfToken& name);
+    /// Check if a color space name is valid for constructing
+    /// a GfColorSpace by name.
+    static bool IsValid(const TfToken& name);
 
     /// Construct a custom color space from raw values.
     ///

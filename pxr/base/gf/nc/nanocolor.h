@@ -127,8 +127,8 @@ extern "C" {
  - srgb_texture:     The sRGB color space.
 */
 
-NCEXTERNC const char* Nc_acescg;
-NCEXTERNC const char* Nc_adobergb;
+NCEXTERNC const char* Nc_lin_ap1;
+NCEXTERNC const char* Nc_g22_adobergb;
 NCEXTERNC const char* Nc_g18_rec709;
 NCEXTERNC const char* Nc_g22_ap1;
 NCEXTERNC const char* Nc_g22_rec709;
@@ -136,14 +136,13 @@ NCEXTERNC const char* Nc_identity;
 NCEXTERNC const char* Nc_lin_adobergb;
 NCEXTERNC const char* Nc_lin_ap0;
 NCEXTERNC const char* Nc_lin_ap1;
-NCEXTERNC const char* Nc_lin_displayp3;
+NCEXTERNC const char* Nc_lin_p3d65;
 NCEXTERNC const char* Nc_lin_rec709;
 NCEXTERNC const char* Nc_lin_rec2020;
-NCEXTERNC const char* Nc_lin_srgb;
+NCEXTERNC const char* Nc_lin_rec709;
 NCEXTERNC const char* Nc_raw;
-NCEXTERNC const char* Nc_srgb_displayp3;
-NCEXTERNC const char* Nc_sRGB;
-NCEXTERNC const char* Nc_srgb_texture;
+NCEXTERNC const char* Nc_srgb_p3d65;
+NCEXTERNC const char* Nc_srgb_rec709;
 
 // Declare the public interface using the namespacing macro.
 #define NcColorSpaceEqual            NCCONCAT(NCNAMESPACE, ColorSpaceEqual)

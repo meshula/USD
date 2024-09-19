@@ -46,10 +46,8 @@ static float _ToLinear(const NcColorSpace* cs, float t) {
     return powf((t + a) / (1.f + a), gamma);
 }
 
-static const char _acescg[] = "lin_ap1_scene";
-const char* Nc_acescg = _acescg;
-static const char _adobergb[] = "g22_adobergb_scene";
-const char* Nc_adobergb = _adobergb;
+static const char _g22_adobergb[] = "g22_adobergb_scene";
+const char* Nc_g22_adobergb = _g22_adobergb;
 static const char _g18_rec709[] = "g18_rec709_scene";
 const char* Nc_g18_rec709 = _g18_rec709;
 static const char _g22_ap1[] = "g22_ap1_scene";
@@ -64,30 +62,26 @@ static const char _lin_ap0[] = "lin_ap0_scene";
 const char* Nc_lin_ap0 = _lin_ap0;
 static const char _lin_ap1[] = "lin_ap1_scene";
 const char* Nc_lin_ap1 = _lin_ap1;
-static const char _lin_displayp3[] = "lin_p3d65_scene";
-const char* Nc_lin_displayp3 = _lin_displayp3;
+static const char _lin_p3d65[] = "lin_p3d65_scene";
+const char* Nc_lin_p3d65 = _lin_p3d65;
 static const char _lin_rec709[] = "lin_rec709_scene";
 const char* Nc_lin_rec709 = _lin_rec709;
 static const char _lin_rec2020[] = "lin_rec2020_scene";
 const char* Nc_lin_rec2020 = _lin_rec2020;
-static const char _lin_srgb[] = "lin_rec709_scene";
-const char* Nc_lin_srgb = _lin_srgb;
 static const char _raw[] = "raw";
 const char* Nc_raw = _raw;
-static const char _srgb_displayp3[] = "srgb_p3d65_scene";
-const char* Nc_srgb_displayp3 = _srgb_displayp3;
-static const char _sRGB[] = "srgb_rec709_scene";
-const char* Nc_sRGB = _sRGB;
-static const char _srgb_texture[] = "srgb_rec709_scene";
-const char* Nc_srgb_texture = _srgb_texture;
+static const char _srgb_p3d65[] = "srgb_p3d65_scene";
+const char* Nc_srgb_p3d65 = _srgb_p3d65;
+static const char _srgb_rec709[] = "srgb_rec709_scene";
+const char* Nc_srgb_rec709 = _srgb_rec709;
 
 NCAPI const char* NcGetDescription(const NcColorSpace* cs) {
     if (!cs)
         return NULL;
 
-    if (!strcmp(cs->desc.name, Nc_acescg))
+    if (!strcmp(cs->desc.name, Nc_lin_ap1))
         return "Academy Color Encoding System (ACEScg), a color space designed for computer graphics.";
-    if (!strcmp(cs->desc.name, Nc_adobergb))
+    if (!strcmp(cs->desc.name, Nc_g22_adobergb))
         return "Adobe RGB (1998), a color space developed by Adobe Systems.";
     if (!strcmp(cs->desc.name, Nc_g18_rec709))
         return "Gamma 1.8, primaries from Rec. 709, white point from D65.";
@@ -103,22 +97,20 @@ NCAPI const char* NcGetDescription(const NcColorSpace* cs) {
         return "Linear transfer, ACES 2065-1.";
     if (!strcmp(cs->desc.name, Nc_lin_ap1))
         return "Linear transfer, ACESCg.";
-    if (!strcmp(cs->desc.name, Nc_lin_displayp3))
+    if (!strcmp(cs->desc.name, Nc_lin_p3d65))
         return "Linear Display P3, a color space using the Display P3 primaries.";
     if (!strcmp(cs->desc.name, Nc_lin_rec709))
         return "Linear Rec. 709, a color space using the Rec. 709 primaries.";
     if (!strcmp(cs->desc.name, Nc_lin_rec2020))
         return "Linear Rec. 2020, a color space using the Rec. 2020 primaries.";
-    if (!strcmp(cs->desc.name, Nc_lin_srgb))
+    if (!strcmp(cs->desc.name, Nc_lin_rec709))
         return "Linear sRGB, a color space using the sRGB primaries.";
     if (!strcmp(cs->desc.name, Nc_raw))
         return "Raw color space, no conversion.";
-    if (!strcmp(cs->desc.name, Nc_srgb_displayp3))
+    if (!strcmp(cs->desc.name, Nc_srgb_p3d65))
         return "sRGB Display P3, a color space using the Display P3 primaries.";
-    if (!strcmp(cs->desc.name, Nc_sRGB))
+    if (!strcmp(cs->desc.name, Nc_srgb_rec709))
         return "sRGB, a display color space developed by HP and Microsoft.";
-    if (!strcmp(cs->desc.name, Nc_srgb_texture))
-        return "sRGB Texture, a color space using the sRGB primaries.";
     return cs->desc.name;
 }
 
@@ -128,18 +120,7 @@ NCAPI const char* NcGetDescription(const NcColorSpace* cs) {
 
 static NcColorSpace _colorSpaces[] = {
     {
-        _acescg,
-        { 0.713, 0.293 },
-        { 0.165, 0.830 },
-        { 0.128, 0.044 },
-        _WpACES,
-        1.0,
-        0.0,
-        0, 0,
-        { 0,0,0, 0,0,0, 0,0,0 }
-    },
-    {
-        _adobergb,
+        _g22_adobergb,
         { 0.64, 0.33 },
         { 0.21, 0.71 },
         { 0.15, 0.06 },
@@ -216,7 +197,7 @@ static NcColorSpace _colorSpaces[] = {
         { 0,0,0, 0,0,0, 0,0,0 }
     },
     {
-        _lin_displayp3,
+        _lin_p3d65,
         { 0.6800, 0.3200 },
         { 0.2650, 0.6900 },
         { 0.1500, 0.0600 },
@@ -249,18 +230,7 @@ static NcColorSpace _colorSpaces[] = {
         { 0,0,0, 0,0,0, 0,0,0 }
     },
     {
-        _lin_srgb,
-        { 0.640, 0.330 },
-        { 0.300, 0.600 },
-        { 0.150, 0.060 },
-        _WpD65,
-        1.0,
-        0.0,
-        0, 0,
-        { 0,0,0, 0,0,0, 0,0,0 }
-    },
-    {
-        _srgb_displayp3,
+        _srgb_p3d65,
         { 0.6800, 0.3200 },
         { 0.2650, 0.6900 },
         { 0.1500, 0.0600 },
@@ -271,18 +241,7 @@ static NcColorSpace _colorSpaces[] = {
         { 0,0,0, 0,0,0, 0,0,0 }
     },
     {
-        _srgb_texture,
-        { 0.640, 0.330 },
-        { 0.300, 0.600 },
-        { 0.150, 0.060 },
-        _WpD65,
-        2.4,
-        0.055,
-        0, 0,
-        { 0,0,0, 0,0,0, 0,0,0 }
-    },
-    {
-        _sRGB,
+        _srgb_rec709,
         { 0.640, 0.330 },
         { 0.300, 0.600 },
         { 0.150, 0.060 },
@@ -317,8 +276,7 @@ static NcColorSpace _colorSpaces[] = {
 };
 
 static const char* _colorSpaceNames[] = {
-    _acescg,
-    _adobergb,
+    _g22_adobergb,
     _g18_rec709,
     _g22_ap1,
     _g22_rec709,
@@ -326,14 +284,12 @@ static const char* _colorSpaceNames[] = {
     _lin_adobergb,
     _lin_ap0,
     _lin_ap1,
-    _lin_displayp3,
+    _lin_p3d65,
     _lin_rec709,
     _lin_rec2020,
-    _lin_srgb,
     _raw,
-    _srgb_displayp3,
-    _sRGB,
-    _srgb_texture,
+    _srgb_p3d65,
+    _srgb_rec709,
     NULL
 };
 
