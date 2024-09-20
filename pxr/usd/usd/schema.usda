@@ -179,6 +179,32 @@ class "ColorSpaceAPI"
         unauthored color spaces on this prim and its descendents.
         """
     )
+}
+
+class "ColorSpaceDefinitionAPI" 
+(
+    inherits = </APISchemaBase>
+    doc = """UsdColorSpaceDefinitionAPI is an API schema for defining a custom
+    color space. Custom color spaces become available and available for
+    assignment to attributes via the colorSpace property on prims that have
+    applied UsdColorSpaceAPI. Due to the hierarchical nature of color space
+    opinions, a custom color space defined on a prim will be available to all
+    descendants of that prim, unless overridden by a more local color space
+    definition bearing the same name.
+
+    """
+    customData = {
+        string apiSchemaType = "singleApply"
+        string extraIncludes = """
+#include "pxr/base/gf/colorSpace.h"
+"""
+    }
+)
+{
+    uniform token colorSpace:definitionName = "custom" (
+        doc = """The name of the colorSpace defined on this prim.
+        """
+    )
     float2 colorSpace:redChroma = (0.640, 0.330) (
         doc = "Red chromaticity coordinates"
     )
