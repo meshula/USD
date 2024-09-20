@@ -38,6 +38,7 @@
                         "bases": [
                             "UsdSchemaBase"
                         ], 
+                        "schemaIdentifier": "APISchemaBase", 
                         "schemaKind": "abstractBase"
                     }, 
                     "UsdClipsAPI": {
@@ -48,6 +49,7 @@
                         "bases": [
                             "UsdAPISchemaBase"
                         ], 
+                        "schemaIdentifier": "ClipsAPI", 
                         "schemaKind": "nonAppliedAPI"
                     }, 
                     "UsdCollectionAPI": {
@@ -58,6 +60,7 @@
                         "bases": [
                             "UsdAPISchemaBase"
                         ], 
+                        "schemaIdentifier": "CollectionAPI", 
                         "schemaKind": "multipleApplyAPI"
                     }, 
                     "UsdColorSpaceAPI": {
@@ -78,6 +81,7 @@
                         "bases": [
                             "UsdAPISchemaBase"
                         ], 
+                        "schemaIdentifier": "ModelAPI", 
                         "schemaKind": "nonAppliedAPI"
                     }, 
                     "UsdSchemaBase": {
@@ -94,6 +98,7 @@
                         "bases": [
                             "UsdSchemaBase"
                         ], 
+                        "schemaIdentifier": "Typed", 
                         "schemaKind": "abstractBase"
                     }, 
                     "UsdUsdFileFormat": {

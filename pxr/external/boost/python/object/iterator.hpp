@@ -31,13 +31,14 @@
 # include "pxr/external/boost/python/object/function_object.hpp"
 
 # include <boost/mpl/vector/vector10.hpp>
-# include <boost/mpl/if.hpp>
+# include "pxr/external/boost/python/detail/mpl2/if.hpp"
 
 # include "pxr/external/boost/python/detail/raw_pyobject.hpp"
 
 # include <boost/type.hpp>
 
 # include <iterator>
+#include <type_traits>
 
 namespace PXR_BOOST_NAMESPACE { namespace python { namespace objects {
 
@@ -58,8 +59,8 @@ struct iterator_range
 
     struct next
     {
-        typedef typename mpl::if_<
-            is_reference<
+        typedef typename python::detail::mpl2::if_<
+            std::is_reference<
                 typename traits_t::reference
             >
           , typename traits_t::reference
@@ -205,7 +206,7 @@ inline object make_iterator_function(
   , boost::type<Target>* = 0
 )
 {
-    typedef typename Accessor1::result_type iterator;
+    typedef std::invoke_result_t<Accessor1, Target&> iterator;
     typedef typename PXR_BOOST_NAMESPACE::python::detail::add_const<iterator>::type iterator_const;
     typedef typename PXR_BOOST_NAMESPACE::python::detail::add_lvalue_reference<iterator_const>::type iterator_cref;
       

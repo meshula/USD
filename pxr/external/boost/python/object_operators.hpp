@@ -22,7 +22,7 @@
 # include "pxr/external/boost/python/object_core.hpp"
 # include "pxr/external/boost/python/call.hpp"
 # include <boost/iterator/detail/enable_if.hpp>
-# include <boost/mpl/bool.hpp>
+# include "pxr/external/boost/python/detail/mpl2/bool.hpp"
 
 # include <boost/iterator/detail/config_def.hpp>
 
@@ -46,7 +46,7 @@ struct is_object_operators
            < 4
         )
     };
-    typedef mpl::bool_<value> type;
+    typedef python::detail::mpl2::bool_<value> type;
 };
 
 template <class L, class R, class T>
@@ -62,6 +62,15 @@ object object_operators<U>::operator()() const
     return call<object>(f.ptr());
 }
 
+template <class U>
+template <class A0, class... A>
+typename detail::dependent<object, A0>::type
+object_operators<U>::operator()(A0 const& a0, A const&... a) const
+{
+    typedef typename detail::dependent<object, A0>::type obj;
+    U const& self = *static_cast<U const*>(this);
+    return call<obj>(get_managed_object(self, tag), a0, a...);
+}
 
 template <class U>
 inline

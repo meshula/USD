@@ -161,9 +161,14 @@ pxr_library(python
         detail/is_wrapper.hpp
         detail/is_xxx.hpp
         detail/make_keyword_range_fn.hpp
-        detail/make_tuple.hpp
         detail/map_entry.hpp
         detail/mpl_lambda.hpp
+        detail/mpl2/and.hpp
+        detail/mpl2/bool.hpp
+        detail/mpl2/eval_if.hpp
+        detail/mpl2/if.hpp
+        detail/mpl2/not.hpp
+        detail/mpl2/or.hpp
         detail/msvc_typeinfo.hpp
         detail/none.hpp
         detail/not_specified.hpp
@@ -248,7 +253,6 @@ pxr_library(python
         object/value_holder_fwd.hpp
         object.hpp
         object_attributes.hpp
-        object_call.hpp
         object_core.hpp
         object_fwd.hpp
         object_items.hpp

@@ -19,14 +19,14 @@
 #else
 
 # include "pxr/external/boost/python/extract.hpp"
-# include <boost/scoped_ptr.hpp>
 # include <boost/get_pointer.hpp>
-# include <boost/detail/binary_search.hpp>
 # include <boost/numeric/conversion/cast.hpp>
 # include "pxr/external/boost/python/detail/type_traits.hpp"
 # include <vector>
 # include <map>
+#include <algorithm>
 #include <iostream>
+#include <memory>
 
 namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail {
 
@@ -76,7 +76,7 @@ namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail {
         first_proxy(index_type i)
         {
             // Return the first proxy with index <= i
-            return boost::detail::lower_bound(
+            return std::lower_bound(
                 proxies.begin(), proxies.end(), 
                 i, compare_proxy_index<Proxy>());
         }
@@ -108,7 +108,7 @@ namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail {
         }
 
         void
-        erase(index_type i, mpl::false_)
+        erase(index_type i, detail::mpl2::false_)
         {
             PXR_BOOST_PYTHON_INDEXING_CHECK_INVARIANT;
             // Erase the proxy with index i 
@@ -117,7 +117,7 @@ namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail {
         }
 
         void
-        erase(index_type i, mpl::true_)
+        erase(index_type i, detail::mpl2::true_)
         {
             PXR_BOOST_PYTHON_INDEXING_CHECK_INVARIANT;
             // Erase the proxy with index i 
@@ -457,7 +457,7 @@ namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail {
             
         container_element& operator=(container_element const& ce);
 
-        scoped_ptr<element_type> ptr;
+        std::unique_ptr<element_type> ptr;
         object container;
         Index index;
     };

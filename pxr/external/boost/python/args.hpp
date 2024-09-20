@@ -25,15 +25,9 @@
 # include "pxr/external/boost/python/detail/type_list.hpp"
 # include "pxr/external/boost/python/detail/type_traits.hpp"
 
-# include <boost/preprocessor/enum_params.hpp>
-# include <boost/preprocessor/repeat.hpp>
-# include <boost/preprocessor/facilities/intercept.hpp>
-# include <boost/preprocessor/iteration/local.hpp>
-
-# include "pxr/external/boost/python/detail/mpl_lambda.hpp"
 # include "pxr/external/boost/python/object_core.hpp"
 
-# include <boost/mpl/bool.hpp>
+# include "pxr/external/boost/python/detail/mpl2/bool.hpp"
 
 # include <cstddef>
 # include <algorithm>
@@ -62,6 +56,15 @@ namespace detail
 
       keywords<nkeywords + 1>
       operator,(char const *name) const;
+
+      template <class... Name>
+      void set_elements(Name... name)
+      {
+          static_assert(sizeof...(Name) == nkeywords, "Must supply all keywords");
+
+          size_t i = 0;
+          ([this, &i](char const* n) { elements[i++].name = n; }(name), ...);
+      }
   };
   
   template <std::size_t nkeywords>
@@ -131,8 +134,7 @@ namespace detail
       BOOST_STATIC_CONSTANT(bool, is_key = is_keywords<key_t>::value);
       BOOST_STATIC_CONSTANT(bool, value = (is_ref & is_key));
       
-      typedef mpl::bool_<value> type;
-      PXR_BOOST_PYTHON_MPL_LAMBDA_SUPPORT(1,is_reference_to_keywords,(T))
+      typedef detail::mpl2::bool_<value> type;
   };
 }
 
@@ -141,16 +143,17 @@ inline detail::keywords<1> args(char const* name)
     return detail::keywords<1>(name);
 }
 
-#  define PXR_BOOST_PYTHON_ASSIGN_NAME(z, n, _) result.elements[n].name = name##n;
-#  define BOOST_PP_LOCAL_MACRO(n)                                               \
-inline detail::keywords<n> args(BOOST_PP_ENUM_PARAMS_Z(1, n, char const* name)) \
-{                                                                               \
-    detail::keywords<n> result;                                                 \
-    BOOST_PP_REPEAT_1(n, PXR_BOOST_PYTHON_ASSIGN_NAME, _)                           \
-    return result;                                                              \
+template <class... Name>
+inline detail::keywords<sizeof...(Name)> args(Name... name)
+{
+    static_assert(
+        (std::is_convertible_v<Name, char const*> && ...),
+        "Arguments must be char const*");
+
+    detail::keywords<sizeof...(Name)> result;
+    result.set_elements(name...);
+    return result;
 }
-#  define BOOST_PP_LOCAL_LIMITS (2, PXR_BOOST_PYTHON_MAX_ARITY)
-#  include BOOST_PP_LOCAL_ITERATE()
 
 }} // namespace PXR_BOOST_NAMESPACE::python
 
