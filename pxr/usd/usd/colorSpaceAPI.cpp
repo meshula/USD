@@ -147,7 +147,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 void UsdColorSpaceAPI::CreateColorSpaceByName(const TfToken& name)
 {
-    if (GfColorSpace::IsConstructable(name)) {
+    if (GfColorSpace::IsValid(name)) {
         CreateColorSpaceNameAttr(VtValue(name));
     } 
     else {
@@ -201,7 +201,7 @@ TfToken UsdColorSpaceAPI::ComputeColorSpaceName() const
         TfToken colorSpace;
         if (colorSpaceAttr.Get(&colorSpace)) {
             if ((colorSpace == GfColorSpaceNames->Custom) ||
-                GfColorSpace::IsConstructable(colorSpace)) {
+                GfColorSpace::IsValid(colorSpace)) {
                 return colorSpace;
             }
         }
@@ -214,7 +214,7 @@ TfToken UsdColorSpaceAPI::ComputeColorSpaceName() const
             TfToken colorSpace;
             if (colorSpaceAttr.Get(&colorSpace)) {
                 if ((colorSpace == GfColorSpaceNames->Custom) ||
-                    GfColorSpace::IsConstructable(colorSpace)) {
+                    GfColorSpace::IsValid(colorSpace)) {
                     return colorSpace;
                 }
             }
@@ -240,7 +240,7 @@ TfToken UsdColorSpaceAPI::ComputeColorSpaceName(const UsdAttribute& attr) const
     TfToken colorSpace = attr.GetColorSpace();
     if (!colorSpace.IsEmpty()) {
         if ((colorSpace == GfColorSpaceNames->Custom) ||
-             GfColorSpace::IsConstructable(colorSpace)) {
+             GfColorSpace::IsValid(colorSpace)) {
             return colorSpace;
         }
     }
@@ -257,7 +257,7 @@ GfColorSpace UsdColorSpaceAPI::ComputeColorSpace() const
             if (colorSpace == GfColorSpaceNames->Custom) {
                 return _ColorSpaceFromAttributes();
             }
-            if (GfColorSpace::IsConstructable(colorSpace)) {
+            if (GfColorSpace::IsValid(colorSpace)) {
                 return GfColorSpace(colorSpace);
             }
             return GfColorSpace(GfColorSpaceNames->Raw);
@@ -273,7 +273,7 @@ GfColorSpace UsdColorSpaceAPI::ComputeColorSpace() const
                 if (colorSpace == GfColorSpaceNames->Custom) {
                     return _ColorSpaceFromAttributes();
                 }
-                if (GfColorSpace::IsConstructable(colorSpace)) {
+                if (GfColorSpace::IsValid(colorSpace)) {
                     return GfColorSpace(colorSpace);
                 }
                 return GfColorSpace(GfColorSpaceNames->Raw);
@@ -302,7 +302,7 @@ GfColorSpace UsdColorSpaceAPI::ComputeColorSpace(const UsdAttribute& attr) const
         if ((colorSpace == GfColorSpaceNames->Custom)) {
             return _ColorSpaceFromAttributes();
         }
-        if (GfColorSpace::IsConstructable(colorSpace)) {
+        if (GfColorSpace::IsValid(colorSpace)) {
             return GfColorSpace(colorSpace);
         }
         return GfColorSpace(GfColorSpaceNames->Raw);
