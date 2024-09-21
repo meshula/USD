@@ -39,48 +39,6 @@ _CreateColorSpaceNameAttr(UsdColorSpaceAPI &self,
     return self.CreateColorSpaceNameAttr(
         UsdPythonToSdfType(defaultVal, SdfValueTypeNames->Token), writeSparsely);
 }
-        
-static UsdAttribute
-_CreateColorSpaceRedChromaAttr(UsdColorSpaceAPI &self,
-                                      object defaultVal, bool writeSparsely) {
-    return self.CreateColorSpaceRedChromaAttr(
-        UsdPythonToSdfType(defaultVal, SdfValueTypeNames->Float2), writeSparsely);
-}
-        
-static UsdAttribute
-_CreateColorSpaceGreenChromaAttr(UsdColorSpaceAPI &self,
-                                      object defaultVal, bool writeSparsely) {
-    return self.CreateColorSpaceGreenChromaAttr(
-        UsdPythonToSdfType(defaultVal, SdfValueTypeNames->Float2), writeSparsely);
-}
-        
-static UsdAttribute
-_CreateColorSpaceBlueChromaAttr(UsdColorSpaceAPI &self,
-                                      object defaultVal, bool writeSparsely) {
-    return self.CreateColorSpaceBlueChromaAttr(
-        UsdPythonToSdfType(defaultVal, SdfValueTypeNames->Float2), writeSparsely);
-}
-        
-static UsdAttribute
-_CreateColorSpaceWhitePointAttr(UsdColorSpaceAPI &self,
-                                      object defaultVal, bool writeSparsely) {
-    return self.CreateColorSpaceWhitePointAttr(
-        UsdPythonToSdfType(defaultVal, SdfValueTypeNames->Float2), writeSparsely);
-}
-        
-static UsdAttribute
-_CreateColorSpaceGammaAttr(UsdColorSpaceAPI &self,
-                                      object defaultVal, bool writeSparsely) {
-    return self.CreateColorSpaceGammaAttr(
-        UsdPythonToSdfType(defaultVal, SdfValueTypeNames->Float), writeSparsely);
-}
-        
-static UsdAttribute
-_CreateColorSpaceLinearBiasAttr(UsdColorSpaceAPI &self,
-                                      object defaultVal, bool writeSparsely) {
-    return self.CreateColorSpaceLinearBiasAttr(
-        UsdPythonToSdfType(defaultVal, SdfValueTypeNames->Float), writeSparsely);
-}
 
 static std::string
 _Repr(const UsdColorSpaceAPI &self)
@@ -149,48 +107,6 @@ void wrapUsdColorSpaceAPI()
              &This::GetColorSpaceNameAttr)
         .def("CreateColorSpaceNameAttr",
              &_CreateColorSpaceNameAttr,
-             (arg("defaultValue")=object(),
-              arg("writeSparsely")=false))
-        
-        .def("GetColorSpaceRedChromaAttr",
-             &This::GetColorSpaceRedChromaAttr)
-        .def("CreateColorSpaceRedChromaAttr",
-             &_CreateColorSpaceRedChromaAttr,
-             (arg("defaultValue")=object(),
-              arg("writeSparsely")=false))
-        
-        .def("GetColorSpaceGreenChromaAttr",
-             &This::GetColorSpaceGreenChromaAttr)
-        .def("CreateColorSpaceGreenChromaAttr",
-             &_CreateColorSpaceGreenChromaAttr,
-             (arg("defaultValue")=object(),
-              arg("writeSparsely")=false))
-        
-        .def("GetColorSpaceBlueChromaAttr",
-             &This::GetColorSpaceBlueChromaAttr)
-        .def("CreateColorSpaceBlueChromaAttr",
-             &_CreateColorSpaceBlueChromaAttr,
-             (arg("defaultValue")=object(),
-              arg("writeSparsely")=false))
-        
-        .def("GetColorSpaceWhitePointAttr",
-             &This::GetColorSpaceWhitePointAttr)
-        .def("CreateColorSpaceWhitePointAttr",
-             &_CreateColorSpaceWhitePointAttr,
-             (arg("defaultValue")=object(),
-              arg("writeSparsely")=false))
-        
-        .def("GetColorSpaceGammaAttr",
-             &This::GetColorSpaceGammaAttr)
-        .def("CreateColorSpaceGammaAttr",
-             &_CreateColorSpaceGammaAttr,
-             (arg("defaultValue")=object(),
-              arg("writeSparsely")=false))
-        
-        .def("GetColorSpaceLinearBiasAttr",
-             &This::GetColorSpaceLinearBiasAttr)
-        .def("CreateColorSpaceLinearBiasAttr",
-             &_CreateColorSpaceLinearBiasAttr,
              (arg("defaultValue")=object(),
               arg("writeSparsely")=false))
 

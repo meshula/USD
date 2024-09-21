@@ -102,108 +102,6 @@ UsdColorSpaceAPI::CreateColorSpaceNameAttr(VtValue const &defaultValue, bool wri
                        writeSparsely);
 }
 
-UsdAttribute
-UsdColorSpaceAPI::GetColorSpaceRedChromaAttr() const
-{
-    return GetPrim().GetAttribute(UsdTokens->colorSpaceRedChroma);
-}
-
-UsdAttribute
-UsdColorSpaceAPI::CreateColorSpaceRedChromaAttr(VtValue const &defaultValue, bool writeSparsely) const
-{
-    return UsdSchemaBase::_CreateAttr(UsdTokens->colorSpaceRedChroma,
-                       SdfValueTypeNames->Float2,
-                       /* custom = */ false,
-                       SdfVariabilityVarying,
-                       defaultValue,
-                       writeSparsely);
-}
-
-UsdAttribute
-UsdColorSpaceAPI::GetColorSpaceGreenChromaAttr() const
-{
-    return GetPrim().GetAttribute(UsdTokens->colorSpaceGreenChroma);
-}
-
-UsdAttribute
-UsdColorSpaceAPI::CreateColorSpaceGreenChromaAttr(VtValue const &defaultValue, bool writeSparsely) const
-{
-    return UsdSchemaBase::_CreateAttr(UsdTokens->colorSpaceGreenChroma,
-                       SdfValueTypeNames->Float2,
-                       /* custom = */ false,
-                       SdfVariabilityVarying,
-                       defaultValue,
-                       writeSparsely);
-}
-
-UsdAttribute
-UsdColorSpaceAPI::GetColorSpaceBlueChromaAttr() const
-{
-    return GetPrim().GetAttribute(UsdTokens->colorSpaceBlueChroma);
-}
-
-UsdAttribute
-UsdColorSpaceAPI::CreateColorSpaceBlueChromaAttr(VtValue const &defaultValue, bool writeSparsely) const
-{
-    return UsdSchemaBase::_CreateAttr(UsdTokens->colorSpaceBlueChroma,
-                       SdfValueTypeNames->Float2,
-                       /* custom = */ false,
-                       SdfVariabilityVarying,
-                       defaultValue,
-                       writeSparsely);
-}
-
-UsdAttribute
-UsdColorSpaceAPI::GetColorSpaceWhitePointAttr() const
-{
-    return GetPrim().GetAttribute(UsdTokens->colorSpaceWhitePoint);
-}
-
-UsdAttribute
-UsdColorSpaceAPI::CreateColorSpaceWhitePointAttr(VtValue const &defaultValue, bool writeSparsely) const
-{
-    return UsdSchemaBase::_CreateAttr(UsdTokens->colorSpaceWhitePoint,
-                       SdfValueTypeNames->Float2,
-                       /* custom = */ false,
-                       SdfVariabilityVarying,
-                       defaultValue,
-                       writeSparsely);
-}
-
-UsdAttribute
-UsdColorSpaceAPI::GetColorSpaceGammaAttr() const
-{
-    return GetPrim().GetAttribute(UsdTokens->colorSpaceGamma);
-}
-
-UsdAttribute
-UsdColorSpaceAPI::CreateColorSpaceGammaAttr(VtValue const &defaultValue, bool writeSparsely) const
-{
-    return UsdSchemaBase::_CreateAttr(UsdTokens->colorSpaceGamma,
-                       SdfValueTypeNames->Float,
-                       /* custom = */ false,
-                       SdfVariabilityVarying,
-                       defaultValue,
-                       writeSparsely);
-}
-
-UsdAttribute
-UsdColorSpaceAPI::GetColorSpaceLinearBiasAttr() const
-{
-    return GetPrim().GetAttribute(UsdTokens->colorSpaceLinearBias);
-}
-
-UsdAttribute
-UsdColorSpaceAPI::CreateColorSpaceLinearBiasAttr(VtValue const &defaultValue, bool writeSparsely) const
-{
-    return UsdSchemaBase::_CreateAttr(UsdTokens->colorSpaceLinearBias,
-                       SdfValueTypeNames->Float,
-                       /* custom = */ false,
-                       SdfVariabilityVarying,
-                       defaultValue,
-                       writeSparsely);
-}
-
 namespace {
 static inline TfTokenVector
 _ConcatenateAttributeNames(const TfTokenVector& left,const TfTokenVector& right)
@@ -222,12 +120,6 @@ UsdColorSpaceAPI::GetSchemaAttributeNames(bool includeInherited)
 {
     static TfTokenVector localNames = {
         UsdTokens->colorSpaceName,
-        UsdTokens->colorSpaceRedChroma,
-        UsdTokens->colorSpaceGreenChroma,
-        UsdTokens->colorSpaceBlueChroma,
-        UsdTokens->colorSpaceWhitePoint,
-        UsdTokens->colorSpaceGamma,
-        UsdTokens->colorSpaceLinearBias,
     };
     static TfTokenVector allNames =
         _ConcatenateAttributeNames(

@@ -87,19 +87,23 @@ struct UsdTokensType {
     const TfToken collection_MultipleApplyTemplate_MembershipExpression;
     /// \brief "colorSpace:blueChroma"
     /// 
-    /// UsdColorSpaceAPI
+    /// UsdColorSpaceDefinitionAPI
     const TfToken colorSpaceBlueChroma;
+    /// \brief "colorSpace:definitionName"
+    /// 
+    /// UsdColorSpaceDefinitionAPI
+    const TfToken colorSpaceDefinitionName;
     /// \brief "colorSpace:gamma"
     /// 
-    /// UsdColorSpaceAPI
+    /// UsdColorSpaceDefinitionAPI
     const TfToken colorSpaceGamma;
     /// \brief "colorSpace:greenChroma"
     /// 
-    /// UsdColorSpaceAPI
+    /// UsdColorSpaceDefinitionAPI
     const TfToken colorSpaceGreenChroma;
     /// \brief "colorSpace:linearBias"
     /// 
-    /// UsdColorSpaceAPI
+    /// UsdColorSpaceDefinitionAPI
     const TfToken colorSpaceLinearBias;
     /// \brief "colorSpace:name"
     /// 
@@ -107,12 +111,16 @@ struct UsdTokensType {
     const TfToken colorSpaceName;
     /// \brief "colorSpace:redChroma"
     /// 
-    /// UsdColorSpaceAPI
+    /// UsdColorSpaceDefinitionAPI
     const TfToken colorSpaceRedChroma;
     /// \brief "colorSpace:whitePoint"
     /// 
-    /// UsdColorSpaceAPI
+    /// UsdColorSpaceDefinitionAPI
     const TfToken colorSpaceWhitePoint;
+    /// \brief "custom"
+    /// 
+    /// Fallback value for UsdColorSpaceDefinitionAPI::GetColorSpaceDefinitionNameAttr()
+    const TfToken custom;
     /// \brief "exclude"
     /// 
     ///  This is the token used to exclude a path from a collection.  Although it is not a possible value for the "expansionRule" attribute, it is used as the expansionRule for excluded paths  in UsdCollectionAPI::MembershipQuery::IsPathIncluded. 
@@ -153,6 +161,10 @@ struct UsdTokensType {
     /// 
     /// Schema identifer and family for UsdColorSpaceAPI
     const TfToken ColorSpaceAPI;
+    /// \brief "ColorSpaceDefinitionAPI"
+    /// 
+    /// Schema identifer and family for UsdColorSpaceDefinitionAPI
+    const TfToken ColorSpaceDefinitionAPI;
     /// \brief "ModelAPI"
     /// 
     /// Schema identifer and family for UsdModelAPI

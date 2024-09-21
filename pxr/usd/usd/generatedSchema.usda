@@ -128,8 +128,31 @@ class "ColorSpaceAPI" (
     """
 )
 {
+    uniform token colorSpace:name = "lin_rec709" (
+        doc = """The color space that applies to attributes with
+        unauthored color spaces on this prim and its descendents.
+        """
+    )
+}
+
+class "ColorSpaceDefinitionAPI" (
+    doc = """UsdColorSpaceDefinitionAPI is an API schema for defining a custom
+    color space. Custom color spaces become available and available for
+    assignment to attributes via the colorSpace property on prims that have
+    applied UsdColorSpaceAPI. Due to the hierarchical nature of color space
+    opinions, a custom color space defined on a prim will be available to all
+    descendants of that prim, unless overridden by a more local color space
+    definition bearing the same name.
+
+    """
+)
+{
     float2 colorSpace:blueChroma = (0.15, 0.06) (
         doc = "Blue chromaticity coordinates"
+    )
+    uniform token colorSpace:definitionName = "custom" (
+        doc = """The name of the colorSpace defined on this prim.
+        """
     )
     float colorSpace:gamma = 1 (
         doc = "Gamma value of the log section"
@@ -139,11 +162,6 @@ class "ColorSpaceAPI" (
     )
     float colorSpace:linearBias = 0 (
         doc = "Linear bias of the log section"
-    )
-    uniform token colorSpace:name = "lin_rec709" (
-        doc = """The color space that applies to attributes with
-        unauthored color spaces on this prim and its descendents.
-        """
     )
     float2 colorSpace:redChroma = (0.64, 0.33) (
         doc = "Red chromaticity coordinates"

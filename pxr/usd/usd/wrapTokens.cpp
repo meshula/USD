@@ -28,12 +28,14 @@ void wrapUsdTokens()
     _ADD_TOKEN(cls, collection_MultipleApplyTemplate_Includes);
     _ADD_TOKEN(cls, collection_MultipleApplyTemplate_MembershipExpression);
     _ADD_TOKEN(cls, colorSpaceBlueChroma);
+    _ADD_TOKEN(cls, colorSpaceDefinitionName);
     _ADD_TOKEN(cls, colorSpaceGamma);
     _ADD_TOKEN(cls, colorSpaceGreenChroma);
     _ADD_TOKEN(cls, colorSpaceLinearBias);
     _ADD_TOKEN(cls, colorSpaceName);
     _ADD_TOKEN(cls, colorSpaceRedChroma);
     _ADD_TOKEN(cls, colorSpaceWhitePoint);
+    _ADD_TOKEN(cls, custom);
     _ADD_TOKEN(cls, exclude);
     _ADD_TOKEN(cls, expandPrims);
     _ADD_TOKEN(cls, expandPrimsAndProperties);
@@ -44,6 +46,7 @@ void wrapUsdTokens()
     _ADD_TOKEN(cls, ClipsAPI);
     _ADD_TOKEN(cls, CollectionAPI);
     _ADD_TOKEN(cls, ColorSpaceAPI);
+    _ADD_TOKEN(cls, ColorSpaceDefinitionAPI);
     _ADD_TOKEN(cls, ModelAPI);
     _ADD_TOKEN(cls, Typed);
 }
