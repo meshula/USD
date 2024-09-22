@@ -328,6 +328,25 @@ public:
     //  - Close the include guard with #endif
     // ===================================================================== //
     // --(BEGIN CUSTOM CODE)--
+    
+    /// Creates the color space attributes with the given values. The color space
+    /// name attribute is set to Custom.
+    USD_API
+    void CreateColorSpaceAttrsWithChroma(const GfVec2f& redChroma,
+                                         const GfVec2f& greenChroma,
+                                         const GfVec2f& blueChroma,
+                                         const GfVec2f& whitePoint,
+                                         float gamma, float linearBias);
+
+    /// Create the color space attributes by deriving the color space from the
+    /// given RGB to XYZ matrix and linearization parameters. The color space
+    /// name attribute is set to Custom.
+    USD_API
+    void CreateColorSpaceAttrsWithMatrix(const GfMatrix3f& rgbToXYZ,
+                                         float gamma, float linearBias);
+
+    USD_API
+    GfColorSpace ComputeColorSpaceFromDefinitionAttributes() const;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

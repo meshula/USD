@@ -219,22 +219,6 @@ public:
     USD_API
     void CreateColorSpaceByName(const TfToken& name);
 
-    /// Creates the color space attributes with the given values. The color space
-    /// name attribute is set to Custom.
-    USD_API
-    void CreateColorSpaceWithChroma(const GfVec2f& redChroma,
-                                    const GfVec2f& greenChroma,
-                                    const GfVec2f& blueChroma,
-                                    const GfVec2f& whitePoint,
-                                    float gamma, float linearBias);
-
-    /// Create the color space attributes by deriving the color space from the
-    /// given RGB to XYZ matrix and linearization parameters. The color space
-    /// name attribute is set to Custom.
-    USD_API
-    void CreateColorSpaceWithMatrix(const GfMatrix3f& rgbToXYZ,
-                                    float gamma, float linearBias);
-
     /// Calculate the color space for the given attribute on this prim. If the
     /// attribute is not on this prim, a TF_CODING_ERROR is issued. Otherwise,
     /// the color space is resolved by checking the colorSpace property on this
@@ -289,8 +273,8 @@ public:
     /// the root prim is reached. If no colorSpaceName property is found, the
     /// fallback color space, `lin_rec709`, is returned.
     ///
-    /// If a color space name attribute is found, but it is not one of the
-    /// standard color spaces, the value `raw` is returned.
+    /// If a color space name attribute is found, but it is not resolvable,
+    /// the value `raw` is returned.
     ///
     /// This function should be considered a reference implementation for
     /// determining the color space of an attribute. As the algorithm is
@@ -307,8 +291,8 @@ public:
     /// the root prim is reached. If no colorSpace property is found, the
     /// fallback color space, `lin_rec709`, is returned.
     ///
-    /// If a color space name attribute is found, but it is not one of the
-    /// standard color spaces, the value `raw` is returned.
+    /// If a color space name attribute is found, but it is not resolvable,
+    /// the value `raw` is returned.
     ///
     /// This function should be considered a reference implementation for
     /// determining the color space of an attribute. As the algorithm is

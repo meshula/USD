@@ -5,6 +5,7 @@
 // https://openusd.org/license.
 //
 #include "pxr/usd/usd/colorSpaceAPI.h"
+#include "pxr/usd/usd/colorSpaceDefinitionAPI.h"
 #include "pxr/usd/usd/schemaRegistry.h"
 #include "pxr/usd/usd/typed.h"
 
@@ -155,74 +156,51 @@ void UsdColorSpaceAPI::CreateColorSpaceByName(const TfToken& name)
     }
 }
 
-void UsdColorSpaceAPI::CreateColorSpaceWithChroma(const GfVec2f& redChroma,
-                                                  const GfVec2f& greenChroma,
-                                                  const GfVec2f& blueChroma,
-                                                  const GfVec2f& whitePoint,
-                                                  float gamma, float linearBias)
+namespace {
+
+bool _IsValidColorSpaceName(UsdPrim prim, const TfToken& name)
 {
-    // Create the colorSpaceName attribute.
-    CreateColorSpaceNameAttr(VtValue(GfColorSpaceNames->Custom));
-    CreateColorSpaceRedChromaAttr(VtValue(redChroma));
-    CreateColorSpaceGreenChromaAttr(VtValue(greenChroma));
-    CreateColorSpaceBlueChromaAttr(VtValue(blueChroma));
-    CreateColorSpaceWhitePointAttr(VtValue(whitePoint));
-    CreateColorSpaceGammaAttr(VtValue(gamma));
-    CreateColorSpaceLinearBiasAttr(VtValue(linearBias));
-}
-
-void UsdColorSpaceAPI::CreateColorSpaceWithMatrix(const GfMatrix3f& rgbToXYZ,
-                                                  float gamma, float linearBias)
-{
-    // Create the colorSpaceName attribute.
-    CreateColorSpaceNameAttr(VtValue(GfColorSpaceNames->Custom));
-    CreateColorSpaceGammaAttr(VtValue(gamma));
-    CreateColorSpaceLinearBiasAttr(VtValue(linearBias));
-
-    GfColorSpace colorSpace(GfColorSpaceNames->Custom, rgbToXYZ, gamma, linearBias);
-
-    std::tuple<GfVec2f, GfVec2f, GfVec2f, GfVec2f> primariesAndWhitePoint = 
-        colorSpace.GetPrimariesAndWhitePoint();
-    GfVec2f redChroma   = std::get<0>(primariesAndWhitePoint);
-    GfVec2f greenChroma = std::get<1>(primariesAndWhitePoint);
-    GfVec2f blueChroma  = std::get<2>(primariesAndWhitePoint);
-    GfVec2f whitePoint  = std::get<3>(primariesAndWhitePoint);
-
-    CreateColorSpaceRedChromaAttr(VtValue(redChroma));
-    CreateColorSpaceGreenChromaAttr(VtValue(greenChroma));
-    CreateColorSpaceBlueChromaAttr(VtValue(blueChroma));
-    CreateColorSpaceWhitePointAttr(VtValue(whitePoint));
-}
-
-TfToken UsdColorSpaceAPI::ComputeColorSpaceName() const 
-{
-    // Check for a colorSpace property on this prim.
-    if (UsdAttribute colorSpaceAttr = GetColorSpaceNameAttr()) {
-        TfToken colorSpace;
-        if (colorSpaceAttr.Get(&colorSpace)) {
-            if ((colorSpace == GfColorSpaceNames->Custom) ||
-                GfColorSpace::IsValid(colorSpace)) {
-                return colorSpace;
-            }
-        }
-    }
-
-    // Check the prim's parents for a colorSpace property.
-    UsdPrim prim = GetPrim().GetParent();
+    if (GfColorSpace::IsValid(name))
+        return true;
+    
+    // test if the name is defined at the current prim or a parent.
     while (prim) {
-        if (UsdAttribute colorSpaceAttr = UsdColorSpaceAPI(prim).GetColorSpaceNameAttr()) {
+        UsdColorSpaceDefinitionAPI defn(prim);
+        if (UsdAttribute colorSpacDefnNameAttr = defn.GetColorSpaceDefinitionNameAttr()) {
             TfToken colorSpace;
-            if (colorSpaceAttr.Get(&colorSpace)) {
-                if ((colorSpace == GfColorSpaceNames->Custom) ||
-                    GfColorSpace::IsValid(colorSpace)) {
-                    return colorSpace;
-                }
+            if (colorSpacDefnNameAttr.Get(&colorSpace)) {
+                if (name == colorSpace)
+                    return true;
             }
         }
         prim = prim.GetParent();
     }
+    return false;
+}
 
-    return GfColorSpaceNames->Raw;
+} // anon
+
+TfToken UsdColorSpaceAPI::ComputeColorSpaceName() const
+{
+    // test this prim, and all of it's parents for an assigned colorspace.
+    UsdPrim prim = GetPrim();
+    while (prim) {
+        if (UsdAttribute colorSpaceAttr = UsdColorSpaceAPI(prim).GetColorSpaceNameAttr()) {
+            TfToken colorSpace;
+            if (colorSpaceAttr.Get(&colorSpace)) {
+                // if this prim, or any of its parents defines the color space return it
+                if (_IsValidColorSpaceName(prim, colorSpace)) {
+                    return colorSpace;
+                }
+                // treat an unknown color space as raw (ie, no transform is appropriate)
+                return GfColorSpaceNames->Raw;
+            }
+        }
+        prim = prim.GetParent();
+    }
+    
+    // a color space is defined nowhere, so the default is LinearRec709.
+    return GfColorSpaceNames->LinearRec709;
 }
 
 TfToken UsdColorSpaceAPI::ComputeColorSpaceName(const UsdAttribute& attr) const
@@ -239,49 +217,42 @@ TfToken UsdColorSpaceAPI::ComputeColorSpaceName(const UsdAttribute& attr) const
 
     TfToken colorSpace = attr.GetColorSpace();
     if (!colorSpace.IsEmpty()) {
-        if ((colorSpace == GfColorSpaceNames->Custom) ||
-             GfColorSpace::IsValid(colorSpace)) {
+        // if this prim, or any of its parents defines the color space return it
+        if (_IsValidColorSpaceName(prim, colorSpace)) {
             return colorSpace;
         }
+        // treat an unknown color space as raw (ie, no transform is appropriate)
+        return GfColorSpaceNames->Raw;
     }
 
+    // the attribute will use the prim's computed color space.
     return ComputeColorSpaceName();
 }
 
 GfColorSpace UsdColorSpaceAPI::ComputeColorSpace() const
 {
-    // Check for a colorSpace property on this prim.
-    if (UsdAttribute colorSpaceAttr = GetColorSpaceNameAttr()) {
-        TfToken colorSpace;
-        if (colorSpaceAttr.Get(&colorSpace)) {
-            if (colorSpace == GfColorSpaceNames->Custom) {
-                return _ColorSpaceFromAttributes();
-            }
-            if (GfColorSpace::IsValid(colorSpace)) {
-                return GfColorSpace(colorSpace);
-            }
-            return GfColorSpace(GfColorSpaceNames->Raw);
-        }
+    TfToken colorSpace = ComputeColorSpaceName();
+    if (GfColorSpace::IsValid(colorSpace)) {
+        return GfColorSpace(colorSpace);
     }
 
-    // Check the prim's parents for a colorSpace property.
-    UsdPrim prim = GetPrim().GetParent();
+    // If it wasn't a stock named GfColorSpace it must've been defined
+    // on the prim, or an ancestor.
+    UsdPrim prim = GetPrim();
     while (prim) {
-        if (UsdAttribute colorSpaceAttr = UsdColorSpaceAPI(prim).GetColorSpaceNameAttr()) {
-            TfToken colorSpace;
-            if (colorSpaceAttr.Get(&colorSpace)) {
-                if (colorSpace == GfColorSpaceNames->Custom) {
-                    return _ColorSpaceFromAttributes();
+        UsdColorSpaceDefinitionAPI defn(prim);
+        if (UsdAttribute colorSpacDefnNameAttr = defn.GetColorSpaceDefinitionNameAttr()) {
+            TfToken defColorSpace;
+            if (colorSpacDefnNameAttr.Get(&defColorSpace)) {
+                if (colorSpace == defColorSpace) {
+                    return defn.ComputeColorSpaceFromDefinitionAttributes();
                 }
-                if (GfColorSpace::IsValid(colorSpace)) {
-                    return GfColorSpace(colorSpace);
-                }
-                return GfColorSpace(GfColorSpaceNames->Raw);
             }
         }
         prim = prim.GetParent();
     }
-
+    
+    // should never get here, but this is a reasonable fail safe.
     return GfColorSpace(GfColorSpaceNames->Raw);
 }
 
@@ -299,50 +270,31 @@ GfColorSpace UsdColorSpaceAPI::ComputeColorSpace(const UsdAttribute& attr) const
 
     TfToken colorSpace = attr.GetColorSpace();
     if (!colorSpace.IsEmpty()) {
-        if ((colorSpace == GfColorSpaceNames->Custom)) {
-            return _ColorSpaceFromAttributes();
-        }
         if (GfColorSpace::IsValid(colorSpace)) {
             return GfColorSpace(colorSpace);
         }
+        
+        // If it wasn't a stock named GfColorSpace it might've been defined
+        // on the prim, or an ancestor.
+        UsdPrim prim = GetPrim();
+        while (prim) {
+            UsdColorSpaceDefinitionAPI defn(prim);
+            if (UsdAttribute colorSpacDefnNameAttr = defn.GetColorSpaceDefinitionNameAttr()) {
+                TfToken defColorSpace;
+                if (colorSpacDefnNameAttr.Get(&defColorSpace)) {
+                    if (colorSpace == defColorSpace) {
+                        return defn.ComputeColorSpaceFromDefinitionAttributes();
+                    }
+                }
+            }
+            prim = prim.GetParent();
+        }
+
         return GfColorSpace(GfColorSpaceNames->Raw);
     }
 
+    // color space wasn't on the attribute so check if it's on the prim
     return ComputeColorSpace();
-}
-
-GfColorSpace UsdColorSpaceAPI::_ColorSpaceFromAttributes() const
-{
-    // Check for a colorSpace property on this prim.
-    if (UsdAttribute colorSpaceAttr = GetColorSpaceNameAttr()) {
-        TfToken colorSpace;
-        if (colorSpaceAttr.Get(&colorSpace)) {
-            if (colorSpace == GfColorSpaceNames->Custom) {
-                GfVec2f redChroma;
-                GfVec2f greenChroma;
-                GfVec2f blueChroma;
-                GfVec2f whitePoint;
-                float gamma;
-                float linearBias;
-                GetColorSpaceRedChromaAttr().Get(&redChroma);
-                GetColorSpaceGreenChromaAttr().Get(&greenChroma);
-                GetColorSpaceBlueChromaAttr().Get(&blueChroma);
-                GetColorSpaceWhitePointAttr().Get(&whitePoint);
-                GetColorSpaceGammaAttr().Get(&gamma);
-                GetColorSpaceLinearBiasAttr().Get(&linearBias);
-                return GfColorSpace(
-                    GfColorSpaceNames->Custom,
-                    redChroma,
-                    greenChroma,
-                    blueChroma,
-                    whitePoint,
-                    gamma,
-                    linearBias);
-            }
-        }
-    }
-
-    return GfColorSpace(GfColorSpaceNames->Raw);
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE

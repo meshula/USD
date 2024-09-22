@@ -250,3 +250,99 @@ PXR_NAMESPACE_CLOSE_SCOPE
 // 'PXR_NAMESPACE_OPEN_SCOPE', 'PXR_NAMESPACE_CLOSE_SCOPE'.
 // ===================================================================== //
 // --(BEGIN CUSTOM CODE)--
+
+PXR_NAMESPACE_OPEN_SCOPE
+
+void UsdColorSpaceDefinitionAPI::CreateColorSpaceAttrsWithChroma(
+        const GfVec2f& redChroma,
+        const GfVec2f& greenChroma,
+        const GfVec2f& blueChroma,
+        const GfVec2f& whitePoint,
+        float gamma, float linearBias)
+{
+    CreateColorSpaceRedChromaAttr(VtValue(redChroma));
+    CreateColorSpaceGreenChromaAttr(VtValue(greenChroma));
+    CreateColorSpaceBlueChromaAttr(VtValue(blueChroma));
+    CreateColorSpaceWhitePointAttr(VtValue(whitePoint));
+    CreateColorSpaceGammaAttr(VtValue(gamma));
+    CreateColorSpaceLinearBiasAttr(VtValue(linearBias));
+}
+
+void UsdColorSpaceDefinitionAPI::CreateColorSpaceAttrsWithMatrix(
+        const GfMatrix3f& rgbToXYZ,
+        float gamma, float linearBias)
+{
+    CreateColorSpaceGammaAttr(VtValue(gamma));
+    CreateColorSpaceLinearBiasAttr(VtValue(linearBias));
+
+    GfColorSpace colorSpace(TfToken("temp"), rgbToXYZ, gamma, linearBias);
+
+    std::tuple<GfVec2f, GfVec2f, GfVec2f, GfVec2f> primariesAndWhitePoint =
+        colorSpace.GetPrimariesAndWhitePoint();
+    GfVec2f redChroma   = std::get<0>(primariesAndWhitePoint);
+    GfVec2f greenChroma = std::get<1>(primariesAndWhitePoint);
+    GfVec2f blueChroma  = std::get<2>(primariesAndWhitePoint);
+    GfVec2f whitePoint  = std::get<3>(primariesAndWhitePoint);
+
+    CreateColorSpaceRedChromaAttr(VtValue(redChroma));
+    CreateColorSpaceGreenChromaAttr(VtValue(greenChroma));
+    CreateColorSpaceBlueChromaAttr(VtValue(blueChroma));
+    CreateColorSpaceWhitePointAttr(VtValue(whitePoint));
+}
+
+
+GfColorSpace UsdColorSpaceDefinitionAPI::ComputeColorSpaceFromDefinitionAttributes() const
+{
+    do {
+        auto r = GetColorSpaceRedChromaAttr();
+        if (!r)
+            break;
+        auto g = GetColorSpaceGreenChromaAttr();
+        if (!g)
+            break;
+        auto b = GetColorSpaceBlueChromaAttr();
+        if (!b)
+            break;
+        auto wp = GetColorSpaceWhitePointAttr();
+        if (!wp)
+            break;
+        auto gm = GetColorSpaceGammaAttr();
+        if (!gm)
+            break;
+        auto lb = GetColorSpaceLinearBiasAttr();
+        if (!lb)
+            break;
+        auto n = GetColorSpaceDefinitionNameAttr();
+        if (!n)
+            break;
+
+        GfVec2f redChroma;
+        GfVec2f greenChroma;
+        GfVec2f blueChroma;
+        GfVec2f whitePoint;
+        float gamma;
+        float linearBias;
+        TfToken name;
+        
+        r.Get(&redChroma);
+        g.Get(&greenChroma);
+        b.Get(&blueChroma);
+        wp.Get(&whitePoint);
+        gm.Get(&gamma);
+        lb.Get(&linearBias);
+        n.Get(&name);
+        
+        return GfColorSpace(name,
+                            redChroma,
+                            greenChroma,
+                            blueChroma,
+                            whitePoint,
+                            gamma,
+                            linearBias);
+    } while(true);
+
+    return GfColorSpace(GfColorSpaceNames->Raw);
+}
+
+
+PXR_NAMESPACE_CLOSE_SCOPE

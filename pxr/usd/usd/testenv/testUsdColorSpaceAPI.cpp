@@ -182,7 +182,7 @@ int main() {
     TfToken colorSpace;
     TF_VERIFY(rootCsAttr.Get(&colorSpace));
     TF_VERIFY(colorSpace == GfColorSpaceNames->LinearRec2020);
-    TF_VERIFY(GfColorSpace::IsConstructable(colorSpace));
+    TF_VERIFY(GfColorSpace::IsValid(colorSpace));
 
     TF_VERIFY(rootCsAPI.GetColorSpaceNameAttr().Get(&colorSpace));
     TF_VERIFY(colorSpace == GfColorSpaceNames->LinearRec2020);
@@ -198,21 +198,21 @@ int main() {
     // Create a child prim with a different color space, and verify it overrides the parent
     UsdPrim childPrim = stage->OverridePrim(SdfPath("/rec2020/linSRGB"));
     auto childCsAPI = UsdColorSpaceAPI::Apply(childPrim);
-    auto childCsAttr = childCsAPI.CreateColorSpaceNameAttr(VtValue(GfColorSpaceNames->LinearSRGB));
-    TF_VERIFY(childCsAPI.ComputeColorSpaceName() == GfColorSpaceNames->LinearSRGB);
+    auto childCsAttr = childCsAPI.CreateColorSpaceNameAttr(VtValue(GfColorSpaceNames->LinearRec709));
+    TF_VERIFY(childCsAPI.ComputeColorSpaceName() == GfColorSpaceNames->LinearRec709);
 
     // Create a color attribute on childPrim, and verify it inherits the color space from childPrim
     UsdAttribute childColorAttr = childPrim.CreateAttribute(TfToken("color"), SdfValueTypeNames->Color3f);
-    TF_VERIFY(childColorAttr.GetColorSpace() == GfColorSpaceNames->LinearSRGB);
+    TF_VERIFY(childColorAttr.GetColorSpace() == GfColorSpaceNames->LinearRec709);
 
     // Create a grandchild prim with no color space, and verify it inherits the parent's color space
     UsdPrim grandchildPrim = stage->OverridePrim(SdfPath("/rec2020/linSRGB/noColorSpace"));
     auto grandchildCsAPI = UsdColorSpaceAPI::Apply(grandchildPrim);
-    TF_VERIFY(grandchildCsAPI.ComputeColorSpaceName() == GfColorSpaceNames->LinearSRGB);
+    TF_VERIFY(grandchildCsAPI.ComputeColorSpaceName() == GfColorSpaceNames->LinearRec709);
 
     // Create a color attribute on grandchildPrim, and verify it inherits the color space from childPrim
     UsdAttribute grandchildColorAttr = grandchildPrim.CreateAttribute(TfToken("color"), SdfValueTypeNames->Color3f);
-    TF_VERIFY(grandchildColorAttr.GetColorSpace() == GfColorSpaceNames->LinearSRGB);
+    TF_VERIFY(grandchildColorAttr.GetColorSpace() == GfColorSpaceNames->LinearRec709);
 
     // Create a root prim without assigning color space, and verify the fallback is Linear Rec709
     UsdPrim rootPrim2 = stage->OverridePrim(SdfPath("/noColorSpace"));
@@ -226,21 +226,21 @@ int main() {
     // Create a child prim with a different color space, and verify it overrides the parent
     UsdPrim childPrim2 = stage->OverridePrim(SdfPath("/noColorSpace/linSRGB"));
     auto child2CsAPI = UsdColorSpaceAPI::Apply(childPrim2);
-    auto child2CsAttr = child2CsAPI.CreateColorSpaceNameAttr(VtValue(GfColorSpaceNames->LinearSRGB));
-    TF_VERIFY(child2CsAPI.ComputeColorSpaceName() == GfColorSpaceNames->LinearSRGB);
+    auto child2CsAttr = child2CsAPI.CreateColorSpaceNameAttr(VtValue(GfColorSpaceNames->LinearRec709));
+    TF_VERIFY(child2CsAPI.ComputeColorSpaceName() == GfColorSpaceNames->LinearRec709);
 
     // Create a color attribute on childPrim2, and verify it inherits the color space from childPrim2
     UsdAttribute childColorAttr2 = childPrim2.CreateAttribute(TfToken("color"), SdfValueTypeNames->Color3f);
-    TF_VERIFY(childColorAttr2.GetColorSpace() == GfColorSpaceNames->LinearSRGB);
+    TF_VERIFY(childColorAttr2.GetColorSpace() == GfColorSpaceNames->LinearRec709);
 
     // Create a grandchild prim with no color space, and verify it inherits the parent's color space
     UsdPrim grandchildPrim2 = stage->OverridePrim(SdfPath("/noColorSpace/linSRGB/noColorSpace"));
     auto grandchild2CsAPI = UsdColorSpaceAPI::Apply(grandchildPrim2);
-    TF_VERIFY(grandchild2CsAPI.ComputeColorSpaceName() == GfColorSpaceNames->LinearSRGB);
+    TF_VERIFY(grandchild2CsAPI.ComputeColorSpaceName() == GfColorSpaceNames->LinearRec709);
 
     // Create a color attribute on grandchildPrim2, and verify it inherits the color space from childPrim2
     UsdAttribute grandchildColorAttr2 = grandchildPrim2.CreateAttribute(TfToken("color"), SdfValueTypeNames->Color3f);
-    TF_VERIFY(grandchildColorAttr2.GetColorSpace() == GfColorSpaceNames->LinearSRGB);
+    TF_VERIFY(grandchildColorAttr2.GetColorSpace() == GfColorSpaceNames->LinearRec709);
 
     // Test the CanApply method
     TF_VERIFY(UsdColorSpaceAPI::CanApply(rootPrim));
