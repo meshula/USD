@@ -46,6 +46,10 @@ pxr_plugin(hdEmbree
         debugCodes.h
         renderParam.h
 
+    PRIVATE_CLASSES
+        debugCodes
+        implicitSurfaceSceneIndexPlugin
+
     PRIVATE_HEADERS
         pxrIES/ies.h
         pxrIES/pxrIES.h
@@ -54,9 +58,6 @@ pxr_plugin(hdEmbree
     CPPFILES
         pxrIES/ies.cpp
         pxrIES/pxrIES.cpp
-
-    PRIVATE_CLASSES
-        implicitSurfaceSceneIndexPlugin
 
     RESOURCE_FILES
         plugInfo.json
