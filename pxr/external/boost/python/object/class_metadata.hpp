@@ -33,17 +33,16 @@
 
 #include "pxr/external/boost/python/has_back_reference.hpp"
 #include "pxr/external/boost/python/bases.hpp"
+#include "pxr/external/boost/python/type_list.hpp"
 
+#include "pxr/external/boost/python/detail/mpl2/at.hpp"
 #include "pxr/external/boost/python/detail/mpl2/if.hpp"
 #include "pxr/external/boost/python/detail/mpl2/eval_if.hpp"
 #include "pxr/external/boost/python/detail/mpl2/bool.hpp"
 #include "pxr/external/boost/python/detail/mpl2/or.hpp"
-#include <boost/mpl/identity.hpp>
-#include <boost/mpl/for_each.hpp>
-#include <boost/mpl/placeholders.hpp>
-#include <boost/mpl/single_view.hpp>
+#include "pxr/external/boost/python/detail/mpl2/identity.hpp"
 
-#include <boost/noncopyable.hpp>
+#include "pxr/external/boost/python/noncopyable.hpp"
 
 namespace PXR_BOOST_NAMESPACE { namespace python { namespace objects { 
 
@@ -86,12 +85,23 @@ struct register_base_of
 // Preamble of register_class.  Also used for callback classes, which
 // need some registration of their own.
 //
+template <class T, class Bases, size_t ...I>
+inline void register_bases(std::index_sequence<I...>)
+{
+    ((register_base_of<T>()(
+          typename python::detail::add_pointer<
+              typename python::detail::mpl2::at_c<Bases, I>::type
+           >::type(nullptr))
+     ), ...);
+}
 
 template <class T, class Bases>
 inline void register_shared_ptr_from_python_and_casts(T*, Bases)
 {
   // Constructor performs registration
+#ifdef PXR_BOOST_PYTHON_HAS_BOOST_SHARED_PTR
   python::detail::force_instantiate(converter::shared_ptr_from_python<T, boost::shared_ptr>());
+#endif
   python::detail::force_instantiate(converter::shared_ptr_from_python<T, std::shared_ptr>());
 
   //
@@ -99,7 +109,8 @@ inline void register_shared_ptr_from_python_and_casts(T*, Bases)
   // interface to mpl::for_each to avoid an MSVC 6 bug.
   //
   register_dynamic_id<T>();
-  mpl::for_each(register_base_of<T>(), (Bases*)0, (PXR_BOOST_NAMESPACE::python::detail::add_pointer<mpl::_>*)0);
+  register_bases<T, Bases>(
+      std::make_index_sequence<python::detail::mpl2::size<Bases>::value>());
 }
 
 //
@@ -110,7 +121,7 @@ struct select_held_type
   : python::detail::mpl2::if_<
         python::detail::mpl2::or_<
             python::detail::specifies_bases<T>
-          , PXR_BOOST_NAMESPACE::python::detail::is_same<T,noncopyable>
+          , PXR_BOOST_NAMESPACE::python::detail::is_same<T,python::noncopyable>
         >
       , Prev
       , T
@@ -157,9 +168,9 @@ struct class_metadata
     >::type bases;
 
     typedef python::detail::mpl2::or_<
-        PXR_BOOST_NAMESPACE::python::detail::is_same<X1,noncopyable>
-      , PXR_BOOST_NAMESPACE::python::detail::is_same<X2,noncopyable>
-      , PXR_BOOST_NAMESPACE::python::detail::is_same<X3,noncopyable>
+        PXR_BOOST_NAMESPACE::python::detail::is_same<X1,python::noncopyable>
+      , PXR_BOOST_NAMESPACE::python::detail::is_same<X2,python::noncopyable>
+      , PXR_BOOST_NAMESPACE::python::detail::is_same<X3,python::noncopyable>
     > is_noncopyable;
     
     //
@@ -178,7 +189,7 @@ struct class_metadata
     // pointer, we're talking about the pointee.
     typedef typename python::detail::mpl2::eval_if<
         use_value_holder
-      , mpl::identity<held_type>
+      , python::detail::mpl2::identity<held_type>
       , pointee<held_type>
     >::type wrapped;
 
@@ -290,7 +301,7 @@ struct class_metadata
     inline static void maybe_register_callback_class(T2*, python::detail::mpl2::true_)
     {
 	objects::register_shared_ptr_from_python_and_casts(
-            (wrapped*)0, mpl::single_view<T2>());
+            (wrapped*)0, python::type_list<T2>());
         // explicit qualification of type_id makes msvc6 happy
         objects::copy_class_object(python::type_id<T2>(), python::type_id<wrapped>());
     }

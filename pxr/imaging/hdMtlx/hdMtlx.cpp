@@ -26,6 +26,7 @@
 
 #include <MaterialXCore/Document.h>
 #include <MaterialXCore/Node.h>
+#include <MaterialXFormat/Environ.h>
 #include <MaterialXFormat/Util.h>
 #include <MaterialXFormat/XmlIo.h>
 
@@ -48,6 +49,12 @@ _ComputeSearchPaths()
     for (auto path : searchPathStrings) {
         searchPaths.append(mx::FilePath(path));
     }
+#ifdef PXR_DCC_LOCATION_ENV_VAR
+    const std::string dccLocationEnvVar(PXR_DCC_LOCATION_ENV_VAR);
+    const std::string dccLocation = mx::getEnviron(dccLocationEnvVar);
+    searchPaths.append(mx::FilePath(dccLocation + PXR_MATERIALX_STDLIB_DIR));
+    searchPaths.append(mx::FilePath(dccLocation + PXR_MATERIALX_BASE_DIR));
+#endif
     return searchPaths;
 }
 
@@ -115,6 +122,21 @@ _AddNodeToNodeGraph(
     }
     // Otherwise get the existing node from the mxNodeGraph
     return mxNodeGraph->getNode(mxNodeName);
+}
+
+std::string
+HdMtlxCreateNameFromPath(SdfPath const& path)
+{
+#ifdef PXR_DCC_LOCATION_ENV_VAR
+    std::string pathnm = path.GetText();
+    if(pathnm.size() > 3 &&
+       pathnm[0] == '/' && pathnm[1] == '_' && pathnm[2] == '_') {
+        pathnm[0] = 's'; // triple leading underscores aren't allowed in osl
+    }
+    return TfStringReplace( pathnm, "/", "_");
+#else
+    return path.GetName();
+#endif
 }
 
 // Convert the HdParameterValue to a string MaterialX can understand
@@ -230,7 +252,7 @@ _AddMaterialXNode(
     const SdfPath hdNodePath(hdNodeName.GetString());
     const std::string mxNodeCategory = _GetMxNodeString(mxNodeDef);
     const std::string &mxNodeType = mxNodeDef->getType();
-    const std::string &mxNodeName = hdNodePath.GetName();
+    const std::string &mxNodeName = HdMtlxCreateNameFromPath(hdNodePath);
 
     // Add the mxNode to the mxNodeGraph
     mx::NodePtr mxNode =

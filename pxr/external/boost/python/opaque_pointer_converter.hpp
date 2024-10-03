@@ -31,7 +31,7 @@
 # include "pxr/external/boost/python/errors.hpp"
 
 # include "pxr/external/boost/python/detail/mpl2/eval_if.hpp"
-# include <boost/mpl/identity.hpp>
+# include "pxr/external/boost/python/detail/mpl2/identity.hpp"
 
 // opaque --
 //
@@ -129,7 +129,7 @@ PyTypeObject opaque<Pointee>::type_object =
 {
     PyVarObject_HEAD_INIT(NULL, 0)
     0,
-    sizeof( BOOST_DEDUCED_TYPENAME opaque<Pointee>::python_instance ),
+    sizeof( typename opaque<Pointee>::python_instance ),
     0,
     ::PXR_BOOST_NAMESPACE::python::detail::dealloc,
     0,          /* tp_print */

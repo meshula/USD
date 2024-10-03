@@ -13,15 +13,6 @@ if (PXR_USE_INTERNAL_BOOST_PYTHON)
         Python3::Python
     )
 
-    # Ideally we'd use the modern Boost::boost or Boost::headers
-    # targets in the LIBRARIES list above. However, Boost::boost
-    # doesn't publish INTERFACE_INCLUDE_DIRECTORIES, which breaks
-    # _pxr_target_link_libraries in monolithic builds, and
-    # Boost::headers is only available in CMake 3.15+.
-    set(include_dirs
-        ${Boost_INCLUDE_DIRS}
-    )
-
     set(cppfiles
         src/converter/arg_to_python_base.cpp
         src/converter/builtin_converters.cpp
@@ -174,6 +165,7 @@ pxr_library(python
         detail/enable_if.hpp
         detail/exception_handler.hpp
         detail/force_instantiate.hpp
+        detail/get_pointer.hpp
         detail/if_else.hpp
         detail/indirect_traits.hpp
         detail/integer_cast.hpp
@@ -186,11 +178,18 @@ pxr_library(python
         detail/map_entry.hpp
         detail/mpl_lambda.hpp
         detail/mpl2/and.hpp
+        detail/mpl2/at.hpp
         detail/mpl2/bool.hpp
         detail/mpl2/eval_if.hpp
+        detail/mpl2/front.hpp
+        detail/mpl2/identity.hpp
         detail/mpl2/if.hpp
+        detail/mpl2/int.hpp
         detail/mpl2/not.hpp
+        detail/mpl2/pop_front.hpp
+        detail/mpl2/push_front.hpp
         detail/mpl2/or.hpp
+        detail/mpl2/size.hpp
         detail/msvc_typeinfo.hpp
         detail/none.hpp
         detail/not_specified.hpp
@@ -246,6 +245,7 @@ pxr_library(python
         manage_new_object.hpp
         module.hpp
         module_init.hpp
+        noncopyable.hpp
         object/add_to_namespace.hpp
         object/class.hpp
         object/class_detail.hpp
@@ -292,6 +292,7 @@ pxr_library(python
         ptr.hpp
         pure_virtual.hpp
         raw_function.hpp
+        ref.hpp
         refcount.hpp
         reference_existing_object.hpp
         register_ptr_to_python.hpp
@@ -318,7 +319,9 @@ pxr_library(python
         to_python_indirect.hpp
         to_python_value.hpp
         tuple.hpp
+        type.hpp
         type_id.hpp
+        type_list.hpp
         with_custodian_and_ward.hpp
         wrapper.hpp
 
@@ -341,6 +344,12 @@ pxr_library(python
         ${cppfiles}
 
     DISABLE_PRECOMPILED_HEADERS
+)
+
+# Disable insertion of C++ signatures in docstrings. We generate this
+# information separately via our Python doc build process.
+target_compile_definitions(python
+    PUBLIC PXR_BOOST_PYTHON_NO_PY_SIGNATURES
 )
 
 if (PXR_USE_INTERNAL_BOOST_PYTHON)
@@ -373,6 +382,12 @@ endif()
 # Since we're not going through the normal pxr_build_test macros
 # we need to elide tests here if requested.
 if (NOT PXR_BUILD_TESTS)
+    return()
+endif()
+
+# XXX:
+# Disable tests in static builds due to symbol export issues.
+if(WIN32 AND NOT TARGET shared_libs)
     return()
 endif()
 
@@ -505,7 +520,10 @@ boost_python_test("injected")
 boost_python_test("properties")
 boost_python_test("return_arg")
 boost_python_test("staticmethod")
-boost_python_test("boost_shared_ptr")
+
+# boost::shared_ptr is unsupported in OpenUSD so we disable this test.
+# boost_python_test("boost_shared_ptr")
+
 boost_python_test("shared_ptr")
 boost_python_test("enable_shared_from_this")
 boost_python_test("andreas_beyer")

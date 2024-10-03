@@ -51,7 +51,8 @@ namespace detail
       static constexpr size_t compute_index()
       {
           size_t idx = 0;
-          ((match_t<T>::value ? true : (++idx, false)) || ...);
+          [[maybe_unused]] const bool found_match =
+              ((match_t<T>::value ? true : (++idx, false)) || ...);
           return idx;
       }
 
@@ -159,9 +160,9 @@ namespace detail
 
       // Users must not supply a default implementation for non-class
       // methods.
-      BOOST_STATIC_CONSTANT(
-          bool, has_default_implementation = (
-              !is_same<default_implementation_t, void(not_specified::*)()>::value));
+      static constexpr 
+          bool has_default_implementation = (
+              !is_same<default_implementation_t, void(not_specified::*)()>::value);
       
    public: // Extractor functions which pull the appropriate value out
            // of the tuple

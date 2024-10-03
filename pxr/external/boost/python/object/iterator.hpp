@@ -30,12 +30,12 @@
 # include "pxr/external/boost/python/object/class_detail.hpp"
 # include "pxr/external/boost/python/object/function_object.hpp"
 
-# include <boost/mpl/vector/vector10.hpp>
 # include "pxr/external/boost/python/detail/mpl2/if.hpp"
 
 # include "pxr/external/boost/python/detail/raw_pyobject.hpp"
 
-# include <boost/type.hpp>
+# include "pxr/external/boost/python/type.hpp"
+# include "pxr/external/boost/python/type_list.hpp"
 
 # include <iterator>
 #include <type_traits>
@@ -114,7 +114,7 @@ namespace detail
             , make_function(
                 next_fn()
               , policies
-              , mpl::vector2<result_type,range_&>()
+              , type_list<result_type,range_&>()
             ));
   }
 
@@ -160,14 +160,14 @@ namespace detail
     , Accessor2 const& get_finish
     , NextPolicies const& /*next_policies*/
     , Iterator const& (*)()
-    , boost::type<Target>*
+    , type<Target>*
     , int
   )
   {
       return make_function(
           py_iter_<Target,Iterator,Accessor1,Accessor2,NextPolicies>(get_start, get_finish)
         , default_call_policies()
-        , mpl::vector2<iterator_range<NextPolicies,Iterator>, back_reference<Target&> >()
+        , type_list<iterator_range<NextPolicies,Iterator>, back_reference<Target&> >()
       );
   }
 
@@ -177,7 +177,7 @@ namespace detail
     , Accessor2 const& get_finish
     , NextPolicies const& next_policies
     , Iterator& (*)()
-    , boost::type<Target>*
+    , type<Target>*
     , ...)
   {
       return make_iterator_function(
@@ -185,7 +185,7 @@ namespace detail
         , get_finish
         , next_policies
         , (Iterator const&(*)())0
-        , (boost::type<Target>*)0
+        , (type<Target>*)0
         , 0
       );
   }
@@ -203,7 +203,7 @@ inline object make_iterator_function(
     Accessor1 const& get_start
   , Accessor2 const& get_finish
   , NextPolicies const& next_policies
-  , boost::type<Target>* = 0
+  , type<Target>* = 0
 )
 {
     typedef std::invoke_result_t<Accessor1, Target&> iterator;
@@ -215,7 +215,7 @@ inline object make_iterator_function(
       , get_finish
       , next_policies
       , (iterator_cref(*)())0
-      , (boost::type<Target>*)0
+      , (type<Target>*)0
       , 0
     );
 }
