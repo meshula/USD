@@ -27,7 +27,6 @@
 #include "pxr/external/boost/python.hpp"
 #include "pxr/external/boost/python/numpy/config.hpp"
 #include "pxr/external/boost/python/numpy/numpy_object_mgr_traits.hpp"
-#include <boost/mpl/for_each.hpp>
 #include "pxr/external/boost/python/detail/type_traits.hpp"
 
 namespace PXR_BOOST_NAMESPACE { namespace python { namespace numpy {
@@ -37,7 +36,7 @@ namespace PXR_BOOST_NAMESPACE { namespace python { namespace numpy {
  *
  *  @todo This could have a lot more interesting accessors.
  */
-class BOOST_NUMPY_DECL dtype : public object {
+class PXR_BOOST_NUMPY_DECL dtype : public object {
   static python::detail::new_reference convert(object::object_cref arg, bool align);
 public:
 
@@ -67,7 +66,7 @@ public:
    *  This is more permissive than equality tests.  For instance, if long and int are the same
    *  size, the dtypes corresponding to each will be equivalent, but not equal.
    */
-  friend BOOST_NUMPY_DECL bool equivalent(dtype const & a, dtype const & b);
+  friend PXR_BOOST_NUMPY_DECL bool equivalent(dtype const & a, dtype const & b);
 
   /**
    *  @brief Register from-Python converters for NumPy's built-in array scalar types.
@@ -81,7 +80,7 @@ public:
 
 };
 
-BOOST_NUMPY_DECL bool equivalent(dtype const & a, dtype const & b);
+PXR_BOOST_NUMPY_DECL bool equivalent(dtype const & a, dtype const & b);
 
 namespace detail
 {
@@ -101,7 +100,7 @@ struct builtin_dtype<T,true> {
 };
 
 template <>
-struct BOOST_NUMPY_DECL builtin_dtype<bool,true> {
+struct PXR_BOOST_NUMPY_DECL builtin_dtype<bool,true> {
   static dtype get();
 };
 

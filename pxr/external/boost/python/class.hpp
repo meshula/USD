@@ -14,12 +14,13 @@
 #include "pxr/external/boost/python/common.hpp"
 
 #ifndef PXR_USE_INTERNAL_BOOST_PYTHON
+#include "pxr/external/boost/python/noncopyable.hpp"
 #include <boost/python/class.hpp>
 #else
 
 # include "pxr/external/boost/python/detail/prefix.hpp"
 
-# include <boost/noncopyable.hpp>
+# include "pxr/external/boost/python/noncopyable.hpp"
 
 # include "pxr/external/boost/python/class_fwd.hpp"
 # include "pxr/external/boost/python/object/class.hpp"
@@ -44,8 +45,8 @@
 # include "pxr/external/boost/python/detail/unwrap_type_id.hpp"
 # include "pxr/external/boost/python/detail/unwrap_wrapper.hpp"
 
-# include <boost/mpl/size.hpp>
-# include <boost/mpl/for_each.hpp>
+# include "pxr/external/boost/python/detail/mpl2/at.hpp"
+# include "pxr/external/boost/python/detail/mpl2/size.hpp"
 # include "pxr/external/boost/python/detail/mpl2/bool.hpp"
 # include "pxr/external/boost/python/detail/mpl2/not.hpp"
 # include "pxr/external/boost/python/detail/mpl2/and.hpp"
@@ -58,23 +59,6 @@ enum no_init_t { no_init };
 
 namespace detail
 {
-  // This function object is used with mpl::for_each to write the id
-  // of the type a pointer to which is passed as its 2nd compile-time
-  // argument. into the iterator pointed to by its runtime argument
-  struct write_type_id
-  {
-      write_type_id(type_info**p) : p(p) {}
-
-      // Here's the runtime behavior
-      template <class T>
-      void operator()(T*) const
-      {
-          *(*p)++ = type_id<T>();
-      }
-
-      type_info** p;
-  };
-
   template <class T>
   struct is_data_member_pointer
       : detail::mpl2::and_<
@@ -119,7 +103,7 @@ namespace detail
         {
             // https://svn.boost.org/trac/boost/ticket/5803
             //typedef typename assertion<detail::mpl2::not_<detail::is_same<Default,Fn> > >::failed test0;
-            typedef typename assertion<detail::is_member_function_pointer<Fn> >::failed test2 BOOST_ATTRIBUTE_UNUSED;
+            [[maybe_unused]] typedef typename assertion<detail::is_member_function_pointer<Fn> >::failed test2;
             not_a_derived_class_member<Default>(Fn());
         }
     };
@@ -156,12 +140,17 @@ class class_ : public objects::class_base
             ids[0] = detail::unwrap_type_id((W*)0, (W*)0);
 
             // Write the rest of the elements into succeeding positions.
-            type_info* p = ids + 1;
-            mpl::for_each(detail::write_type_id(&p), (bases*)0, (detail::add_pointer<mpl::_>*)0);
+            insert_bases(std::make_index_sequence<detail::mpl2::size<bases>::value>());
         }
 
-        BOOST_STATIC_CONSTANT(
-            std::size_t, size = mpl::size<bases>::value + 1);
+        template <size_t ...I>
+        void insert_bases(std::index_sequence<I...>)
+        {
+            ((ids[I+1] = type_id<typename detail::mpl2::at_c<bases, I>::type>()), ...);
+        }
+
+        static constexpr 
+            std::size_t size = detail::mpl2::size<bases>::value + 1;
         type_info ids[size];
     };
     friend struct id_vector;

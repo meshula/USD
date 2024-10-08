@@ -19,8 +19,7 @@
 #else
 
 # include "pxr/external/boost/python/extract.hpp"
-# include <boost/get_pointer.hpp>
-# include <boost/numeric/conversion/cast.hpp>
+# include "pxr/external/boost/python/detail/integer_cast.hpp"
 # include "pxr/external/boost/python/detail/type_traits.hpp"
 # include <vector>
 # include <map>
@@ -395,14 +394,14 @@ namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail {
         element_type& operator*() const
         {
             if (is_detached())
-                return *get_pointer(ptr);
+                return *ptr;
             return Policies::get_item(get_container(), index);
         }
         
         element_type* get() const
         {
             if (is_detached())
-                return get_pointer(ptr);
+                return ptr.get();
             return &Policies::get_item(get_container(), index);
         }
         
@@ -421,7 +420,7 @@ namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail {
         bool
         is_detached() const
         {
-            return get_pointer(ptr) != 0;
+            return ptr.get() != 0;
         }
 
         Container& 
@@ -496,7 +495,7 @@ namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail {
                 DerivedPolicies::get_item(
                     container.get(), DerivedPolicies::
                         convert_index(container.get(), i))
-              , is_pointer<BOOST_DEDUCED_TYPENAME Container::value_type>()
+              , is_pointer<typename Container::value_type>()
             );
         }
 
@@ -617,7 +616,7 @@ namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail {
                     from += max_index;
                 if (from < 0) // Clip lower bounds to zero
                     from = 0;
-                from_ = boost::numeric_cast<Index>(from);
+                from_ = integer_cast<Index>(from);
                 if (from_ > max_index) // Clip upper bounds to max_index.
                     from_ = max_index;
             }
@@ -631,7 +630,7 @@ namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail {
                     to += max_index;
                 if (to < 0)
                     to = 0;
-                to_ = boost::numeric_cast<Index>(to);
+                to_ = integer_cast<Index>(to);
                 if (to_ > max_index)
                     to_ = max_index;
             }
@@ -757,7 +756,6 @@ namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail {
 
     // Don't hide these other get_pointer overloads
     using PXR_BOOST_NAMESPACE::python::get_pointer;
-    using boost::get_pointer;
 }} // namespace python::detail
 
 } // namespace PXR_BOOST_NAMESPACE

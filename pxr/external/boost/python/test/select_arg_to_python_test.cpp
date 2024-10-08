@@ -41,7 +41,6 @@ int main()
     using namespace PXR_BOOST_NAMESPACE::python::converter::detail;
     using namespace PXR_BOOST_NAMESPACE::python::converter;
     using namespace PXR_BOOST_NAMESPACE::python;
-    using namespace boost;
 
 
     ASSERT_SAME(
@@ -49,7 +48,7 @@ int main()
         );
 
     ASSERT_SAME(
-        select_arg_to_python<reference_wrapper<int> >::type, reference_arg_to_python<int>
+        select_arg_to_python<std::reference_wrapper<int> >::type, reference_arg_to_python<int>
         );
     
     ASSERT_SAME(

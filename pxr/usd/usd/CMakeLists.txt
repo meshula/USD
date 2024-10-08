@@ -65,6 +65,7 @@ pxr_library(usd
         timeCode
         validator
         validatorTokens
+        validationContext
         validationError
         validationRegistry
         usdFileFormat
@@ -159,6 +160,8 @@ pxr_library(usd
 
     RESOURCE_FILES
         codegenTemplates/api.h
+        codegenTemplates/generatedSchema.classes.txt
+        codegenTemplates/generatedSchema.module.h
         codegenTemplates/plugInfo.json:no_subst
         codegenTemplates/schemaClass.cpp
         codegenTemplates/schemaClass.h
@@ -494,6 +497,14 @@ pxr_build_test(testUsdValidator
         testenv/testUsdValidator.cpp
 )
 
+pxr_build_test(testUsdValidationContext
+    LIBRARIES
+        tf
+        usd
+    CPPFILES
+        testenv/testUsdValidationContext.cpp
+)
+
 pxr_build_test(testUsdValidationRegistry
     LIBRARIES
         tf
@@ -511,6 +522,18 @@ pxr_build_test(testUsdZipFile_CPP
     CPPFILES
         testenv/testUsdZipFile.cpp
 )
+
+pxr_build_test(testUsdUsdzBugGHSA01
+    LIBRARIES
+        ar
+        arch
+        tf
+        sdf
+        usd
+    CPPFILES
+        testenv/testUsdUsdzBugGHSA01.cpp
+)
+
 
 pxr_install_test_dir(
     SRC testenv/testUsdAppliedAPISchemas
@@ -768,6 +791,11 @@ pxr_install_test_dir(
 )
 
 pxr_install_test_dir(
+    SRC testenv/testUsdValidationContext
+    DEST testUsdValidationContext
+)
+
+pxr_install_test_dir(
     SRC testenv/testUsdValidationRegistry
     DEST testUsdValidationRegistry
 )
@@ -780,6 +808,11 @@ pxr_install_test_dir(
 pxr_install_test_dir(
     SRC testenv/testUsdZipFile.testenv
     DEST testUsdZipFile_CPP
+)
+
+pxr_install_test_dir(
+    SRC testenv/testUsdUsdzBugGHSA01.testenv
+    DEST testUsdUsdzBugGHSA01
 )
 
 pxr_register_test(testUsdCoreValidators
@@ -1024,6 +1057,11 @@ pxr_register_test(testUsdMetadataCpp
 
 pxr_register_test(testUsdValidator
     COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdValidator"
+    EXPECTED_RETURN_CODE 0
+)
+
+pxr_register_test(testUsdValidationContext
+    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdValidationContext"
     EXPECTED_RETURN_CODE 0
 )
 
@@ -1364,5 +1402,9 @@ pxr_register_test(testUsdValidationError
 pxr_register_test(testUsdValidationRegistryPy
     PYTHON
     COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdValidationRegistryPy"
+    EXPECTED_RETURN_CODE 0
+)
+pxr_register_test(testUsdUsdzBugGHSA01
+    COMMAND "${CMAKE_INSTALL_PREFIX}/tests/testUsdUsdzBugGHSA01"
     EXPECTED_RETURN_CODE 0
 )

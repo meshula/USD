@@ -24,16 +24,6 @@
 # include "pxr/external/boost/python/object/iterator.hpp"
 # include "pxr/external/boost/python/object_core.hpp"
 
-# if defined(BOOST_MSVC) && (BOOST_MSVC == 1400) /*
-> warning C4180: qualifier applied to function type has no meaning; ignored
-Peter Dimov wrote:
-This warning is caused by an overload resolution bug in VC8 that cannot be
-worked around and will probably not be fixed by MS in the VC8 line. The
-problematic overload is only instantiated and never called, and the code
-works correctly. */
-#  pragma warning(disable: 4180)
-# endif
-
 #include <functional>
 
 namespace PXR_BOOST_NAMESPACE { namespace python { 
@@ -129,7 +119,7 @@ object range(Accessor1 start, Accessor2 finish, NextPolicies* = 0)
 // Create an iterator-building function which uses the given accessors
 // and next() policies, operating on the given Target type
 template <class NextPolicies, class Target, class Accessor1, class Accessor2>
-object range(Accessor1 start, Accessor2 finish, NextPolicies* = 0, boost::type<Target>* = 0)
+object range(Accessor1 start, Accessor2 finish, NextPolicies* = 0, type<Target>* = 0)
 {
     // typedef typename add_reference<Target>::type target;
     return detail::make_iterator(start, finish, NextPolicies(), (Target&(*)())0);

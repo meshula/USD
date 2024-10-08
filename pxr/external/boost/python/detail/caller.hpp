@@ -31,18 +31,60 @@
 #  include "pxr/external/boost/python/converter/context_result_converter.hpp"
 #  include "pxr/external/boost/python/converter/builtin_converters.hpp"
 
-#  include <boost/compressed_pair.hpp>
-
+#  include "pxr/external/boost/python/detail/mpl2/front.hpp"
 #  include "pxr/external/boost/python/detail/mpl2/eval_if.hpp"
-#  include <boost/mpl/identity.hpp>
-#  include <boost/mpl/size.hpp>
-#  include <boost/mpl/at.hpp>
-#  include <boost/mpl/int.hpp>
+#  include "pxr/external/boost/python/detail/mpl2/identity.hpp"
+#  include "pxr/external/boost/python/detail/mpl2/size.hpp"
+#  include "pxr/external/boost/python/detail/mpl2/at.hpp"
+#  include "pxr/external/boost/python/detail/mpl2/int.hpp"
+
+#  include <type_traits>
 
 namespace PXR_BOOST_NAMESPACE { namespace python { namespace detail { 
 
+// Helper for storing a function object and associated call policies,
+// applying the empty base class optimization for the call policies
+// if possible.
+template <
+    class Policies, 
+    // Apply EBCO if Policies is empty and not final (since we're going
+    // to derive from it in the specialization below)
+    bool EBCO = std::is_empty_v<Policies> && !std::is_final_v<Policies>
+>
+struct policies_holder
+{
+    policies_holder(Policies const& p) : m_p(p) { }
+    Policies& second() { return m_p; }
+    Policies const& second() const { return m_p; }
+
+private:
+    Policies m_p;
+};
+
+template <class Policies>
+struct policies_holder<Policies, true>
+    : protected Policies
+{
+    policies_holder(Policies const& p) : Policies(p) { }
+    Policies& second() { return *this; }
+    Policies const& second() const { return *this; }
+};
+
+template <class F, class Policies>
+struct function_and_policies : policies_holder<Policies>
+{
+    function_and_policies(F const& f, Policies const& p)
+        : policies_holder<Policies>(p), m_f(f) { }
+
+    F& first() { return m_f; }
+    F const& first() const { return m_f; }
+
+private:
+    F m_f;
+};
+
 template <int N>
-inline PyObject* get(mpl::int_<N>, PyObject* const& args_)
+inline PyObject* get(detail::mpl2::int_<N>, PyObject* const& args_)
 {
     return PyTuple_GET_ITEM(args_,N);
 }
@@ -64,7 +106,7 @@ template <class Policies, class Result>
 struct select_result_converter
   : mpl2::eval_if<
         is_same<Result,void>
-      , mpl::identity<void_result_to_python>
+      , detail::mpl2::identity<void_result_to_python>
       , typename Policies::result_converter::template apply<Result>
     >
 {
@@ -113,7 +155,7 @@ struct converter_target_type <void_result_to_python >
 // which left the ret uninitialized and caused segfaults in Python interpreter.
 template<class Policies, class Sig> const signature_element* get_ret()
 {
-    typedef BOOST_DEDUCED_TYPENAME Policies::template extract_return_type<Sig>::type rtype;
+    typedef typename Policies::template extract_return_type<Sig>::type rtype;
     typedef typename select_result_converter<Policies, rtype>::type result_converter;
 
     static const signature_element ret = {
@@ -139,7 +181,7 @@ struct caller;
 template <class F, class CallPolicies, class Sig>
 struct caller_base_select
 {
-    enum { arity = mpl::size<Sig>::value - 1 };
+    enum { arity = detail::mpl2::size<Sig>::value - 1 };
     typedef typename caller_arity<
         std::make_index_sequence<arity>>::template impl<F,CallPolicies,Sig> type;
 };
@@ -189,8 +231,7 @@ struct caller_arity<std::index_sequence<N...>>
                                                          // trailing
                                                          // keyword dict
         {
-            typedef typename mpl::begin<Sig>::type first;
-            typedef typename first::type result_t;
+            typedef typename detail::mpl2::front<Sig>::type result_t;
             typedef typename select_result_converter<Policies, result_t>::type result_converter;
             typedef typename Policies::argument_package argument_package;
             
@@ -202,9 +243,9 @@ struct caller_arity<std::index_sequence<N...>>
             // that type sequence begins with an additional entry representing
             // the function's return type.
             using arg_from_python_tuple = std::tuple<
-                arg_from_python<typename mpl::at_c<Sig, N+1>::type>...
+                arg_from_python<typename detail::mpl2::at_c<Sig, N+1>::type>...
             >;
-            arg_from_python_tuple t{ get(mpl::int_<N>(), inner_args)... };
+            arg_from_python_tuple t{ get(detail::mpl2::int_<N>(), inner_args)... };
 
             if ( (... || !std::get<N>(t).convertible()) ) {
                 return 0;
@@ -244,7 +285,7 @@ struct caller_arity<std::index_sequence<N...>>
             return  res;
         }
      private:
-        compressed_pair<F,Policies> m_data;
+        function_and_policies<F,Policies> m_data;
     };
 };
 

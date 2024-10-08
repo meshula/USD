@@ -34,7 +34,7 @@ unwind_type(U const& p, Generator* = 0);
 // forward declaration, required (at least) by Tru64 cxx V6.5-042 and msvc14.15
 template <class Generator, class U>
 inline typename Generator::result_type
-unwind_type(boost::type<U>*p = 0, Generator* = 0);
+unwind_type(type<U>*p = 0, Generator* = 0);
 #endif
 
 template <class Generator, class U>
@@ -163,13 +163,13 @@ struct unwind_helper2<reference_to_pointer_>
 template <class Generator, class U>
 inline typename Generator::result_type
 #if (!defined(_MSC_VER) || _MSC_VER >= 1915)
-unwind_type(boost::type<U>*, Generator*)
+unwind_type(type<U>*, Generator*)
 #else
-unwind_type(boost::type<U>*p =0, Generator* =0)
+unwind_type(type<U>*p =0, Generator* =0)
 #endif
 {
-    BOOST_STATIC_CONSTANT(int, indirection
-        = (detail::is_pointer<U>::value ? pointer_ : 0)
+    static constexpr int indirection
+        = (detail::is_pointer<U>::value ? pointer_ : 0
                              + (indirect_traits::is_reference_to_pointer<U>::value
                              ? reference_to_pointer_
                              : detail::is_lvalue_reference<U>::value
