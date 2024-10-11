@@ -140,7 +140,17 @@ namespace {
 WRAP_CUSTOM {
     _class
         .def("ComputeColorSpaceName", 
+                (TfToken (UsdColorSpaceAPI::*)() const)
                 &UsdColorSpaceAPI::ComputeColorSpaceName)
+        .def("ComputeColorSpaceName",
+                (TfToken (UsdColorSpaceAPI::*)(const UsdAttribute&) const)
+                &UsdColorSpaceAPI::ComputeColorSpaceName)
+        .def("ComputeColorSpace",
+                (GfColorSpace (UsdColorSpaceAPI::*)() const)
+                &UsdColorSpaceAPI::ComputeColorSpace)
+        .def("ComputeColorSpace",
+                (GfColorSpace (UsdColorSpaceAPI::*)(const UsdAttribute&) const)
+                &UsdColorSpaceAPI::ComputeColorSpace)
     ;
 }
 

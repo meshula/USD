@@ -1467,7 +1467,7 @@ public:
     /// Methods for authoring and querying the display color configuration 
     /// encoded in layer metadata. This color configuration information is
     /// stored as a convenience for use in pipeline tools and is unrelated
-    /// to color space information associated with Usd Attributes or textures.
+    /// to color space information associated with Usd attributes or textures.
     /// 
     /// Site-wide fallback values for the colorConfiguration and
     /// colorManagementSystem metadata can be set in the plugInfo.json file of 
@@ -1483,7 +1483,7 @@ public:
     /// @{
     // --------------------------------------------------------------------- //
 
-    /// Sets the default color configuration to be used to for querying color
+    /// Sets the default color configuration to be used for querying color
     /// configuration metadata stored in a layer. This data is informational
     /// for use in pipeline tools.
     /// 
