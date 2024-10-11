@@ -146,6 +146,7 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 PXR_NAMESPACE_OPEN_SCOPE
 
+#if 0
 void UsdColorSpaceAPI::CreateColorSpaceByName(const TfToken& name)
 {
     if (GfColorSpace::IsValid(name)) {
@@ -155,6 +156,7 @@ void UsdColorSpaceAPI::CreateColorSpaceByName(const TfToken& name)
         TF_CODING_ERROR("Invalid color space name: %s", name.GetText());
     }
 }
+#endif
 
 namespace {
 

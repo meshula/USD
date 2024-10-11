@@ -597,9 +597,11 @@ public:
     /// token values.
     ///
     /// For color or texture attributes that don't have an authored 'colorSpace'
-    /// value, the fallback color space may be determined by applying the 
-    /// UsdColorSpaceAPI to the owning prim of the attribute.
-    /// 
+    /// value, the fallback color space may be authored on the owning prim,
+    /// and determined using the UsdColorSpaceAPI applied schema.
+    ///
+    /// \ref GfColorSpaceNames "Standard color space names"
+    ///
     /// @{
     // ---------------------------------------------------------------------- //
 

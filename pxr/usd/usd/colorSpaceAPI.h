@@ -41,25 +41,29 @@ class SdfAssetPath;
 /// UsdColorSpaceAPI is an API schema that introduces a property for
 /// authoring color space opinions.
 /// 
-/// In the absence of authored color space information on an attribute, the
-/// colorSpace property on a prim indicates the color space to use on such an
-/// attribute, as well as for any attribute without authored color space on a
-/// descendant prim which does not itself specify a color space.
+/// UsdColorSpaceAPI is an API schema that introduces a property for
+/// authoring color space opinions.
 /// 
-/// This schema may be applied to any prim to hierarchly introduce a color
-/// space at any point in a compositional hierarchy.
+/// If an attribute lacks authored color space information, the `colorSpace`
+/// property on a prim specifies the color space to use for that attribute.
+/// This also applies to any attributes on descendant prims that do not have
+/// their own authored color space, unless those prims explicitly specify one.
+/// 
+/// This schema may be applied to any prim to introduce a color space at any
+/// point in a compositional hierarchy.
 /// 
 /// ComputeColorSpaceName is supplied to calculate the effective color space of
 /// a prim, as defined by its most local color space opinion, if any exists.
 /// If none is found, the default is lin_rec709.
 /// 
-/// Color space conversions may be performed by creating a GfColorSpace using
-/// the token returned by ComputeColorSpaceName, assigning that color space and
-/// the color property values of interest to a GfColor, and finally creating 
-/// a new GfColor using the GfColor of interest and a target GfColorSpace.
+/// Color space conversions can be done by first creating a `GfColorSpace` 
+/// using the token returned by `ComputeColorSpaceName`. Then, assign that 
+/// color space and the relevant color property values to a `GfColor`. Finally, 
+/// create a new `GfColor` using the original `GfColor` and the target
+/// `GfColorSpace`.
 /// 
-/// It is recommended that an application perform such conversions infrequently
-/// and cache results in situations where performance is of concern.
+/// It is recommended that in situations where performance is a concern, an 
+/// application should perform conversions infrequently and cache results
 /// 
 /// 
 ///
@@ -213,29 +217,25 @@ public:
     // ===================================================================== //
     // --(BEGIN CUSTOM CODE)--
 
-    /// Creates the color space name attribute with the given name, but not the
-    /// other color space attributes. If the name is not a valid color space
-    /// name, a TF_CODING_ERROR is issued.
-    USD_API
-    void CreateColorSpaceByName(const TfToken& name);
-
-    /// Calculate the color space for the given attribute on this prim. If the
-    /// attribute is not on this prim, a TF_CODING_ERROR is issued. Otherwise,
-    /// the color space is resolved by checking the colorSpace property on this
-    /// attribute. If it is not authored there, this prim is checked for a
-    /// colorSpace property. If no colorSpace property is authored on this prim,
-    /// the prim's parents are checked until a colorSpace property is found or
-    /// the root prim is reached. If no colorSpaceName property is found, the
-    /// fallback color space, lin_rec709, is returned.
+    /// Computes the color space name for the given attribute on this prim. If the
+    /// attribute does not belong to this prim, a `TF_CODING_ERROR` is issued. 
+    /// Otherwise,the color space is determined by checking for a `colorSpace`
+    /// property on the attribute itself. If no such property is authored, the
+    /// prim's `colorSpace` property is checked. If neither the attribute nor
+    /// the prim defines a `colorSpace`, the search continues up the parent
+    /// hierarchy until a `colorSpace` property is found or the root prim is
+    /// reached. If no `colorSpace` property is found, the fallback color space,
+    /// `lin_rec709`, is returned.
     ///
-    /// If a color space name attribute is found, but it is not one of the
-    /// standard color spaces, the value `raw` is returned.
+    /// If a `colorSpace` name is found, but it is not one of the standard color
+    /// spaces, and does not correspond to a user defined color space, the value
+    /// `raw` is returned.
     ///
     /// This function should be considered a reference implementation for
-    /// determining the color space of an attribute. As the algorithm is
-    /// implemented as an exhaustive search performed on the prim hierarchy, an
-    /// application may wish to implement a caching mechanism to avoid
-    /// redundant searches.
+    /// determining the color space of an attribute. Since the algorithm is
+    /// implemented as an exhaustive search performed through the prim 
+    /// hierarchy, applications may want to implement a caching mechanism to
+    /// avoid redundant searches.
     ///
     /// \sa UsdColorSpaceAPI::Apply
     /// \sa UsdColorSpaceAPI::GetColorSpaceAttr
@@ -243,67 +243,35 @@ public:
     USD_API
     TfToken ComputeColorSpaceName(const UsdAttribute& attribute) const;
 
-    /// Calculate the color space for this prim.
-    /// The color space is resolved by checking this prim for a
-    /// colorSpace property. If no colorSpace property is authored,
-    /// the prim's parents are checked until a colorSpace property is found or
-    /// the root prim is reached. If no colorSpace property is found, the
-    /// fallback color space, `lin_rec709`, is returned.
+    /// Computes the color space for the given attribute on this prim, using the
+    /// same algorithm as `ComputeColorSpaceName`. The same performancecaveat
+    /// applies.
+    /// \param attribute The attribute to compute the color space for.
+    USD_API
+    GfColorSpace ComputeColorSpace(const UsdAttribute& attribute) const;
+
+    /// Computes the color space name for this prim.
+    /// The color space is determined by checking this prim for a
+    /// `colorSpace` property. If no `colorSpace `property is authored,
+    /// the search continues up the prim's hierarchyuntil a `colorSpace `
+    /// property is found or the root prim is reached. If no `colorSpace` 
+    /// property is found, the fallback color space, `lin_rec709`, is returned.
     ///
-    /// If a color space name attribute is found, but it is not one of the
-    /// standard color spaces, the value `raw` is returned.
+    /// If a `colorSpace` name is found, but does not match one of the standard 
+    /// color spaces or a user defined color space, the value `raw` is returned.
     ///
-    /// This function should be considered a reference implementation for
-    /// determining the color space of an attribute. As the algorithm is
-    /// implemented as an exhaustive search performed on the prim hierarchy, an
-    /// application may wish to implement a caching mechanism to avoid
-    /// redundant searches.
+    /// This function should be considered as a reference implementation, and
+    /// applications may want to implement a caching mechanism for performance.
     ///
     /// \sa UsdColorSpaceAPI::Apply
     /// \sa UsdColorSpaceAPI::GetColorSpaceAttr
     USD_API
     TfToken ComputeColorSpaceName() const;
 
-    /// Calculate the color space for the given attribute on this prim. If the
-    /// attribute is not on this prim, a TF_CODING_ERROR is issued. Otherwise,
-    /// the color space is resolved by checking the colorSpace property on this
-    /// attribute. If it is not authored there, this prim is checked for a
-    /// colorSpace property. If no colorSpace property is authored on this prim,
-    /// the prim's parents are checked until a colorSpace property is found or
-    /// the root prim is reached. If no colorSpaceName property is found, the
-    /// fallback color space, `lin_rec709`, is returned.
-    ///
-    /// If a color space name attribute is found, but it is not resolvable,
-    /// the value `raw` is returned.
-    ///
-    /// This function should be considered a reference implementation for
-    /// determining the color space of an attribute. As the algorithm is
-    /// implemented as an exhaustive search performed on the prim hierarchy, an
-    /// application may wish to implement a caching mechanism to avoid
-    /// redundant searches.
-    USD_API
-    GfColorSpace ComputeColorSpace(const UsdAttribute& attribute) const;
-
-    /// Calculate the color space for this prim.
-    /// The color space is resolved by checking this prim for a
-    /// colorSpace property. If no colorSpace property is authored,
-    /// the prim's parents are checked until a colorSpace property is found or
-    /// the root prim is reached. If no colorSpace property is found, the
-    /// fallback color space, `lin_rec709`, is returned.
-    ///
-    /// If a color space name attribute is found, but it is not resolvable,
-    /// the value `raw` is returned.
-    ///
-    /// This function should be considered a reference implementation for
-    /// determining the color space of an attribute. As the algorithm is
-    /// implemented as an exhaustive search performed on the prim hierarchy, an
-    /// application may wish to implement a caching mechanism to avoid
-    /// redundant searches.
+    /// Computes the color space for this prim, using the same algorithm as
+    /// `ComputeColorSpaceName`. The same performance caveat applies.
     USD_API
     GfColorSpace ComputeColorSpace() const;
-
-private:
-    GfColorSpace _ColorSpaceFromAttributes() const;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE
