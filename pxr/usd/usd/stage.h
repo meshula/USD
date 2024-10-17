@@ -2335,6 +2335,7 @@ private:
     friend class UsdAttributeQuery;
     friend class UsdEditTarget;
     friend class UsdInherits;
+    friend class UsdNamespaceEditor;
     friend class UsdObject;
     friend class UsdPrim;
     friend class UsdProperty;
